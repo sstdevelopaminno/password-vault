@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  --background: #eef3ff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --muted: #64748b;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --success: #10b981;
+  --danger: #f43f5e;
+  --ring: rgba(76, 173, 255, 0.3);
+  --logo-cyan: #43d8ff;
+  --logo-blue: #3b82f6;
+  --logo-indigo: #5a56f8;
+  --logo-magenta: #d946ef;
+  --logo-pink: #ff4f8d;
+  --surface-1: rgba(255, 255, 255, 0.86);
+  --surface-2: rgba(244, 248, 255, 0.9);
+  --border-soft: rgba(110, 137, 194, 0.3);
+  --border-strong: rgba(87, 128, 214, 0.45);
+  --radius: 24px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Segoe UI", "Noto Sans Thai", "Tahoma", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at 10% 8%, rgba(67, 216, 255, 0.2) 0%, transparent 36%),
+    radial-gradient(circle at 92% 0%, rgba(217, 70, 239, 0.16) 0%, transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(59, 130, 246, 0.16) 0%, transparent 40%),
+    var(--background);
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: linear-gradient(180deg, rgba(220, 242, 255, 0.96) 0px, rgba(229, 234, 248, 0.95) 280px, rgba(236, 239, 246, 0.97) 100vh);
+  backdrop-filter: blur(10px);
+}
+
+
+button,
+a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 220ms ease-out;
+}
+
+.animate-toast-in {
+  animation: toast-in 180ms ease-out;
+}
+
