@@ -22,6 +22,11 @@ async function withTimeout<T>(promiseLike: PromiseLike<T>, ms: number, message: 
   }
 }
 
+function isDuplicateEmailConstraintError(message: unknown) {
+  const text = String(message ?? "").toLowerCase();
+  return text.includes("duplicate key value") && text.includes("profiles_email_key");
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -42,7 +47,7 @@ export async function POST(req: Request) {
 
     const admin = createAdminClient();
 
-    const { data: profile, error: profileError } = await withTimeout(
+    const { data: profileById, error: profileError } = await withTimeout(
       admin.from("profiles").select("id,pin_hash").eq("id", userId).maybeSingle(),
       8000,
       "Supabase profile timeout",
@@ -52,14 +57,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: profileError.message }, { status: 400 });
     }
 
-    const hadExistingPin = Boolean(profile?.pin_hash);
+    let targetProfileId = String(profileById?.id ?? "");
+    let targetProfilePinHash = String(profileById?.pin_hash ?? "");
+
+    if (!targetProfileId && userEmail) {
+      const { data: profileByEmail, error: profileByEmailError } = await withTimeout(
+        admin.from("profiles").select("id,pin_hash").eq("email", userEmail).maybeSingle(),
+        8000,
+        "Supabase profile-by-email timeout",
+      );
+
+      if (profileByEmailError) {
+        return NextResponse.json({ error: profileByEmailError.message }, { status: 400 });
+      }
+
+      if (profileByEmail?.id) {
+        targetProfileId = String(profileByEmail.id);
+        targetProfilePinHash = String(profileByEmail.pin_hash ?? "");
+      }
+    }
+
+    const hadExistingPin = Boolean(targetProfilePinHash);
 
     if (hadExistingPin) {
       if (!parsed.data.currentPin) {
         return NextResponse.json({ error: "Current PIN is required" }, { status: 400 });
       }
 
-      if (!(await verifyPin(parsed.data.currentPin, profile!.pin_hash!))) {
+      if (!(await verifyPin(parsed.data.currentPin, targetProfilePinHash))) {
         void logAudit("pin_change_failed", { reason: "invalid_current_pin" }).catch(() => {});
         return NextResponse.json({ error: "Current PIN is invalid" }, { status: 403 });
       }
@@ -67,9 +92,9 @@ export async function POST(req: Request) {
 
     const nextHash = await hashPin(parsed.data.newPin);
 
-    if (profile?.id) {
+    if (targetProfileId) {
       const { error: updateError } = await withTimeout(
-        admin.from("profiles").update({ pin_hash: nextHash }).eq("id", userId),
+        admin.from("profiles").update({ pin_hash: nextHash }).eq("id", targetProfileId),
         8000,
         "Supabase update timeout",
       );
@@ -91,6 +116,19 @@ export async function POST(req: Request) {
       );
 
       if (insertError) {
+        if (isDuplicateEmailConstraintError(insertError.message) && userEmail) {
+          const { error: updateByEmailError } = await withTimeout(
+            admin.from("profiles").update({ pin_hash: nextHash }).eq("email", userEmail),
+            8000,
+            "Supabase update-by-email timeout",
+          );
+          if (!updateByEmailError) {
+            void logAudit("pin_changed", { firstTime: true, repairedByEmail: true }).catch(() => {});
+            return NextResponse.json({ ok: true, firstTime: true });
+          }
+          return NextResponse.json({ error: updateByEmailError.message }, { status: 400 });
+        }
+
         return NextResponse.json({ error: insertError.message }, { status: 400 });
       }
     }

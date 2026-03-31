@@ -18,6 +18,11 @@ function digits(value: string) {
 function mapError(message: unknown, t: (key: any) => string, locale: 'th' | 'en') {
   const text = String(message ?? '').toLowerCase();
   if (text.includes('token') || text.includes('invalid otp')) return t('verifyOtp.invalid');
+  if (text.includes('duplicate key value') && text.includes('profiles_email_key')) {
+    return locale === 'th'
+      ? 'พบข้อมูลบัญชีซ้ำ ระบบกำลังเชื่อมบัญชีเดิมให้อัตโนมัติ กรุณาลองอีกครั้ง'
+      : 'Duplicate profile detected. Please retry once while the system reconciles your account.';
+  }
   if (text.includes('rate limit')) {
     return locale === 'th'
       ? 'OTP ถูกจำกัดความถี่ กรุณารอสักครู่และใช้ OTP ล่าสุดในอีเมล'
