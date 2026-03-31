@@ -10,7 +10,7 @@ function isPendingStatus(status: string) {
   return PENDING_STATUSES.has(String(status ?? "").toLowerCase());
 }
 
-async function tryAutoApprove(input: { userId: string; status: string; role: string; emailVerifiedAt: string }) {
+async function tryAutoApprove(input: { userId: string; profileEmail: string; status: string; role: string; emailVerifiedAt: string }) {
   const status = String(input.status ?? "");
   const role = String(input.role ?? "pending");
   const emailVerifiedAt = String(input.emailVerifiedAt ?? "");
@@ -20,31 +20,33 @@ async function tryAutoApprove(input: { userId: string; status: string; role: str
   }
 
   const verifiedAtMs = Date.parse(emailVerifiedAt);
-  if (!Number.isFinite(verifiedAtMs)) {
-    return { status, role, autoApproved: false };
-  }
-
-  if (Date.now() - verifiedAtMs < AUTO_APPROVE_AFTER_MS) {
+  if (!Number.isFinite(verifiedAtMs) || Date.now() - verifiedAtMs < AUTO_APPROVE_AFTER_MS) {
     return { status, role, autoApproved: false };
   }
 
   const admin = createAdminClient();
   const nextRole = role === "pending" ? "user" : role;
 
-  const [profileResult, requestResult] = await Promise.all([
-    admin.from("profiles").update({ status: "active", role: nextRole }).eq("id", input.userId),
-    admin
-      .from("approval_requests")
-      .update({ request_status: "approved", reviewed_at: new Date().toISOString(), reject_reason: null })
-      .eq("user_id", input.userId)
-      .eq("request_status", "pending"),
-  ]);
-
-  if (profileResult.error) {
-    console.error("Auto-approve profile update failed in login:", profileResult.error.message);
-    return { status, role, autoApproved: false };
+  const byId = await admin.from("profiles").update({ status: "active", role: nextRole }).eq("id", input.userId);
+  if (byId.error) {
+    console.error("Auto-approve profile update by id failed in login:", byId.error.message);
   }
 
+  if (input.profileEmail) {
+    const byEmail = await admin
+      .from("profiles")
+      .update({ status: "active", role: nextRole, email_verified_at: emailVerifiedAt })
+      .eq("email", input.profileEmail.toLowerCase());
+    if (byEmail.error) {
+      console.error("Auto-approve profile update by email failed in login:", byEmail.error.message);
+    }
+  }
+
+  const requestResult = await admin
+    .from("approval_requests")
+    .update({ request_status: "approved", reviewed_at: new Date().toISOString(), reject_reason: null })
+    .eq("user_id", input.userId)
+    .eq("request_status", "pending");
   if (requestResult.error) {
     console.error("Auto-approve request update failed in login:", requestResult.error.message);
   }
@@ -76,16 +78,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const authEmail = user.email?.toLowerCase();
+  const authEmail = user.email?.toLowerCase() ?? normalizedEmail;
 
-  const { data: profile } = await supabase
+  let { data: profile } = await supabase
     .from("profiles")
-    .select("status,email,email_verified_at,role")
+    .select("id,status,email,email_verified_at,role")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (authEmail && profile?.email !== authEmail) {
-    void supabase.from("profiles").update({ email: authEmail }).eq("id", user.id);
+  if (!profile && authEmail) {
+    const byEmail = await supabase
+      .from("profiles")
+      .select("id,status,email,email_verified_at,role")
+      .eq("email", authEmail)
+      .maybeSingle();
+    profile = byEmail.data ?? null;
   }
 
   if (profile?.status === "disabled") {
@@ -103,6 +110,7 @@ export async function POST(req: Request) {
 
   const autoApprove = await tryAutoApprove({
     userId: user.id,
+    profileEmail: String(profile?.email ?? authEmail),
     status,
     role,
     emailVerifiedAt,
@@ -122,7 +130,7 @@ export async function POST(req: Request) {
     status,
     role,
     autoApproved: autoApprove.autoApproved,
-    email: authEmail ?? normalizedEmail,
+    email: authEmail,
     needsOtpVerification,
     pendingApproval,
   });

@@ -9,7 +9,7 @@ function isPendingStatus(status: string) {
   return PENDING_STATUSES.has(String(status ?? "").toLowerCase());
 }
 
-async function tryAutoApprove(input: { userId: string; status: string; role: string; emailVerifiedAt: string }) {
+async function tryAutoApprove(input: { userId: string; profileEmail: string; status: string; role: string; emailVerifiedAt: string }) {
   const status = String(input.status ?? "");
   const role = String(input.role ?? "pending");
   const emailVerifiedAt = String(input.emailVerifiedAt ?? "");
@@ -19,31 +19,33 @@ async function tryAutoApprove(input: { userId: string; status: string; role: str
   }
 
   const verifiedAtMs = Date.parse(emailVerifiedAt);
-  if (!Number.isFinite(verifiedAtMs)) {
-    return { status, role, autoApproved: false };
-  }
-
-  if (Date.now() - verifiedAtMs < AUTO_APPROVE_AFTER_MS) {
+  if (!Number.isFinite(verifiedAtMs) || Date.now() - verifiedAtMs < AUTO_APPROVE_AFTER_MS) {
     return { status, role, autoApproved: false };
   }
 
   const admin = createAdminClient();
   const nextRole = role === "pending" ? "user" : role;
 
-  const [profileResult, requestResult] = await Promise.all([
-    admin.from("profiles").update({ status: "active", role: nextRole }).eq("id", input.userId),
-    admin
-      .from("approval_requests")
-      .update({ request_status: "approved", reviewed_at: new Date().toISOString(), reject_reason: null })
-      .eq("user_id", input.userId)
-      .eq("request_status", "pending"),
-  ]);
-
-  if (profileResult.error) {
-    console.error("Auto-approve profile update failed in profile/me:", profileResult.error.message);
-    return { status, role, autoApproved: false };
+  const byId = await admin.from("profiles").update({ status: "active", role: nextRole }).eq("id", input.userId);
+  if (byId.error) {
+    console.error("Auto-approve profile update by id failed in profile/me:", byId.error.message);
   }
 
+  if (input.profileEmail) {
+    const byEmail = await admin
+      .from("profiles")
+      .update({ status: "active", role: nextRole, email_verified_at: emailVerifiedAt })
+      .eq("email", input.profileEmail.toLowerCase());
+    if (byEmail.error) {
+      console.error("Auto-approve profile update by email failed in profile/me:", byEmail.error.message);
+    }
+  }
+
+  const requestResult = await admin
+    .from("approval_requests")
+    .update({ request_status: "approved", reviewed_at: new Date().toISOString(), reject_reason: null })
+    .eq("user_id", input.userId)
+    .eq("request_status", "pending");
   if (requestResult.error) {
     console.error("Auto-approve request update failed in profile/me:", requestResult.error.message);
   }
@@ -59,11 +61,22 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
+  const authEmail = String(auth.user.email ?? "").toLowerCase();
+
+  let { data: profile } = await supabase
     .from("profiles")
-    .select("full_name,email,role,status,email_verified_at")
+    .select("id,full_name,email,role,status,email_verified_at")
     .eq("id", auth.user.id)
     .maybeSingle();
+
+  if (!profile && authEmail) {
+    const byEmail = await supabase
+      .from("profiles")
+      .select("id,full_name,email,role,status,email_verified_at")
+      .eq("email", authEmail)
+      .maybeSingle();
+    profile = byEmail.data ?? null;
+  }
 
   let status = String(profile?.status ?? "pending_approval");
   let role = String(profile?.role ?? "pending");
@@ -75,6 +88,7 @@ export async function GET() {
 
   const autoApprove = await tryAutoApprove({
     userId: auth.user.id,
+    profileEmail: String(profile?.email ?? authEmail),
     status,
     role,
     emailVerifiedAt,
