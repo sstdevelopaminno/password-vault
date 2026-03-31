@@ -61,7 +61,9 @@ export function isOtpSendConstraintError(message: string) {
     lower.includes("over_email_send_rate_limit") ||
     lower.includes("email address not authorized") ||
     lower.includes("smtp") ||
-    lower.includes("exceeded frequency limit")
+    lower.includes("exceeded frequency limit") ||
+    lower.includes("cannot resend to the same template and target user") ||
+    lower.includes("engagelab 3004")
   );
 }
 
@@ -75,7 +77,14 @@ export function isOtpProviderConfigError(message: string) {
     lower.includes("authentication failed") ||
     lower.includes("otp_engagelab_dev_key is missing") ||
     lower.includes("otp_engagelab_dev_secret is missing") ||
-    lower.includes("otp_engagelab_template_id is missing")
+    lower.includes("otp_engagelab_template_id is missing") ||
+    lower.includes("engagelab 2001") ||
+    lower.includes("engagelab 2002") ||
+    lower.includes("engagelab 2004") ||
+    lower.includes("engagelab 3001") ||
+    lower.includes("engagelab 3002") ||
+    lower.includes("engagelab 3003") ||
+    lower.includes("engagelab 4001")
   );
 }
 
@@ -231,6 +240,9 @@ async function sendOtpWithEngageLab(input: SendOtpProviderInput) {
         language: templateLang,
         params: {
           app_name: appName,
+          brand_name: appName,
+          code: input.otp,
+          otp: input.otp,
           otp_code: input.otp,
         },
       },

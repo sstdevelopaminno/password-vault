@@ -45,6 +45,12 @@ function mapRegisterError(message: unknown, locale: "th" | "en", fallback: strin
   if (isOtpRateLimited(text)) {
     return locale === "th" ? "ขอ OTP บ่อยเกินไป กรุณารอสักครู่" : "OTP rate limited. Please wait.";
   }
+  if (lower.includes("unable to send otp right now")) {
+    return locale === "th" ? "ยังไม่สามารถส่ง OTP ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง" : "Unable to send OTP right now. Please try again shortly.";
+  }
+  if (lower.includes("otp delivery service unavailable")) {
+    return locale === "th" ? "ระบบส่ง OTP ยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้ง" : "OTP delivery service unavailable. Please try again shortly.";
+  }
 
   return text || fallback;
 }
