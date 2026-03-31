@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, type FormEvent, useState } from "react";
 import { MobileShell } from "@/components/layout/mobile-shell";
+import { useHeadsUpNotifications } from "@/components/notifications/heads-up-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,18 +20,29 @@ type LoginResponse = {
   autoApproved?: boolean;
 };
 
-function mapLoginError(message: unknown, fallback: string) { const text = String(message ?? ''); const lower = text.toLowerCase(); if (lower.includes('invalid login credentials')) return fallback; if (lower.includes('too many login attempts')) return fallback; if (lower.includes('please wait')) return fallback; if (lower.includes('rate')) return fallback; if (lower.includes('account is disabled')) return fallback; if (text) return text; return fallback; }
+function mapLoginError(message: unknown, fallback: string) {
+  const text = String(message ?? "");
+  const lower = text.toLowerCase();
+  if (lower.includes("invalid login credentials")) return fallback;
+  if (lower.includes("too many login attempts")) return fallback;
+  if (lower.includes("please wait")) return fallback;
+  if (lower.includes("rate")) return fallback;
+  if (lower.includes("account is disabled")) return fallback;
+  if (text) return text;
+  return fallback;
+}
 
 export default function LoginPage() {
   const router = useRouter();
+  const { notify } = useHeadsUpNotifications();
   const { showToast } = useToast();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const flowNotes = [t('register.createdPending')];
+  const flowNotes = [t("register.createdPending")];
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,9 +65,39 @@ export default function LoginPage() {
     setLoading(false);
 
     if (!response.ok) {
-      showToast(mapLoginError(body.error, t('login.failed')), 'error');
+      const errorText = String(body.error ?? "");
+      showToast(mapLoginError(body.error, t("login.failed")), "error");
+
+      if (response.status === 429 || errorText.toLowerCase().includes("too many login attempts")) {
+        notify({
+          kind: "security",
+          title: locale === "th" ? "ตรวจพบความเสี่ยงด้านความปลอดภัย" : "Security risk detected",
+          message:
+            locale === "th"
+              ? "มีการพยายามเข้าสู่ระบบถี่ผิดปกติ ระบบจำกัดการเข้าชั่วคราว"
+              : "Unusual repeated sign-in attempts detected. Access was temporarily rate-limited.",
+          details:
+            locale === "th"
+              ? "หากไม่ใช่คุณ แนะนำเปลี่ยนรหัสผ่านทันที"
+              : "If this wasn't you, change your password immediately.",
+          href: "/forgot-password",
+          persistent: true,
+          alsoSystem: true,
+        });
+      }
       return;
     }
+
+    notify({
+      kind: "auth",
+      title: locale === "th" ? "เข้าสู่ระบบสำเร็จ" : "Login successful",
+      message:
+        locale === "th"
+          ? "ยินดีต้อนรับกลับสู่ Password Vault"
+          : "Welcome back to Password Vault.",
+      href: "/home",
+      alsoSystem: true,
+    });
 
     router.push("/home");
   }
@@ -93,7 +135,6 @@ export default function LoginPage() {
 
             <div className="space-y-1">
               <h1 className="text-xl font-semibold">{t("login.title")}</h1>
-
             </div>
           </div>
 
@@ -152,4 +193,3 @@ export default function LoginPage() {
     </MobileShell>
   );
 }
-

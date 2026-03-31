@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
+import { HeadsUpNotificationProvider } from "@/components/notifications/heads-up-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/i18n/provider";
 
@@ -18,7 +19,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <I18nProvider>
-      <ToastProvider>{children}</ToastProvider>
+      <ToastProvider>
+        <HeadsUpNotificationProvider>{children}</HeadsUpNotificationProvider>
+      </ToastProvider>
     </I18nProvider>
   );
 }

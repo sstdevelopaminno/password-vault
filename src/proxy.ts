@@ -21,6 +21,7 @@ const publicApiPaths = new Set([
   "/api/auth/verify-reset-otp",
   "/api/auth/resend-signup-otp",
   "/api/auth/logout",
+  "/api/notifications/push/process",
 ]);
 
 function clearAuthCookies(request: NextRequest, response: NextResponse) {

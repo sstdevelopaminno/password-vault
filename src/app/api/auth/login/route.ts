@@ -7,6 +7,7 @@ import {
   createActiveSessionToken,
   getSharedCookieOptions,
 } from "@/lib/session-security";
+import { enqueuePushNotification, processPushQueue } from "@/lib/push-queue";
 
 const AUTO_APPROVE_AFTER_MS = 2 * 60 * 1000;
 const PENDING_STATUSES = new Set(["pending_approval", "pending", "awaiting_approval"]);
@@ -174,6 +175,25 @@ export async function POST(req: Request) {
     httpOnly: true,
     ...getSharedCookieOptions(),
   });
+
+  void enqueuePushNotification({
+    userId: user.id,
+    kind: "auth",
+    title: "Login successful",
+    message: `A login was completed from IP ${ip}.`,
+    href: "/home",
+    tag: "auth-login-success",
+    priority: 6,
+  })
+    .then((queued) => {
+      if (!queued.ok) return;
+      void processPushQueue({ batchSize: 10 }).catch((queueError) => {
+        console.error("Push process after login failed:", queueError);
+      });
+    })
+    .catch((queueError) => {
+      console.error("Push enqueue on login failed:", queueError);
+    });
 
   return response;
 }

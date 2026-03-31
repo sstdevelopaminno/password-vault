@@ -6,6 +6,7 @@ import { CheckCircle2, Copy, Eye, KeyRound, Link as LinkIcon, Type, UserRound } 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PinModal } from '@/components/vault/pin-modal';
+import { useHeadsUpNotifications } from '@/components/notifications/heads-up-provider';
 import { useToast } from '@/components/ui/toast';
 import type { PinAction } from '@/lib/pin';
 import { useI18n } from '@/i18n/provider';
@@ -38,6 +39,7 @@ const ASSERTION_TTL_MS = 25_000;
 
 export default function VaultDetailPage() {
   const params = useParams<{ id: string }>();
+  const { notify } = useHeadsUpNotifications();
   const { showToast } = useToast();
   const { t, locale } = useI18n();
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -181,13 +183,24 @@ export default function VaultDetailPage() {
         setStatus(successText);
         markCopied(rowKey);
         showToast(successText, 'success');
+        notify({
+          kind: 'vault',
+          title: locale === 'th' ? 'มีการคัดลอกข้อมูลลับ' : 'Sensitive data copied',
+          message: successText,
+          details:
+            locale === 'th'
+              ? 'หากไม่ใช่การกระทำของคุณ กรุณาเปลี่ยนรหัสผ่านและตรวจสอบ audit logs'
+              : 'If this was not you, change password and review audit logs.',
+          href: '/vault/' + itemId,
+          alsoSystem: true,
+        });
         return;
       }
 
       setStatus(text.copyFailed);
       showToast(text.copyFailed, 'error');
     },
-    [markCopied, showToast, text.copyFailed, writeClipboardWithFallback],
+    [itemId, locale, markCopied, notify, showToast, text.copyFailed, writeClipboardWithFallback],
   );
 
   const buildAllCopyPayload = useCallback(
