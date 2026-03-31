@@ -78,6 +78,7 @@ export function isOtpProviderConfigError(message: string) {
     lower.includes("otp_engagelab_dev_key is missing") ||
     lower.includes("otp_engagelab_dev_secret is missing") ||
     lower.includes("otp_engagelab_template_id is missing") ||
+    lower.includes("otp_resend_api_key is missing") ||
     lower.includes("engagelab 2001") ||
     lower.includes("engagelab 2002") ||
     lower.includes("engagelab 2004") ||
@@ -113,8 +114,15 @@ function getOtpProvider(): OtpProvider {
   return "resend";
 }
 
-function getResendApiKey() {
-  return getEnv("OTP_EMAIL_PROVIDER_KEY");
+function getResendApiKey(options?: { allowLegacy?: boolean }) {
+  const dedicated = getEnv("OTP_RESEND_API_KEY");
+  if (dedicated) return dedicated;
+
+  if (options?.allowLegacy) {
+    return getEnv("OTP_EMAIL_PROVIDER_KEY");
+  }
+
+  return "";
 }
 
 function getEngageLabDevKey() {
@@ -181,10 +189,10 @@ function buildOtpMail(input: SendOtpProviderInput) {
   return { subject, text, html };
 }
 
-async function sendOtpWithResend(input: SendOtpProviderInput) {
-  const apiKey = getResendApiKey();
+async function sendOtpWithResend(input: SendOtpProviderInput, options?: { allowLegacyApiKey?: boolean }) {
+  const apiKey = getResendApiKey({ allowLegacy: options?.allowLegacyApiKey ?? true });
   if (!apiKey) {
-    return { ok: false, error: "OTP_EMAIL_PROVIDER_KEY is missing" };
+    return { ok: false, error: "OTP_RESEND_API_KEY is missing" };
   }
 
   const mail = buildOtpMail(input);
@@ -265,10 +273,21 @@ async function sendOtpWithEngageLab(input: SendOtpProviderInput) {
 
 async function sendOtpWithProvider(input: SendOtpProviderInput) {
   const provider = getOtpProvider();
+
   if (provider === "engagelab") {
-    return sendOtpWithEngageLab(input);
+    const primary = await sendOtpWithEngageLab(input);
+    if (primary.ok) return primary;
+
+    const secondary = await sendOtpWithResend(input, { allowLegacyApiKey: false });
+    if (secondary.ok) return secondary;
+
+    return {
+      ok: false,
+      error: `Primary EngageLab failed: ${String(primary.error ?? "unknown")}. Secondary Resend failed: ${String(secondary.error ?? "unknown")}`,
+    };
   }
-  return sendOtpWithResend(input);
+
+  return sendOtpWithResend(input, { allowLegacyApiKey: true });
 }
 
 function extractEmailOtp(data: unknown) {

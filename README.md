@@ -106,7 +106,8 @@ Use `.env.example` and set:
 - `OTP_ENGAGELAB_DEV_SECRET`
 - `OTP_ENGAGELAB_TEMPLATE_ID`
 - `OTP_ENGAGELAB_TEMPLATE_LANG` (optional)
-- `OTP_EMAIL_PROVIDER_KEY` (for Resend mode)
+- `OTP_RESEND_API_KEY` (Resend key for secondary fallback)
+- `OTP_EMAIL_PROVIDER_KEY` (legacy/shared key, optional)
 - `OTP_HASH_SECRET`
 - `OTP_EMAIL_FROM`
 - `OTP_APP_NAME`

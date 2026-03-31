@@ -8,7 +8,9 @@
 
 ## Current Design (After This Phase)
 - Layer 1 (Primary): Supabase Auth email OTP delivery.
-- Layer 2 (Fallback): Supabase Admin `generateLink` + external provider email send (Resend API via `OTP_EMAIL_PROVIDER_KEY`).
+- Layer 2 (Fallback): Supabase Admin `generateLink` + external provider email send.
+  - Primary fallback provider: EngageLab
+  - Secondary fallback provider: Resend (auto failover when EngageLab fails)
 - Unified API response for throttling: `429` with `retryAfterSec`.
 - UI cooldown logic reads `retryAfterSec` to avoid duplicate/false alerts.
 
@@ -43,10 +45,11 @@
 - `OTP_ENGAGELAB_DEV_SECRET`
 - `OTP_ENGAGELAB_TEMPLATE_ID`
 - `OTP_ENGAGELAB_TEMPLATE_LANG` (optional, default `default`)
-- For Resend (optional alternative):
-- `OTP_EMAIL_PROVIDER_KEY` (Resend API key)
+- For Resend (secondary fallback):
+- `OTP_RESEND_API_KEY` (Resend API key)
 - `OTP_EMAIL_FROM` (verified sender/domain)
 - `OTP_APP_NAME`
+- `OTP_EMAIL_PROVIDER_KEY` (legacy/shared key, optional)
 
 ## Scale Recommendations (Next Steps)
 - Move in-memory rate-limit to distributed store (Upstash Redis or Supabase pgmq/kv).
