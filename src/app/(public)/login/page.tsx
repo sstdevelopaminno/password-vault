@@ -1,224 +1,155 @@
 ﻿"use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { type ChangeEvent, type FormEvent, useState } from "react";
 import { MobileShell } from "@/components/layout/mobile-shell";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 
-function mapLoginError(message: unknown, locale: "th" | "en", fallback: string) {
-  const text = String(message ?? "");
-  const lower = text.toLowerCase();
+type LoginResponse = {
+  error?: string;
+  needsOtpVerification?: boolean;
+  pendingApproval?: boolean;
+  autoApproved?: boolean;
+};
 
-  if (lower.includes("invalid login credentials")) {
-    return locale === "th"
-      ? "อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบแล้วลองใหม่"
-      : "Invalid email or password. Please try again.";
-  }
-
-  if (lower.includes("email not confirmed")) {
-    return locale === "th"
-      ? "อีเมลยังไม่ยืนยัน กรุณาตรวจสอบอีเมลของคุณ"
-      : "Email is not confirmed yet. Please check your inbox.";
-  }
-
-  if (lower.includes("account is disabled")) {
- return locale === "th"
- ? "บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแล"
- : "This account is disabled. Please contact admin.";
- }
-
- if (lower.includes("account is not approved yet")) {
-    return locale === "th"
-      ? "บัญชียังไม่เปิดใช้งาน กรุณายืนยัน OTP หรือติดต่อผู้ดูแล"
-      : "Account is not active yet. Please verify OTP or contact admin.";
-  }
-
-  if (lower.includes("too many login attempts") || lower.includes("rate")) {
-    return locale === "th"
-      ? "พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่"
-      : "Too many login attempts. Please wait and retry.";
-  }
-
-  return text || fallback;
-}
+function mapLoginError(message: unknown, fallback: string) { const text = String(message ?? ''); const lower = text.toLowerCase(); if (lower.includes('invalid login credentials')) return fallback; if (lower.includes('too many login attempts')) return fallback; if (lower.includes('please wait')) return fallback; if (lower.includes('rate')) return fallback; if (lower.includes('account is disabled')) return fallback; if (text) return text; return fallback; }
 
 export default function LoginPage() {
   const router = useRouter();
-  const { t, locale } = useI18n();
   const { showToast } = useToast();
+  const { t } = useI18n();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
 
-  const logoUrl =
-    "https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/Imagemaster%20password.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzL0ltYWdlbWFzdGVyIHBhc3N3b3JkLnBuZyIsImlhdCI6MTc3NDY4ODA1OCwiZXhwIjoxODA2MjI0MDU4fQ.__nNJXjVLblbj_cp2avV446S6XgN-W1ECwPTl_sSxtU";
+  const flowNotes = [t('register.createdPending')];
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (loading) return;
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loading) {
+      return;
+    }
 
     setLoading(true);
 
-    try {
-      const timeout = new Promise(function (_, reject) {
-        setTimeout(function () {
-          reject(new Error("REQUEST_TIMEOUT"));
-        }, 12000);
-      });
-      const res = (await Promise.race([
-        fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        }),
-        timeout,
-      ])) as Response;
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        password,
+      }),
+    });
 
-      const body = await res.json().catch(function () { return {}; });
+    const body = (await response.json().catch(() => ({}))) as LoginResponse;
+    setLoading(false);
 
-      if (!res.ok) {
-        showToast(mapLoginError((body as { error?: string }).error, locale, t("login.failed")), "error");
-        return;
-      }
-
-      if ((body as { needsOtpVerification?: boolean }).needsOtpVerification) {
- showToast(
- locale === "th"
- ? "บัญชียังไม่ยืนยัน OTP กรุณายืนยันก่อนเข้าใช้งาน"
- : "Your account is pending OTP verification. Please verify first.",
- "error",
- );
- router.push(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}`);
- return;
- }
-
- if ((body as { pendingApproval?: boolean }).pendingApproval) {
- showToast(
- locale === "th"
- ? "บัญชีอยู่ระหว่างรออนุมัติ ระบบจะอนุมัติอัตโนมัติภายใน 1-2 นาที"
- : "Account is pending approval. Auto-approval should complete within 1-2 minutes.",
- "success",
- );
- }
-
- setLoading(false);
- router.push("/home");
-    } catch {
-      showToast(locale === "th" ? "เชื่อมต่อไม่สำเร็จ กรุณาลองอีกครั้ง" : "Network error. Please try again.", "error");
-      setLoading(false);
+    if (!response.ok) {
+      showToast(mapLoginError(body.error, t('login.failed')), 'error');
+      return;
     }
+
+    router.push("/home");
+  }
+
+  function handleEmailChange(event: ChangeEvent<HTMLInputElement>) {
+    setEmail(event.target.value);
+  }
+
+  function handlePasswordChange(event: ChangeEvent<HTMLInputElement>) {
+    setPassword(event.target.value);
   }
 
   return (
     <MobileShell>
-      <main className="flex flex-1 items-center px-5 py-8">
-        <Card className="w-full space-y-4">
-          <div className="space-y-3 text-center">
-            <img
-              src={logoUrl}
-              alt="Master Password Logo"
-              className="mx-auto h-24 w-24 rounded-2xl object-cover shadow-[0_12px_28px_rgba(79,123,255,0.28)]"
-              loading="lazy"
-            />
-            <h1 className="text-xl font-semibold">{t("login.title")}</h1>
+      <main className="relative flex flex-1 items-center px-5 py-8">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(224,244,255,0.78)_0%,rgba(223,227,246,0.9)_44%,rgba(234,236,243,1)_100%)]" />
+          <div className="absolute -top-16 -left-20 h-72 w-72 rounded-full bg-cyan-200/55 blur-3xl" />
+          <div className="absolute top-0 right-[-80px] h-80 w-80 rounded-full bg-fuchsia-300/35 blur-3xl" />
+          <div className="absolute -top-6 left-1/2 h-[18rem] w-[155%] -translate-x-1/2 rounded-b-[55%] bg-gradient-to-b from-white/40 via-white/22 to-transparent" />
+        </div>
+
+        <Card className="w-full space-y-4 animate-slide-up">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-blue-100 p-3 text-blue-600">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+
+              <div>
+                <p className="text-[24px] font-semibold leading-tight text-slate-800">{t("common.appName")}</p>
+                <p className="text-sm text-slate-500">{t("landing.subtitle")}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <h1 className="text-xl font-semibold">{t("login.title")}</h1>
+
+            </div>
           </div>
 
-          <form className="space-y-3" onSubmit={onSubmit}>
+          <form className="space-y-3" onSubmit={signIn}>
             <Input
               type="email"
+              inputMode="email"
+              autoComplete="email"
               placeholder={t("login.email")}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
               required
             />
+
             <Input
               type="password"
+              autoComplete="current-password"
               placeholder={t("login.password")}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={handlePasswordChange}
               required
             />
-            <Button className="w-full" disabled={loading}>
-              {loading ? t("login.signingIn") : t("login.signIn")}
+
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <Link className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-white/70 px-3 font-medium text-slate-600 transition hover:border-[var(--border-strong)] hover:bg-white hover:text-slate-800" href="/forgot-password">
+                {t("login.forgotPassword")}
+              </Link>
+
+              <Link className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 px-3 font-semibold text-white shadow-[0_10px_20px_rgba(79,123,255,0.25)] transition hover:brightness-105" href="/register">
+                {t("login.register")}
+              </Link>
+            </div>
+
+            <Button className="w-full" type="submit" disabled={loading}>
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner /> {t("login.signingIn")}
+                </span>
+              ) : (
+                t("login.signIn")
+              )}
             </Button>
           </form>
 
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <a
-              href="/forgot-password"
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 font-semibold text-blue-700 transition hover:border-[var(--border-strong)] hover:bg-white"
-            >
-              {t("login.forgotPassword").replace(/\?/g, "")}
-            </a>
-            <button
-              type="button"
-              onClick={() => setShowTerms(true)}
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-[#43d8ff] via-[#4f7bff] to-[#d946ef] px-3 font-semibold text-white shadow-[0_8px_18px_rgba(79,123,255,0.3)] transition hover:brightness-110"
-            >
-              {t("login.register")}
-            </button>
+          <div className="hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4 text-sm text-slate-600">
+            <ul className="mt-2 space-y-2">
+              {flowNotes.map((note) => (
+                <li key={note} className="leading-6">
+                  {note}
+                </li>
+              ))}
+            </ul>
           </div>
         </Card>
       </main>
-
-      {showTerms ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/55 p-4 backdrop-blur-[2px]" onClick={() => setShowTerms(false)}>
-          <div className="mx-auto mt-10 w-full max-w-[560px]" onClick={(e) => e.stopPropagation()}>
-            <Card className="space-y-4 rounded-[24px] border border-[var(--border-strong)] bg-white p-5 text-slate-900">
-              <h2 className="text-xl font-semibold">ข้อตกลงการใช้งานระบบจัดเก็บรหัส</h2>
-              <div className="max-h-[55vh] space-y-3 overflow-y-auto pr-1 text-sm leading-7 text-slate-700">
-                <div>
-                  <p className="font-semibold">1. การยินยอมของผู้ใช้งาน</p>
-                  <p>ผู้สมัครหรือผู้ใช้งานตกลงและยินยอมให้ข้อมูลที่เกี่ยวข้องกับบัญชีและรหัสผ่านถูกจัดเก็บภายในระบบ เพื่อวัตถุประสงค์ในการให้บริการตามที่กำหนด</p>
-                </div>
-                <div>
-                  <p className="font-semibold">2. ความรับผิดชอบของผู้ใช้งาน</p>
-                  <p>ผู้ใช้งานมีหน้าที่ดูแลรักษาข้อมูลบัญชีและการเข้าถึงของตนเองให้ปลอดภัย และต้องไม่เปิดเผยข้อมูลแก่บุคคลอื่นโดยไม่ได้รับอนุญาต</p>
-                </div>
-                <div>
-                  <p className="font-semibold">3. ข้อจำกัดความรับผิดของผู้ให้บริการ</p>
-                  <p>ทางผู้ให้บริการจะไม่รับผิดชอบต่อความเสียหาย ความสูญเสีย หรือปัญหาใด ๆ ที่เกิดจากการใช้งานของผู้ใช้งานเอง การละเมิดความปลอดภัยจากฝั่งผู้ใช้งาน หรือเหตุการณ์ที่อยู่นอกเหนือการควบคุมของระบบ</p>
-                </div>
-                <div>
-                  <p className="font-semibold">4. มาตรการความปลอดภัยของระบบ</p>
-                  <p>ระบบของเราได้รับการออกแบบให้มีมาตรการป้องกันและรักษาความปลอดภัยในระดับสูง เพื่อปกป้องข้อมูลของผู้ใช้งาน อย่างไรก็ตาม ไม่มีระบบใดที่สามารถรับประกันความปลอดภัยได้ 100%</p>
-                </div>
-                <div>
-                  <p className="font-semibold">5. การยอมรับเงื่อนไข</p>
-                  <p>การสมัครใช้งานหรือการใช้งานระบบ ถือว่าผู้ใช้งานได้อ่าน ทำความเข้าใจ และยอมรับข้อตกลงทั้งหมดนี้โดยสมบูรณ์</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" onClick={() => setShowTerms(false)}>
-                  ไม่ยอมรับ
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowTerms(false);
-                    router.push("/register");
-                  }}
-                >
-                  ยอมรับและไปสมัคร
-                </Button>
-              </div>
-            </Card>
-          </div>
-        </div>
-      ) : null}
     </MobileShell>
   );
 }
-
-
-
-
-
-
 

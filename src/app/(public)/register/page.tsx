@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -216,8 +216,8 @@ export default function RegisterPage() {
               <div className="space-y-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-3">
                 <p className="text-sm text-slate-600">
                   {locale === "th"
-                    ? `ส่ง OTP ไปที่ ${form.email} แล้ว กรุณากรอกรหัส 6 หลักเพื่อยืนยัน`
-                    : `OTP has been sent to ${form.email}. Enter 6 digits to verify.`}
+                    ? t("register.createdPending")
+                    : t("register.createdPending")}
                 </p>
                 <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={t("otpInput.ariaLabel")} />
 
@@ -269,3 +269,4 @@ export default function RegisterPage() {
     </MobileShell>
   );
 }
+

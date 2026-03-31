@@ -21,17 +21,17 @@ export default function LandingPage() {
            
         </div> 
  
-        <div className='mt-[32svh] flex items-center gap-3'> 
-          <div className='rounded-2xl bg-blue-100 p-3 text-blue-600'><ShieldCheck className='h-6 w-6' /></div> 
+        <div className='mt-[22svh] flex flex-col items-center gap-4 text-center'> 
+          <div className='mx-auto flex h-[92px] w-[92px] items-center justify-center rounded-[26px] border border-[var(--border-soft)] bg-white/85 shadow-[0_14px_34px_rgba(59,130,246,0.2)] backdrop-blur-xl brand-logo-box'><ShieldCheck className='hidden' /></div> 
           <div> 
-            <h1 className='text-[38px] font-semibold leading-tight text-slate-800'>{t('common.appName')}</h1> 
-            <p className='text-[15px] text-slate-500'>{t('landing.subtitle')}</p> 
+            <h1 className='text-[48px] font-semibold leading-[1.02] tracking-[-0.02em] text-slate-800'>{t('common.appName')}</h1> 
+            <p className='mx-auto max-w-[330px] text-[16px] leading-6 text-slate-500'>{t('landing.subtitle')}</p> 
           </div> 
         </div> 
  
-        <Card className='mt-5 space-y-4 border-0 bg-transparent p-0 shadow-none'> 
+        <Card className='mx-auto mt-7 flex w-full max-w-[420px] flex-col gap-5 border-0 bg-transparent px-2 shadow-none'> 
           <Link href='/login'><Button className='h-11 w-full text-[15px]'>{t('landing.login')}</Button></Link> 
-          <Link href='/register' className='block pt-1'> 
+          <Link href='/register' className='block'> 
             <Button variant='secondary' className='h-11 w-full text-[15px] bg-white/72'>{t('landing.createAccount')}</Button> 
           </Link> 
         </Card> 
@@ -39,9 +39,4 @@ export default function LandingPage() {
     </MobileShell> 
   ); 
 }
-
-
-
-
-
 

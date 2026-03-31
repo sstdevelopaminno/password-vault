@@ -30,7 +30,7 @@ export const messages = {
       password: "รหัสผ่าน",
       signIn: "เข้าสู่ระบบ",
       signingIn: "กำลังเข้าสู่ระบบ...",
-      forgotPassword: "ลืมรหัสผ่าน?",
+      forgotPassword: "ลืมรหัสผ่าน",
       register: "สมัครใช้งาน",
       failed: "เข้าสู่ระบบไม่สำเร็จ",
     },
@@ -191,7 +191,7 @@ export const messages = {
       password: "Password",
       signIn: "Sign in",
       signingIn: "Signing in...",
-      forgotPassword: "Forgot password?",
+      forgotPassword: "Forgot password",
       register: "Register",
       failed: "Login failed",
     },
@@ -337,8 +337,4 @@ type KeyPaths<T, Prefix extends string = ""> = T extends Primitive
         ? `${Prefix}${K}`
         : `${Prefix}${K}` | KeyPaths<T[K], `${Prefix}${K}.`>;
     }[keyof T & string];
-
-
-
-
 

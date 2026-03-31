@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useEffect, useState } from "react";
+import { Suspense, createElement, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { Card } from "@/components/ui/card";
@@ -45,7 +45,7 @@ function mapVerifyError(message: unknown, locale: string) {
  return locale === "th" ? "ยืนยัน OTP ไม่สำเร็จ" : "OTP verification failed";
 }
 
-export default function VerifyOtpPage() {
+function VerifyOtpContent() {
  const h = createElement;
  const router = useRouter();
  const searchParams = useSearchParams();
@@ -218,4 +218,23 @@ export default function VerifyOtpPage() {
  );
 
  return h(MobileShell, null, h("main", { className: "flex flex-1 items-center px-5 py-8" }, card));
+}
+
+export default function VerifyOtpPage() {
+ const h = createElement;
+ const fallback = h(
+ MobileShell,
+ null,
+ h(
+ "main",
+ { className: "flex flex-1 items-center px-5 py-8" },
+ h(
+ Card,
+ { className: "w-full space-y-4 animate-slide-up" },
+ h("h1", { className: "text-xl font-semibold" }, "Verify OTP"),
+ h("div", { className: "flex items-center justify-center py-4" }, h(Spinner, null)),
+ ),
+ ),
+ );
+ return h(Suspense, { fallback: fallback }, h(VerifyOtpContent, null));
 }
