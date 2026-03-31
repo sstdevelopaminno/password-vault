@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,12 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(value: string) {
+  return EMAIL_PATTERN.test(value);
+}
 
 function parseRetrySeconds(message: string) {
   const m = message.match(/after\s+(\d+)\s*seconds?/i);
@@ -86,6 +92,28 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+  const [emailInlineError, setEmailInlineError] = useState("");
+
+  const normalizedEmail = useMemo(() => form.email.trim().toLowerCase(), [form.email]);
+  const fullNameFilled = form.fullName.trim().length > 0;
+  const hasPassword = form.password.length > 0;
+  const hasConfirmPassword = form.confirmPassword.length > 0;
+  const allRequiredFilled = fullNameFilled && normalizedEmail.length > 0 && hasPassword && hasConfirmPassword;
+  const emailFormatValid = isValidEmail(normalizedEmail);
+  const passwordMismatch = hasConfirmPassword && form.password !== form.confirmPassword;
+
+  const canRequestOtp =
+    !otpSent &&
+    !loading &&
+    resendIn <= 0 &&
+    allRequiredFilled &&
+    emailFormatValid &&
+    !passwordMismatch &&
+    !emailChecking &&
+    !emailExists;
+
   useEffect(() => {
     if (resendIn <= 0) return;
     const timer = window.setInterval(() => {
@@ -94,16 +122,103 @@ export default function RegisterPage() {
     return () => window.clearInterval(timer);
   }, [resendIn]);
 
+  useEffect(() => {
+    if (otpSent) return;
+    if (!normalizedEmail || !emailFormatValid) {
+      setEmailChecking(false);
+      setEmailExists(false);
+      setEmailInlineError("");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setEmailChecking(true);
+      try {
+        const response = await fetch("/api/auth/check-register-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail }),
+          signal: controller.signal,
+        });
+
+        const body = await response.json().catch(() => ({} as { exists?: boolean }));
+        const exists = Boolean(body.exists);
+        setEmailExists(exists);
+        setEmailInlineError(
+          exists
+            ? locale === "th"
+              ? "อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น"
+              : "This email is already registered. Please use another email."
+            : "",
+        );
+      } catch (fetchError) {
+        if (!(fetchError instanceof DOMException && fetchError.name === "AbortError")) {
+          setEmailExists(false);
+          setEmailInlineError("");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setEmailChecking(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [emailFormatValid, locale, normalizedEmail, otpSent]);
+
+  function validateBeforeOtp() {
+    if (!allRequiredFilled) {
+      return locale === "th"
+        ? "กรุณากรอกข้อมูลให้ครบทุกช่องก่อนขอ OTP"
+        : "Please fill in all fields before requesting OTP.";
+    }
+    if (!emailFormatValid) {
+      return locale === "th" ? "รูปแบบอีเมลไม่ถูกต้อง" : "Invalid email format.";
+    }
+    if (form.password.length < 8) {
+      return locale === "th" ? "รหัสผ่านต้องอย่างน้อย 8 ตัวอักษร" : "Password must be at least 8 characters.";
+    }
+    if (passwordMismatch) {
+      return locale === "th" ? "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน" : "Passwords do not match.";
+    }
+    if (emailExists) {
+      return locale === "th"
+        ? "อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น"
+        : "This email is already registered. Please use another email.";
+    }
+    if (emailChecking) {
+      return locale === "th" ? "กำลังตรวจสอบอีเมล กรุณารอสักครู่" : "Checking email. Please wait.";
+    }
+    return "";
+  }
+
   async function requestOtp() {
-    if (loading || resendIn > 0) return;
+    if (!canRequestOtp) return;
+
+    const validationError = validateBeforeOtp();
+    if (validationError) {
+      setError(validationError);
+      showToast(validationError, "error");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
+    const payload = {
+      ...form,
+      fullName: form.fullName.trim(),
+      email: normalizedEmail,
+    };
+
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
 
     setLoading(false);
@@ -120,8 +235,8 @@ export default function RegisterPage() {
 
       const message = rateLimited
         ? locale === "th"
-          ? `ขอ OTP บ่อยเกินไป กรุณารอ ${waitSec} วินาที`
-          : `OTP rate limited. Please wait ${waitSec}s.`
+          ? "ขอ OTP บ่อยเกินไป กรุณารอ " + waitSec + " วินาที"
+          : "OTP rate limited. Please wait " + waitSec + "s."
         : mapRegisterError(body.error, locale, t("register.failedSendOtp"));
 
       setError(message);
@@ -142,6 +257,49 @@ export default function RegisterPage() {
     showToast(mapRegisterSuccess(body.message, locale, t("register.otpSent")), "success");
   }
 
+  async function resendOtp() {
+    if (loading || resendIn > 0) return;
+
+    setLoading(true);
+    setError("");
+
+    const res = await fetch("/api/auth/resend-signup-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail }),
+    });
+
+    setLoading(false);
+    const body = await res.json().catch(
+      () => ({} as { error?: string; message?: string; retryAfterSec?: number }),
+    );
+
+    if (!res.ok) {
+      const rawError = String(body.error ?? "");
+      const apiRetry = Number(body.retryAfterSec ?? 0);
+      const parsedRetry = parseRetrySeconds(rawError);
+      const rateLimited = res.status === 429 || isOtpRateLimited(rawError);
+      const waitSec = apiRetry > 0 ? apiRetry : parsedRetry > 0 ? parsedRetry : 60;
+
+      const message = rateLimited
+        ? locale === "th"
+          ? "ขอ OTP บ่อยเกินไป กรุณารอ " + waitSec + " วินาที"
+          : "OTP rate limited. Please wait " + waitSec + "s."
+        : mapRegisterError(body.error, locale, t("register.failedSendOtp"));
+
+      setError(message);
+      showToast(message, "error");
+      if (rateLimited) {
+        setResendIn(waitSec);
+      }
+      return;
+    }
+
+    const nextRetry = Number(body.retryAfterSec ?? 60);
+    setResendIn(Number.isFinite(nextRetry) && nextRetry > 0 ? nextRetry : 60);
+    showToast(mapRegisterSuccess(body.message, locale, t("register.otpSent")), "success");
+  }
+
   async function createAccount(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
@@ -149,10 +307,17 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
 
+    const payload = {
+      ...form,
+      fullName: form.fullName.trim(),
+      email: normalizedEmail,
+      otp,
+    };
+
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, otp }),
+      body: JSON.stringify(payload),
     });
 
     setLoading(false);
@@ -191,38 +356,66 @@ export default function RegisterPage() {
                 <Input
                   placeholder={t("register.fullName")}
                   value={form.fullName}
-                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      fullName: e.target.value,
+                    }))
+                  }
                   required
                 />
-                <Input
-                  type="email"
-                  placeholder={t("register.email")}
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                />
+                <div className="space-y-1.5">
+                  <Input
+                    type="email"
+                    placeholder={t("register.email")}
+                    value={form.email}
+                    onChange={(e) => {
+                      const nextEmail = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        email: nextEmail,
+                      }));
+                      setEmailExists(false);
+                      setEmailInlineError("");
+                    }}
+                    className={emailInlineError ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100" : ""}
+                    required
+                  />
+                  {emailChecking && normalizedEmail && emailFormatValid ? (
+                    <p className="text-xs text-slate-500">
+                      {locale === "th" ? "กำลังตรวจสอบอีเมล..." : "Checking email..."}
+                    </p>
+                  ) : null}
+                  {emailInlineError ? <p className="text-sm text-rose-600">{emailInlineError}</p> : null}
+                </div>
                 <Input
                   type="password"
                   placeholder={t("register.password")}
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                   required
                 />
-                <Input
-                  type="password"
-                  placeholder={t("register.confirmPassword")}
-                  value={form.confirmPassword}
-                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                  required
-                />
+                <div className="space-y-1.5">
+                  <Input
+                    type="password"
+                    placeholder={t("register.confirmPassword")}
+                    value={form.confirmPassword}
+                    onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                    className={passwordMismatch ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100" : ""}
+                    required
+                  />
+                  {passwordMismatch ? (
+                    <p className="text-sm text-rose-600">
+                      {locale === "th"
+                        ? "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน"
+                        : "Passwords do not match."}
+                    </p>
+                  ) : null}
+                </div>
               </>
             ) : (
               <div className="space-y-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-3">
-                <p className="text-sm text-slate-600">
-                  {locale === "th"
-                    ? t("register.createdPending")
-                    : t("register.createdPending")}
-                </p>
+                <p className="text-sm text-slate-600">{t("register.createdPending")}</p>
                 <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={t("otpInput.ariaLabel")} />
 
                 <div className="grid grid-cols-2 gap-2">
@@ -242,12 +435,12 @@ export default function RegisterPage() {
                     type="button"
                     variant="secondary"
                     disabled={loading || resendIn > 0}
-                    onClick={() => void requestOtp()}
+                    onClick={() => void resendOtp()}
                   >
                     {resendIn > 0
                       ? locale === "th"
-                        ? `ขอใหม่ใน ${resendIn}s`
-                        : `Resend in ${resendIn}s`
+                        ? "ขอใหม่ใน " + resendIn + "s"
+                        : "Resend in " + resendIn + "s"
                       : t("register.sendOtp")}
                   </Button>
                 </div>
@@ -256,7 +449,10 @@ export default function RegisterPage() {
 
             {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
-            <Button className="w-full" disabled={loading || (!otpSent && resendIn > 0) || (otpSent && otp.length !== 6)}>
+            <Button
+              className="w-full"
+              disabled={otpSent ? loading || otp.length !== 6 : !canRequestOtp}
+            >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <Spinner /> {otpSent ? t("register.creating") : t("register.sendingOtp")}
@@ -273,4 +469,3 @@ export default function RegisterPage() {
     </MobileShell>
   );
 }
-

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Providers } from "@/app/providers";
 import "./globals.css";
 
@@ -15,6 +15,14 @@ export const metadata: Metadata = {
     shortcut: [{ url: LOGO_URL, type: "image/png" }],
     apple: [{ url: LOGO_URL, type: "image/png" }],
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

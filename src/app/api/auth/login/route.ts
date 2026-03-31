@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
+import {
+  ACTIVE_SESSION_COOKIE,
+  createActiveSessionToken,
+  getSharedCookieOptions,
+} from "@/lib/session-security";
 
 const AUTO_APPROVE_AFTER_MS = 2 * 60 * 1000;
 const PENDING_STATUSES = new Set(["pending_approval", "pending", "awaiting_approval"]);
@@ -52,6 +57,24 @@ async function tryAutoApprove(input: { userId: string; profileEmail: string; sta
   }
 
   return { status: "active", role: nextRole, autoApproved: true };
+}
+
+async function bindActiveSession(userId: string, appMetadata: unknown) {
+  const admin = createAdminClient();
+  const token = createActiveSessionToken();
+  const nextMetadata =
+    appMetadata && typeof appMetadata === "object"
+      ? { ...(appMetadata as Record<string, unknown>) }
+      : ({} as Record<string, unknown>);
+
+  nextMetadata.pv_active_session = token;
+  nextMetadata.pv_active_updated_at = new Date().toISOString();
+
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    app_metadata: nextMetadata,
+  });
+
+  return { token, error };
 }
 
 export async function POST(req: Request) {
@@ -122,10 +145,20 @@ export async function POST(req: Request) {
     status = "pending_approval";
   }
 
+  const binding = await bindActiveSession(user.id, user.app_metadata);
+  if (binding.error) {
+    console.error("Active session binding failed in login:", binding.error.message);
+    await supabase.auth.signOut();
+    return NextResponse.json(
+      { error: "Unable to secure this login session. Please try again." },
+      { status: 503 },
+    );
+  }
+
   const needsOtpVerification = !emailVerifiedAt;
   const pendingApproval = !needsOtpVerification && status !== "active";
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     ok: true,
     status,
     role,
@@ -134,4 +167,13 @@ export async function POST(req: Request) {
     needsOtpVerification,
     pendingApproval,
   });
+
+  response.cookies.set({
+    name: ACTIVE_SESSION_COOKIE,
+    value: binding.token,
+    httpOnly: true,
+    ...getSharedCookieOptions(),
+  });
+
+  return response;
 }

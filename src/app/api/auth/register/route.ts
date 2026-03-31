@@ -33,6 +33,16 @@ export async function POST(req: Request) {
     const supabase = await createClient();
 
     if (!otp) {
+      const { data: existingProfile } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+
+      if (existingProfile?.id) {
+        return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+      }
+
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
@@ -41,77 +51,7 @@ export async function POST(req: Request) {
 
       if (signUpError) {
         if (isAlreadyRegisteredError(signUpError.message)) {
-          const { data: existingProfile } = await admin
-            .from("profiles")
-            .select("id,email_verified_at")
-            .eq("email", normalizedEmail)
-            .maybeSingle();
-
-          if (existingProfile?.email_verified_at) {
-            return NextResponse.json({ error: "Email already registered" }, { status: 409 });
-          }
-
-          const resend = await supabase.auth.resend({
-            type: "signup",
-            email: normalizedEmail,
-          });
-
-          if (!resend.error) {
-            return NextResponse.json({
-              ok: true,
-              otpRequired: true,
-              retryAfterSec: 60,
-              channel: "supabase",
-              message: "OTP sent to your email",
-            });
-          }
-
-          if (!isOtpSendConstraintError(resend.error.message)) {
-            return NextResponse.json({ error: resend.error.message }, { status: 400 });
-          }
-
-          const fallback = await sendSignupOtpViaFallback({
-            email: normalizedEmail,
-            password,
-            fullName,
-          });
-
-          if (fallback.ok) {
-            return NextResponse.json({
-              ok: true,
-              otpRequired: true,
-              retryAfterSec: fallback.retryAfterSec,
-              channel: fallback.channel,
-              message: "OTP sent to your email",
-            });
-          }
-
-          const retryAfter = fallback.retryAfterSec || parseRetryAfterSeconds(resend.error.message) || 60;
-          const fallbackError = String(fallback.error ?? "");
-
-          if (isOtpProviderConfigError(fallbackError)) {
-            console.error("OTP fallback provider misconfigured in register resend:", fallbackError);
-            return NextResponse.json(
-              { error: "OTP delivery service unavailable. Please try again shortly." },
-              { status: 503 },
-            );
-          }
-
-          if (isOtpSendConstraintError(fallbackError)) {
-            return NextResponse.json(
-              {
-                error: "OTP rate limited. Please wait.",
-                retryAfterSec: retryAfter,
-              },
-              { status: 429 },
-            );
-          }
-
-          console.error("OTP fallback delivery failed in register resend:", fallbackError);
-          return NextResponse.json(
-            { error: "Unable to send OTP right now. Please try again shortly." },
-            { status: 502 },
-          );
+          return NextResponse.json({ error: "Email already registered" }, { status: 409 });
         }
 
         if (!isOtpSendConstraintError(signUpError.message)) {
