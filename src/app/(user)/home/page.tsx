@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'; 
 import { Card } from '@/components/ui/card'; 
 import { useI18n } from '@/i18n/provider'; 
+import { versionLabel } from '@/lib/app-version';
  
 const LOGO_URL = 'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/Imagemaster password.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzL0ltYWdlbWFzdGVyIHBhc3N3b3JkLnBuZyIsImlhdCI6MTc3NDcxOTUzNywiZXhwIjoxODA2MjU1NTM3fQ.k-KJDjjccxBz8odBvF-SKmrHEdKgMQHRSy__nohIeDk'; 
  
@@ -54,7 +55,7 @@ export default function HomePage() {
   }, [locale, securityScore]);
  
   const roleText = locale === 'th' ? '\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e17\u0e31\u0e48\u0e27\u0e44\u0e1b' : 'General User'; 
-  const versionText = locale === 'th' ? '\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e0a\u0e31\u0e19 2.0' : 'Version 2.0'; 
+  const versionText = versionLabel(locale); 
   const itemsText = locale === 'th' ? '\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07' : 'Vault Items'; 
   const securityText = locale === 'th' ? '\u0e23\u0e30\u0e14\u0e31\u0e1a\u0e04\u0e27\u0e32\u0e21\u0e1b\u0e25\u0e2d\u0e14\u0e20\u0e31\u0e22\u0e23\u0e30\u0e1a\u0e1a' : 'System Security'; 
   const stabilityText = locale === 'th' ? '\u0e04\u0e27\u0e32\u0e21\u0e40\u0e2a\u0e16\u0e35\u0e22\u0e23\u0e23\u0e30\u0e1a\u0e1a' : 'System Stability'; 

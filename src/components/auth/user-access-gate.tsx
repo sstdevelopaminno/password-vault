@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useEffect, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,14 +68,25 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
  const [loading, setLoading] = useState(false);
  const [resendLoading, setResendLoading] = useState(false);
  const [resendIn, setResendIn] = useState(0);
+ const unauthorizedRef = useRef(0);
 
  async function loadProfile(showErrorToast: boolean) {
+ try {
  const res = await fetch("/api/profile/me", { cache: "no-store" });
 
  if (res.status === 401) {
+ unauthorizedRef.current += 1;
+ if (unauthorizedRef.current >= 3) {
  router.replace("/login");
  return;
  }
+ window.setTimeout(function () {
+ void loadProfile(false);
+ }, 1200 * unauthorizedRef.current);
+ return;
+ }
+
+ unauthorizedRef.current = 0;
 
  const body = await res.json().catch(function () {
  return {};
@@ -114,6 +125,14 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
  }
 
  setMode("active");
+ } catch {
+ if (showErrorToast) {
+ showToast(locale === "th" ? "เครือข่ายไม่เสถียร กำลังลองใหม่..." : "Network unstable. Retrying...", "error");
+ }
+ window.setTimeout(function () {
+ void loadProfile(false);
+ }, 1200);
+ }
  }
 
  async function verifyOtpNow() {

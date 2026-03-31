@@ -49,7 +49,21 @@ self.addEventListener("push", (event) => {
     requireInteraction: Boolean(payload?.requireInteraction),
     vibrate: payload?.vibrate || [120, 80, 120],
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil((async () => {
+    const list = await clients.matchAll({ type: "window", includeUncontrolled: true });
+    let hasVisibleClient = false;
+
+    for (const client of list) {
+      if (client.visibilityState === "visible") {
+        hasVisibleClient = true;
+      }
+      client.postMessage({ type: "PUSH_RECEIVED", payload });
+    }
+
+    if (!hasVisibleClient) {
+      await self.registration.showNotification(title, options);
+    }
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {

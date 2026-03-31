@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, ChevronRight, KeyRound, Lock, LogOut, Mail, UserRound, X } from 'lucide-react';
+import { Bell, ChevronRight, KeyRound, Languages, Lock, LogOut, Mail, UserRound, X } from 'lucide-react';
 import { OtpInput } from '@/components/auth/otp-input';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,10 +28,10 @@ function mapError(message: unknown, t: (key: any) => string, locale: 'th' | 'en'
 
 export default function SettingsPage() {
   const toast = useToast();
-  const { t, locale } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const router = useRouter();
 
-  const [active, setActive] = useState('' as '' | 'name' | 'email' | 'password' | 'pin' | 'logout');
+  const [active, setActive] = useState('' as '' | 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout');
   const [loading, setLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
@@ -300,7 +300,7 @@ export default function SettingsPage() {
         ? 'ส่ง OTP ใหม่'
         : 'Resend OTP';
 
-  const menuBtn = (key: 'name' | 'email' | 'password' | 'pin' | 'logout', title: string, Icon: any) => (
+  const menuBtn = (key: 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout', title: string, Icon: any) => (
     <button
       key={key}
       type='button'
@@ -433,6 +433,30 @@ export default function SettingsPage() {
     </Card>
   );
 
+  const languageView = (
+    <Card className='space-y-4 rounded-[24px] p-4'>
+      <p className='text-sm text-slate-600'>
+        {locale === 'th' ? 'เลือกภาษาที่ต้องการใช้งานในระบบ' : 'Choose your preferred app language.'}
+      </p>
+      <div className='grid grid-cols-2 gap-2'>
+        <Button
+          variant={locale === 'th' ? 'default' : 'secondary'}
+          className={locale === 'th' ? 'h-11 rounded-xl' : 'h-11 rounded-xl'}
+          onClick={() => setLocale('th')}
+        >
+          ไทย
+        </Button>
+        <Button
+          variant={locale === 'en' ? 'default' : 'secondary'}
+          className={locale === 'en' ? 'h-11 rounded-xl' : 'h-11 rounded-xl'}
+          onClick={() => setLocale('en')}
+        >
+          English
+        </Button>
+      </div>
+    </Card>
+  );
+
   const logoutView = (
     <Card className='space-y-3 rounded-[24px] p-4'>
       <p className='text-sm text-slate-600'>
@@ -444,9 +468,33 @@ export default function SettingsPage() {
     </Card>
   );
 
-  const activeTitle = active === 'name' ? t('settings.nameTitle') : active === 'email' ? t('settings.emailTitle') : active === 'password' ? t('settings.passwordTitle') : active === 'pin' ? t('settings.pinTitle') : locale === 'th' ? 'ออกจากระบบ' : 'Sign out';
+  const activeTitle = active === 'name'
+    ? t('settings.nameTitle')
+    : active === 'email'
+      ? t('settings.emailTitle')
+      : active === 'password'
+        ? t('settings.passwordTitle')
+        : active === 'pin'
+          ? t('settings.pinTitle')
+          : active === 'language'
+            ? (locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language')
+            : locale === 'th'
+              ? 'ออกจากระบบ'
+              : 'Sign out';
 
-  const body = active === 'name' ? nameView : active === 'email' ? emailView : active === 'password' ? passwordView : active === 'pin' ? pinView : active === 'logout' ? logoutView : null;
+  const body = active === 'name'
+    ? nameView
+    : active === 'email'
+      ? emailView
+      : active === 'password'
+        ? passwordView
+        : active === 'pin'
+          ? pinView
+          : active === 'language'
+            ? languageView
+            : active === 'logout'
+              ? logoutView
+              : null;
 
   return (
     <section className='space-y-5 pb-24 pt-2'>
@@ -457,6 +505,7 @@ export default function SettingsPage() {
         {menuBtn('email', t('settings.emailTitle'), Mail)}
         {menuBtn('password', t('settings.passwordTitle'), Lock)}
         {menuBtn('pin', t('settings.pinTitle'), KeyRound)}
+        {menuBtn('language', locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language', Languages)}
         <button
           type='button'
           onClick={() => router.push('/settings/notifications')}

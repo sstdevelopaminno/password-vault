@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, ChevronDown, ChevronUp, ShieldAlert, X } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
+import { APP_VERSION } from "@/lib/app-version";
 
 type NotificationKind = "system" | "security" | "auth" | "vault" | "general";
 
@@ -15,6 +16,7 @@ type HeadsUpNotificationInput = {
   thumbnailUrl?: string;
   persistent?: boolean;
   alsoSystem?: boolean;
+  suppressSystem?: boolean;
 };
 
 type HeadsUpNotificationItem = HeadsUpNotificationInput & {
@@ -46,7 +48,6 @@ type HeadsUpContextValue = {
 
 const SETTINGS_STORAGE_KEY = "pv_notification_settings_v1";
 const VERSION_SEEN_KEY = "pv_seen_app_version";
-const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "2026.03.31";
 const APP_NAME = "Password Vault";
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -92,6 +93,14 @@ function canDisplayKind(kind: NotificationKind, settings: NotificationSettings) 
   if (kind === "auth") return settings.allowAuth;
   if (kind === "vault") return settings.allowVault;
   return true;
+}
+
+function normalizeKind(value: unknown): NotificationKind {
+  const raw = String(value ?? "general").toLowerCase();
+  if (raw === "system" || raw === "security" || raw === "auth" || raw === "vault") {
+    return raw;
+  }
+  return "general";
 }
 
 function base64UrlToUint8Array(base64UrlString: string) {
@@ -319,7 +328,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
       navigator.vibrate(input.kind === "security" ? [120, 90, 120, 90, 120] : [80]);
     }
 
-    const shouldSystemNotify = Boolean(input.alsoSystem || document.hidden || snapshot.tray || snapshot.lockScreen);
+    const shouldSystemNotify = !input.suppressSystem && Boolean(input.alsoSystem || document.hidden || snapshot.tray || snapshot.lockScreen);
     if (shouldSystemNotify) {
       void showSystemNotification(input, snapshot);
     }
@@ -355,6 +364,35 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
       void removePushSubscription();
     }
   }, [browserPermission, removePushSubscription, settings.enabled, settings.tray, syncPushSubscription]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
+
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; payload?: Record<string, unknown> };
+      if (!data || data.type !== "PUSH_RECEIVED") return;
+
+      const payload = data.payload ?? {};
+      const title = String(payload.title ?? "Password Vault");
+      const message = String(payload.body ?? payload.message ?? "");
+      if (!message) return;
+
+      notify({
+        kind: normalizeKind(payload.kind ?? payload.notification_kind),
+        title,
+        message,
+        href: typeof payload.href === "string" ? payload.href : "/home",
+        details: typeof payload.details === "string" ? payload.details : undefined,
+        thumbnailUrl: typeof payload.image === "string" ? payload.image : undefined,
+        persistent: Boolean(payload.requireInteraction),
+        suppressSystem: true,
+      });
+    };
+
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [notify]);
 
   const value = useMemo<HeadsUpContextValue>(
     () => ({
