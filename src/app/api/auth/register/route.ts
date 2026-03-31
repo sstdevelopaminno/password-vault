@@ -87,19 +87,30 @@ export async function POST(req: Request) {
           }
 
           const retryAfter = fallback.retryAfterSec || parseRetryAfterSeconds(resend.error.message) || 60;
-          if (isOtpProviderConfigError(fallback.error ?? "")) {
-            console.error("OTP fallback provider misconfigured in register resend:", fallback.error);
+          const fallbackError = String(fallback.error ?? "");
+
+          if (isOtpProviderConfigError(fallbackError)) {
+            console.error("OTP fallback provider misconfigured in register resend:", fallbackError);
             return NextResponse.json(
               { error: "OTP delivery service unavailable. Please try again shortly." },
               { status: 503 },
             );
           }
+
+          if (isOtpSendConstraintError(fallbackError)) {
+            return NextResponse.json(
+              {
+                error: "OTP rate limited. Please wait.",
+                retryAfterSec: retryAfter,
+              },
+              { status: 429 },
+            );
+          }
+
+          console.error("OTP fallback delivery failed in register resend:", fallbackError);
           return NextResponse.json(
-            {
-              error: "OTP rate limited. Please wait.",
-              retryAfterSec: retryAfter,
-            },
-            { status: 429 },
+            { error: "Unable to send OTP right now. Please try again shortly." },
+            { status: 502 },
           );
         }
 
@@ -123,20 +134,31 @@ export async function POST(req: Request) {
           });
         }
 
-        if (isOtpProviderConfigError(fallback.error ?? "")) {
-          console.error("OTP fallback provider misconfigured in register signup:", fallback.error);
+        const retryAfter = fallback.retryAfterSec || parseRetryAfterSeconds(signUpError.message) || 60;
+        const fallbackError = String(fallback.error ?? "");
+
+        if (isOtpProviderConfigError(fallbackError)) {
+          console.error("OTP fallback provider misconfigured in register signup:", fallbackError);
           return NextResponse.json(
             { error: "OTP delivery service unavailable. Please try again shortly." },
             { status: 503 },
           );
         }
 
+        if (isOtpSendConstraintError(fallbackError)) {
+          return NextResponse.json(
+            {
+              error: "OTP rate limited. Please wait.",
+              retryAfterSec: retryAfter,
+            },
+            { status: 429 },
+          );
+        }
+
+        console.error("OTP fallback delivery failed in register signup:", fallbackError);
         return NextResponse.json(
-          {
-            error: "OTP rate limited. Please wait.",
-            retryAfterSec: fallback.retryAfterSec || parseRetryAfterSeconds(signUpError.message) || 60,
-          },
-          { status: 429 },
+          { error: "Unable to send OTP right now. Please try again shortly." },
+          { status: 502 },
         );
       }
 

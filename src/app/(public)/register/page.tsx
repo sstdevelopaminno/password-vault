@@ -89,7 +89,7 @@ export default function RegisterPage() {
   }, [resendIn]);
 
   async function requestOtp() {
-    if (loading) return;
+    if (loading || resendIn > 0) return;
 
     setLoading(true);
     setError("");
@@ -250,7 +250,7 @@ export default function RegisterPage() {
 
             {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
-            <Button className="w-full" disabled={loading || (otpSent && otp.length !== 6)}>
+            <Button className="w-full" disabled={loading || (!otpSent && resendIn > 0) || (otpSent && otp.length !== 6)}>
               {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <Spinner /> {otpSent ? t("register.creating") : t("register.sendingOtp")}
