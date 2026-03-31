@@ -63,6 +63,16 @@ export function isOtpSendConstraintError(message: string) {
   );
 }
 
+export function isOtpProviderConfigError(message: string) {
+  const lower = String(message ?? "").toLowerCase();
+  return (
+    lower.includes("api key is invalid") ||
+    lower.includes("otp_email_provider_key is missing") ||
+    lower.includes("from field is invalid") ||
+    lower.includes("domain is not verified")
+  );
+}
+
 function unwrapQuoted(value: string) {
   const trimmed = value.trim();
   if (

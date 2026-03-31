@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
 import {
+  isOtpProviderConfigError,
   isOtpSendConstraintError,
   parseRetryAfterSeconds,
   sendSignupResendOtpViaFallback,
@@ -56,11 +57,18 @@ export async function POST(req: Request) {
       });
     }
 
+    if (isOtpProviderConfigError(fallback.error ?? "")) {
+      console.error("OTP fallback provider misconfigured in resend-signup-otp:", fallback.error);
+      return NextResponse.json(
+        { error: "OTP delivery service unavailable. Please try again shortly." },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(
       {
         error: "OTP rate limited. Please wait.",
         retryAfterSec: fallback.retryAfterSec || parseRetryAfterSeconds(error.message) || 60,
-        details: fallback.error ?? error.message,
       },
       { status: 429 },
     );

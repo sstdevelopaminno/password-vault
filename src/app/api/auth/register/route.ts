@@ -3,6 +3,7 @@ import { registerSchema } from "@/lib/validators";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  isOtpProviderConfigError,
   isOtpSendConstraintError,
   parseRetryAfterSeconds,
   sendSignupOtpViaFallback,
@@ -86,11 +87,17 @@ export async function POST(req: Request) {
           }
 
           const retryAfter = fallback.retryAfterSec || parseRetryAfterSeconds(resend.error.message) || 60;
+          if (isOtpProviderConfigError(fallback.error ?? "")) {
+            console.error("OTP fallback provider misconfigured in register resend:", fallback.error);
+            return NextResponse.json(
+              { error: "OTP delivery service unavailable. Please try again shortly." },
+              { status: 503 },
+            );
+          }
           return NextResponse.json(
             {
               error: "OTP rate limited. Please wait.",
               retryAfterSec: retryAfter,
-              details: fallback.error ?? resend.error.message,
             },
             { status: 429 },
           );
@@ -116,11 +123,18 @@ export async function POST(req: Request) {
           });
         }
 
+        if (isOtpProviderConfigError(fallback.error ?? "")) {
+          console.error("OTP fallback provider misconfigured in register signup:", fallback.error);
+          return NextResponse.json(
+            { error: "OTP delivery service unavailable. Please try again shortly." },
+            { status: 503 },
+          );
+        }
+
         return NextResponse.json(
           {
             error: "OTP rate limited. Please wait.",
             retryAfterSec: fallback.retryAfterSec || parseRetryAfterSeconds(signUpError.message) || 60,
-            details: fallback.error ?? signUpError.message,
           },
           { status: 429 },
         );
