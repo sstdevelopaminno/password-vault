@@ -12,6 +12,25 @@ function isAlreadyRegisteredError(message: string) {
   );
 }
 
+function parseRetryAfterSeconds(message: string) {
+  const text = String(message ?? "");
+  const match = text.match(/after\s+(\d+)\s*seconds?/i);
+  if (!match) return 0;
+  const sec = Number(match[1]);
+  return Number.isFinite(sec) && sec > 0 ? sec : 0;
+}
+
+function isRateLimitErrorMessage(message: string) {
+  const lower = String(message ?? "").toLowerCase();
+  return (
+    lower.includes("rate limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("for security purposes") ||
+    lower.includes("request this after") ||
+    lower.includes("over_email_send_rate_limit")
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const payload = await req.json();
@@ -34,6 +53,14 @@ export async function POST(req: Request) {
       });
 
       if (signUpError) {
+        if (isRateLimitErrorMessage(signUpError.message)) {
+          const retryAfterSec = parseRetryAfterSeconds(signUpError.message) || 60;
+          return NextResponse.json(
+            { error: "OTP rate limited. Please wait.", retryAfterSec },
+            { status: 429 },
+          );
+        }
+
         if (!isAlreadyRegisteredError(signUpError.message)) {
           return NextResponse.json({ error: signUpError.message }, { status: 400 });
         }
@@ -54,10 +81,17 @@ export async function POST(req: Request) {
         });
 
         if (resend.error) {
+          if (isRateLimitErrorMessage(resend.error.message)) {
+            const retryAfterSec = parseRetryAfterSeconds(resend.error.message) || 60;
+            return NextResponse.json(
+              { error: "OTP rate limited. Please wait.", retryAfterSec },
+              { status: 429 },
+            );
+          }
           return NextResponse.json({ error: resend.error.message }, { status: 400 });
         }
 
-        return NextResponse.json({ ok: true, otpRequired: true, message: "OTP sent to your email" });
+        return NextResponse.json({ ok: true, otpRequired: true, message: "OTP sent to your email", retryAfterSec: 60 });
       }
 
       const userId = signUpData.user?.id;
@@ -85,7 +119,7 @@ export async function POST(req: Request) {
         }
       }
 
-      return NextResponse.json({ ok: true, otpRequired: true, message: "OTP sent to your email" });
+      return NextResponse.json({ ok: true, otpRequired: true, message: "OTP sent to your email", retryAfterSec: 60 });
     }
 
     const verifyAsSignup = await supabase.auth.verifyOtp({
@@ -137,6 +171,10 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
+    if (isRateLimitErrorMessage(message)) {
+      const retryAfterSec = parseRetryAfterSeconds(message) || 60;
+      return NextResponse.json({ error: "OTP rate limited. Please wait.", retryAfterSec }, { status: 429 });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

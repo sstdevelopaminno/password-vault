@@ -21,10 +21,11 @@ function parseRetrySeconds(message: string) {
 function isOtpRateLimited(message: string) {
   const lower = message.toLowerCase();
   return (
-    lower.includes("rate") ||
+    lower.includes("rate limit") ||
     lower.includes("request this after") ||
     lower.includes("security purposes") ||
-    lower.includes("too many")
+    lower.includes("too many requests") ||
+    lower.includes("over_email_send_rate_limit")
   );
 }
 
@@ -100,32 +101,28 @@ export default function RegisterPage() {
     });
 
     setLoading(false);
-    const body = await res.json().catch(() => ({} as { error?: string; otpRequired?: boolean; message?: string }));
+    const body = await res.json().catch(
+      () => ({} as { error?: string; otpRequired?: boolean; message?: string; retryAfterSec?: number }),
+    );
 
     if (!res.ok) {
-      const message = mapRegisterError(body.error, locale, t("register.failedSendOtp"));
+      const rawError = String(body.error ?? "");
+      const apiRetry = Number(body.retryAfterSec ?? 0);
+      const parsedRetry = parseRetrySeconds(rawError);
+      const rateLimited = res.status === 429 || isOtpRateLimited(rawError);
+      const waitSec = apiRetry > 0 ? apiRetry : parsedRetry > 0 ? parsedRetry : 60;
+
+      const message = rateLimited
+        ? locale === "th"
+          ? `ขอ OTP บ่อยเกินไป กรุณารอ ${waitSec} วินาที`
+          : `OTP rate limited. Please wait ${waitSec}s.`
+        : mapRegisterError(body.error, locale, t("register.failedSendOtp"));
+
       setError(message);
       showToast(message, "error");
 
-      if (isOtpRateLimited(String(body.error ?? ""))) {
-        const retry = parseRetrySeconds(String(body.error ?? ""));
-        setResendIn(retry > 0 ? retry : 60);
-
-        if (otpSent) {
-          showToast(
-            locale === "th"
-              ? "ระบบจำกัดการขอ OTP ชั่วคราว ใช้ OTP ล่าสุดจากอีเมลได้"
-              : "OTP resend is rate-limited. Use your latest OTP from email.",
-            "success",
-          );
-        } else {
-          showToast(
-            locale === "th"
-              ? "ยังไม่สามารถส่ง OTP ใหม่ได้ กรุณารอสักครู่แล้วลองอีกครั้ง"
-              : "Cannot resend OTP yet. Please wait and try again.",
-            "error",
-          );
-        }
+      if (rateLimited) {
+        setResendIn(waitSec);
       }
       return;
     }
@@ -134,7 +131,8 @@ export default function RegisterPage() {
       setOtpSent(true);
     }
     setOtp("");
-    setResendIn(60);
+    const nextRetry = Number(body.retryAfterSec ?? 60);
+    setResendIn(Number.isFinite(nextRetry) && nextRetry > 0 ? nextRetry : 60);
     showToast(mapRegisterSuccess(body.message, locale, t("register.otpSent")), "success");
   }
 

@@ -14,6 +14,14 @@ import { useI18n } from "@/i18n/provider";
 type Method = "" | "email" | "pin";
 type EmailStep = "search" | "otp" | "password";
 
+function parseRetrySeconds(message: string) {
+  const text = String(message ?? "");
+  const match = text.match(/after\s+(\d+)\s*seconds?/i);
+  if (!match) return 0;
+  const sec = Number(match[1]);
+  return Number.isFinite(sec) && sec > 0 ? sec : 0;
+}
+
 function mapError(message: unknown, locale: "th" | "en") {
   const text = String(message ?? "");
   const lower = text.toLowerCase();
@@ -21,7 +29,13 @@ function mapError(message: unknown, locale: "th" | "en") {
   if (lower.includes("invalid login credentials")) {
     return locale === "th" ? "ข้อมูลเข้าสู่ระบบไม่ถูกต้อง" : "Invalid login credentials";
   }
-  if (lower.includes("rate limit")) {
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("security purposes") ||
+    lower.includes("request this after") ||
+    lower.includes("too many requests") ||
+    lower.includes("over_email_send_rate_limit")
+  ) {
     return locale === "th" ? "OTP ถูกจำกัดความถี่ กรุณารอสักครู่" : "OTP rate limited. Please wait.";
   }
   if (lower.includes("invalid otp") || lower.includes("token")) {
@@ -121,8 +135,17 @@ export default function ForgotPasswordPage() {
 
     if (!res.ok) {
       showToast(mapError(body?.error, locale), "error");
-      if (res.status === 429) {
-        setResendIn(Number(body?.retryAfterSec || 60));
+      const lower = String(body?.error ?? "").toLowerCase();
+      const isRateLimited =
+        res.status === 429 ||
+        lower.includes("rate limit") ||
+        lower.includes("security purposes") ||
+        lower.includes("request this after") ||
+        lower.includes("too many requests") ||
+        lower.includes("over_email_send_rate_limit");
+      if (isRateLimited) {
+        const retry = Number(body?.retryAfterSec || parseRetrySeconds(String(body?.error ?? "")) || 60);
+        setResendIn(retry > 0 ? retry : 60);
       }
       return;
     }
