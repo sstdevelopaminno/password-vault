@@ -37,6 +37,13 @@
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `OTP_PROVIDER` (`engagelab` or `resend`)
+- For EngageLab:
+- `OTP_ENGAGELAB_DEV_KEY`
+- `OTP_ENGAGELAB_DEV_SECRET`
+- `OTP_ENGAGELAB_TEMPLATE_ID`
+- `OTP_ENGAGELAB_TEMPLATE_LANG` (optional, default `default`)
+- For Resend (optional alternative):
 - `OTP_EMAIL_PROVIDER_KEY` (Resend API key)
 - `OTP_EMAIL_FROM` (verified sender/domain)
 - `OTP_APP_NAME`

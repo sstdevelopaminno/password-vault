@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type OtpPurpose = "signup" | "recovery";
+type OtpProvider = "resend" | "engagelab";
 
 type SendOtpProviderInput = {
   email: string;
@@ -59,7 +60,8 @@ export function isOtpSendConstraintError(message: string) {
     lower.includes("request this after") ||
     lower.includes("over_email_send_rate_limit") ||
     lower.includes("email address not authorized") ||
-    lower.includes("smtp")
+    lower.includes("smtp") ||
+    lower.includes("exceeded frequency limit")
   );
 }
 
@@ -69,7 +71,11 @@ export function isOtpProviderConfigError(message: string) {
     lower.includes("api key is invalid") ||
     lower.includes("otp_email_provider_key is missing") ||
     lower.includes("from field is invalid") ||
-    lower.includes("domain is not verified")
+    lower.includes("domain is not verified") ||
+    lower.includes("authentication failed") ||
+    lower.includes("otp_engagelab_dev_key is missing") ||
+    lower.includes("otp_engagelab_dev_secret is missing") ||
+    lower.includes("otp_engagelab_template_id is missing")
   );
 }
 
@@ -84,27 +90,52 @@ function unwrapQuoted(value: string) {
   return trimmed;
 }
 
-function getResendApiKey() {
-  const raw = process.env.OTP_EMAIL_PROVIDER_KEY;
+function getEnv(name: string) {
+  const raw = process.env[name];
   if (!raw) return "";
-  const value = unwrapQuoted(raw);
-  if (!value) return "";
-  return value;
+  return unwrapQuoted(raw);
+}
+
+function getOtpProvider(): OtpProvider {
+  const explicit = getEnv("OTP_PROVIDER").toLowerCase();
+  if (explicit === "engagelab") return "engagelab";
+  if (explicit === "resend") return "resend";
+  if (getEnv("OTP_ENGAGELAB_DEV_KEY") || getEnv("OTP_ENGAGELAB_TEMPLATE_ID")) return "engagelab";
+  return "resend";
+}
+
+function getResendApiKey() {
+  return getEnv("OTP_EMAIL_PROVIDER_KEY");
+}
+
+function getEngageLabDevKey() {
+  return getEnv("OTP_ENGAGELAB_DEV_KEY");
+}
+
+function getEngageLabDevSecret() {
+  const dedicated = getEnv("OTP_ENGAGELAB_DEV_SECRET");
+  if (dedicated) return dedicated;
+  return getEnv("OTP_EMAIL_PROVIDER_KEY");
+}
+
+function getEngageLabTemplateId() {
+  return getEnv("OTP_ENGAGELAB_TEMPLATE_ID");
+}
+
+function getEngageLabTemplateLang() {
+  const lang = getEnv("OTP_ENGAGELAB_TEMPLATE_LANG");
+  return lang || "default";
 }
 
 function getOtpMailFrom() {
-  const raw = process.env.OTP_EMAIL_FROM;
   const fallback = "no-reply@password-vault.local";
-  if (!raw) return fallback;
-  const value = unwrapQuoted(raw);
+  const value = getEnv("OTP_EMAIL_FROM");
   return value || fallback;
 }
 
 function getAppName() {
-  const raw = process.env.OTP_APP_NAME;
   const fallback = "Password Vault";
-  if (!raw) return fallback;
-  const value = unwrapQuoted(raw);
+  const value = getEnv("OTP_APP_NAME");
   return value || fallback;
 }
 
@@ -173,6 +204,61 @@ async function sendOtpWithResend(input: SendOtpProviderInput) {
   return { ok: true };
 }
 
+async function sendOtpWithEngageLab(input: SendOtpProviderInput) {
+  const devKey = getEngageLabDevKey();
+  const devSecret = getEngageLabDevSecret();
+  const templateId = getEngageLabTemplateId();
+  const templateLang = getEngageLabTemplateLang();
+
+  if (!devKey) return { ok: false, error: "OTP_ENGAGELAB_DEV_KEY is missing" };
+  if (!devSecret) return { ok: false, error: "OTP_ENGAGELAB_DEV_SECRET is missing" };
+  if (!templateId) return { ok: false, error: "OTP_ENGAGELAB_TEMPLATE_ID is missing" };
+
+  const auth = Buffer.from(`${devKey}:${devSecret}`).toString("base64");
+  const appName = getAppName();
+
+  const res = await fetch("https://otp.api.engagelab.cc/v1/codes", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      to: input.email,
+      code: input.otp,
+      template: {
+        id: templateId,
+        language: templateLang,
+        params: {
+          app_name: appName,
+          otp_code: input.otp,
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({} as { code?: number; message?: string }))) as {
+      code?: number;
+      message?: string;
+    };
+    const codeText = typeof body.code === "number" ? String(body.code) : "";
+    const message = String(body.message ?? "");
+    const merged = codeText ? `EngageLab ${codeText}: ${message || `HTTP ${res.status}`}` : message || `EngageLab HTTP ${res.status}`;
+    return { ok: false, error: merged };
+  }
+
+  return { ok: true };
+}
+
+async function sendOtpWithProvider(input: SendOtpProviderInput) {
+  const provider = getOtpProvider();
+  if (provider === "engagelab") {
+    return sendOtpWithEngageLab(input);
+  }
+  return sendOtpWithResend(input);
+}
+
 function extractEmailOtp(data: unknown) {
   if (!data || typeof data !== "object") return "";
   const maybeAny = data as {
@@ -231,7 +317,7 @@ export async function sendSignupOtpViaFallback(input: FallbackSignupInput): Prom
     };
   }
 
-  const sent = await sendOtpWithResend({ email: input.email, otp: generated.otp, purpose: "signup" });
+  const sent = await sendOtpWithProvider({ email: input.email, otp: generated.otp, purpose: "signup" });
   if (!sent.ok) {
     return {
       ok: false,
@@ -274,7 +360,7 @@ export async function sendRecoveryOtpViaFallback(email: string): Promise<Deliver
     };
   }
 
-  const sent = await sendOtpWithResend({ email, otp, purpose: "recovery" });
+  const sent = await sendOtpWithProvider({ email, otp, purpose: "recovery" });
   if (!sent.ok) {
     return {
       ok: false,
@@ -317,7 +403,7 @@ export async function sendSignupResendOtpViaFallback(email: string): Promise<Del
     };
   }
 
-  const sent = await sendOtpWithResend({ email, otp, purpose: "signup" });
+  const sent = await sendOtpWithProvider({ email, otp, purpose: "signup" });
   if (!sent.ok) {
     return {
       ok: false,
