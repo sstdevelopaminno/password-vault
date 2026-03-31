@@ -3,25 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
-
-function parseRetryAfterSeconds(message: string) {
-  const text = String(message ?? "");
-  const match = text.match(/after\s+(\d+)\s*seconds?/i);
-  if (!match) return 0;
-  const sec = Number(match[1]);
-  return Number.isFinite(sec) && sec > 0 ? sec : 0;
-}
-
-function isRateLimitErrorMessage(message: string) {
-  const lower = String(message ?? "").toLowerCase();
-  return (
-    lower.includes("rate limit") ||
-    lower.includes("too many requests") ||
-    lower.includes("for security purposes") ||
-    lower.includes("request this after") ||
-    lower.includes("over_email_send_rate_limit")
-  );
-}
+import {
+  isOtpSendConstraintError,
+  parseRetryAfterSeconds,
+  sendRecoveryOtpViaFallback,
+} from "@/lib/otp-delivery";
 
 export async function POST(req: Request) {
   const { email } = await req.json();
@@ -61,14 +47,36 @@ export async function POST(req: Request) {
   });
 
   if (error) {
-    if (isRateLimitErrorMessage(error.message)) {
-      return NextResponse.json(
-        { error: "OTP rate limited. Please wait.", retryAfterSec: parseRetryAfterSeconds(error.message) || 60 },
-        { status: 429 },
-      );
+    if (!isOtpSendConstraintError(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    return NextResponse.json({ error: error.message }, { status: 400 });
+
+    const fallback = await sendRecoveryOtpViaFallback(normalizedEmail);
+    if (fallback.ok) {
+      return NextResponse.json({
+        ok: true,
+        email: normalizedEmail,
+        retryAfterSec: fallback.retryAfterSec,
+        channel: fallback.channel,
+        message: "OTP sent for password reset",
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error: "OTP rate limited. Please wait.",
+        retryAfterSec: fallback.retryAfterSec || parseRetryAfterSeconds(error.message) || 60,
+        details: fallback.error ?? error.message,
+      },
+      { status: 429 },
+    );
   }
 
-  return NextResponse.json({ ok: true, email: normalizedEmail, retryAfterSec: 60, message: "OTP sent for password reset" });
+  return NextResponse.json({
+    ok: true,
+    email: normalizedEmail,
+    retryAfterSec: 60,
+    channel: "supabase",
+    message: "OTP sent for password reset",
+  });
 }

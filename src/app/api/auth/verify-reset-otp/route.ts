@@ -24,7 +24,15 @@ export async function POST(req: Request) {
   });
 
   if (verified.error || !verified.data.user) {
-    return NextResponse.json({ error: verified.error?.message ?? "Invalid OTP" }, { status: 400 });
+    const recoveryTry = await supabase.auth.verifyOtp({
+      email: email.toLowerCase(),
+      token: otp,
+      type: "recovery",
+    });
+
+    if (recoveryTry.error || !recoveryTry.data.user) {
+      return NextResponse.json({ error: verified.error?.message ?? "Invalid OTP" }, { status: 400 });
+    }
   }
 
   return NextResponse.json({ ok: true });

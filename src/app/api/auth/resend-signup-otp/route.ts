@@ -2,27 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
+import {
+  isOtpSendConstraintError,
+  parseRetryAfterSeconds,
+  sendSignupResendOtpViaFallback,
+} from "@/lib/otp-delivery";
 
 const schema = z.object({ email: z.email() });
-
-function parseRetryAfterSeconds(message: string) {
-  const text = String(message ?? "");
-  const match = text.match(/after\s+(\d+)\s*seconds?/i);
-  if (!match) return 0;
-  const sec = Number(match[1]);
-  return Number.isFinite(sec) && sec > 0 ? sec : 0;
-}
-
-function isRateLimitErrorMessage(message: string) {
-  const lower = String(message ?? "").toLowerCase();
-  return (
-    lower.includes("rate limit") ||
-    lower.includes("too many requests") ||
-    lower.includes("for security purposes") ||
-    lower.includes("request this after") ||
-    lower.includes("over_email_send_rate_limit")
-  );
-}
 
 export async function POST(req: Request) {
   let payload: unknown = null;
@@ -56,18 +42,34 @@ export async function POST(req: Request) {
   });
 
   if (error) {
-    if (isRateLimitErrorMessage(error.message)) {
-      return NextResponse.json(
-        { error: "OTP rate limited. Please wait.", retryAfterSec: parseRetryAfterSeconds(error.message) || 60 },
-        { status: 429 },
-      );
+    if (!isOtpSendConstraintError(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    return NextResponse.json({ error: error.message }, { status: 400 });
+
+    const fallback = await sendSignupResendOtpViaFallback(normalizedEmail);
+    if (fallback.ok) {
+      return NextResponse.json({
+        ok: true,
+        retryAfterSec: fallback.retryAfterSec,
+        channel: fallback.channel,
+        message: "OTP sent to your email",
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error: "OTP rate limited. Please wait.",
+        retryAfterSec: fallback.retryAfterSec || parseRetryAfterSeconds(error.message) || 60,
+        details: fallback.error ?? error.message,
+      },
+      { status: 429 },
+    );
   }
 
   return NextResponse.json({
     ok: true,
     retryAfterSec: 60,
+    channel: "supabase",
     message: "OTP sent to your email",
   });
 }
