@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
+import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/lib/pin-session";
 
 const AUTO_APPROVE_AFTER_MS = 2 * 60 * 1000;
 const PENDING_STATUSES = new Set(["pending_approval", "pending", "awaiting_approval"]);
@@ -88,6 +89,13 @@ export async function GET() {
     auth.user.user_metadata && typeof auth.user.user_metadata === "object"
       ? (auth.user.user_metadata as Record<string, unknown>).pv_pin_session_enabled !== false
       : true;
+  const pinSessionTimeoutSec =
+    auth.user.user_metadata && typeof auth.user.user_metadata === "object"
+      ? clampPinSessionTimeoutSec(
+          (auth.user.user_metadata as Record<string, unknown>).pv_pin_session_timeout_sec,
+          DEFAULT_PIN_SESSION_TIMEOUT_SEC,
+        )
+      : DEFAULT_PIN_SESSION_TIMEOUT_SEC;
 
   return NextResponse.json({
     ok: true,
@@ -99,6 +107,7 @@ export async function GET() {
     emailVerifiedAt,
     hasPin,
     pinSessionEnabled,
+    pinSessionTimeoutSec,
     needsOtpVerification,
     pendingApproval,
     autoApproved: autoApprove.autoApproved,

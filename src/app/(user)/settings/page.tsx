@@ -10,6 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
+import {
+  clampPinSessionTimeoutSec,
+  DEFAULT_PIN_SESSION_TIMEOUT_SEC,
+  PIN_SESSION_TIMEOUT_OPTIONS_SEC,
+} from '@/lib/pin-session';
 
 function digits(value: string) {
   return String(value).replace(/\D/g, '').slice(0, 6);
@@ -42,6 +47,7 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [pinSessionEnabled, setPinSessionEnabled] = useState(true);
+  const [pinSessionTimeoutSec, setPinSessionTimeoutSec] = useState(DEFAULT_PIN_SESSION_TIMEOUT_SEC);
   const [pinSecuritySaving, setPinSecuritySaving] = useState(false);
 
   const [emailLoading, setEmailLoading] = useState(false);
@@ -106,6 +112,9 @@ export default function SettingsPage() {
     setFullName(String(body?.fullName ?? ''));
     setProfileEmail(String(body?.email ?? ''));
     setPinSessionEnabled(body?.pinSessionEnabled !== false);
+    setPinSessionTimeoutSec(
+      clampPinSessionTimeoutSec(body?.pinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC),
+    );
   }
 
   async function apiCall(url: string, method: 'POST' | 'PATCH', payload: unknown, fallback: string) {
@@ -139,14 +148,21 @@ export default function SettingsPage() {
     void loadProfile();
   }
 
-  async function updatePinSecurity(enabled: boolean) {
+  function timeoutOptionLabel(sec: number) {
+    if (sec < 60) return locale === 'th' ? `${sec} วินาที` : `${sec}s`;
+    const mins = Math.floor(sec / 60);
+    return locale === 'th' ? `${mins} นาที` : `${mins} min`;
+  }
+
+  async function updatePinSecurity(enabled: boolean, nextTimeoutSec = pinSessionTimeoutSec) {
     if (pinSecuritySaving) return;
     setPinSecuritySaving(true);
+    const safeTimeoutSec = clampPinSessionTimeoutSec(nextTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC);
 
     const body = await apiCall(
       '/api/profile/update',
       'PATCH',
-      { purpose: 'change_pin_security', pinSessionEnabled: enabled },
+      { purpose: 'change_pin_security', pinSessionEnabled: enabled, pinSessionTimeoutSec: safeTimeoutSec },
       t('settings.updateFailed'),
     );
 
@@ -154,6 +170,7 @@ export default function SettingsPage() {
     if (!body) return;
 
     setPinSessionEnabled(enabled);
+    setPinSessionTimeoutSec(safeTimeoutSec);
     toast.showToast(
       locale === 'th'
         ? enabled
@@ -492,6 +509,29 @@ export default function SettingsPage() {
           >
             {locale === 'th' ? 'ปิดใช้งาน' : 'Disabled'}
           </Button>
+        </div>
+        <div className='mt-3 space-y-1.5'>
+          <p className='text-xs font-semibold text-slate-600'>
+            {locale === 'th' ? 'ตั้งเวลาล็อกอัตโนมัติเมื่อไม่มีการใช้งาน' : 'Set auto-lock timeout after inactivity'}
+          </p>
+          <div className='grid grid-cols-3 gap-2'>
+            {PIN_SESSION_TIMEOUT_OPTIONS_SEC.map((sec) => (
+              <Button
+                key={sec}
+                variant={pinSessionTimeoutSec === sec ? 'default' : 'secondary'}
+                className='h-9 rounded-xl text-xs'
+                onClick={() => void updatePinSecurity(pinSessionEnabled, sec)}
+                disabled={pinSecuritySaving}
+              >
+                {timeoutOptionLabel(sec)}
+              </Button>
+            ))}
+          </div>
+          <p className='text-[11px] text-slate-500'>
+            {locale === 'th'
+              ? 'ระบบจะจับการแตะ/คลิก/พิมพ์/เลื่อนหน้าจอ หากไม่มีการใช้งานครบเวลาที่ตั้งไว้จะล็อก PIN ทันที'
+              : 'The app tracks tap/click/type/scroll activity and locks with PIN immediately after selected idle time.'}
+          </p>
         </div>
       </div>
       <Input type='password' inputMode='numeric' maxLength={6} value={currentPin} placeholder={t('settings.currentPinPlaceholder')} onChange={(ev) => setCurrentPin(digits(ev.target.value))} />

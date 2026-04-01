@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { profileOtpPurposeSchema } from '@/lib/validators';
 import { logAudit } from '@/lib/audit';
 import { verifyPinAssertionToken } from '@/lib/pin';
+import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from '@/lib/pin-session';
 
 export async function PATCH(req: Request) {
   const body = await req.json();
@@ -56,11 +57,16 @@ export async function PATCH(req: Request) {
 
   if (parsedPurpose.data === 'change_pin_security') {
     const pinSessionEnabled = Boolean(body.pinSessionEnabled);
+    const pinSessionTimeoutSec = clampPinSessionTimeoutSec(
+      body.pinSessionTimeoutSec,
+      DEFAULT_PIN_SESSION_TIMEOUT_SEC,
+    );
     const currentMetadata =
       auth.user.user_metadata && typeof auth.user.user_metadata === 'object'
         ? { ...(auth.user.user_metadata as Record<string, unknown>) }
         : {};
     currentMetadata.pv_pin_session_enabled = pinSessionEnabled;
+    currentMetadata.pv_pin_session_timeout_sec = pinSessionTimeoutSec;
 
     const { error: metadataError } = await admin.auth.admin.updateUserById(auth.user.id, {
       user_metadata: currentMetadata,
@@ -73,11 +79,13 @@ export async function PATCH(req: Request) {
     await logAudit('pin_session_security_changed', {
       actor_user_id: auth.user.id,
       pin_session_enabled: pinSessionEnabled,
+      pin_session_timeout_sec: pinSessionTimeoutSec,
     });
 
     return NextResponse.json({
       ok: true,
       pinSessionEnabled,
+      pinSessionTimeoutSec,
       message: pinSessionEnabled
         ? 'PIN session lock enabled.'
         : 'PIN session lock disabled.',

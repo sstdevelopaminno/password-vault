@@ -6,9 +6,9 @@ import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/i18n/provider";
+import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/lib/pin-session";
 
 const STORAGE_PREFIX = "pv_pin_unlock_";
-const INACTIVITY_LOCK_MS = 90 * 1000;
 
 function storageKey(userId: string) {
   return STORAGE_PREFIX + (userId || "anonymous");
@@ -18,10 +18,23 @@ type PinSessionGateProps = {
   children?: React.ReactNode;
   hasPin: boolean;
   pinSessionEnabled: boolean;
+  pinSessionTimeoutSec: number;
   userId: string;
 };
 
-export function PinSessionGate({ children, hasPin, pinSessionEnabled, userId }: PinSessionGateProps) {
+function formatTimeoutText(locale: "th" | "en", timeoutSec: number) {
+  if (timeoutSec < 60) {
+    return locale === "th"
+      ? `ล็อกอัตโนมัติเมื่อไม่มีการใช้งาน ${timeoutSec} วินาที`
+      : `Locks automatically after ${timeoutSec}s of inactivity.`;
+  }
+  const mins = Math.floor(timeoutSec / 60);
+  return locale === "th"
+    ? `ล็อกอัตโนมัติเมื่อไม่มีการใช้งาน ${mins} นาที`
+    : `Locks automatically after ${mins} min of inactivity.`;
+}
+
+export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSessionTimeoutSec, userId }: PinSessionGateProps) {
   const { locale } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
@@ -35,6 +48,8 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, userId }: 
 
   const key = storageKey(userId);
   const isSettingsPage = pathname.startsWith("/settings");
+  const safeTimeoutSec = clampPinSessionTimeoutSec(pinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC);
+  const inactivityLockMs = safeTimeoutSec * 1000;
 
   const lockNow = useCallback(() => {
     if (!hasPin || !pinSessionEnabled) return;
@@ -63,8 +78,8 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, userId }: 
     }
     inactivityTimerRef.current = window.setTimeout(() => {
       lockNow();
-    }, INACTIVITY_LOCK_MS);
-  }, [lockNow]);
+    }, inactivityLockMs);
+  }, [inactivityLockMs, lockNow]);
 
   useEffect(() => {
     if (!hasPin || !pinSessionEnabled) {
@@ -105,12 +120,18 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, userId }: 
     window.addEventListener("pointerdown", onActivity, { passive: true });
     window.addEventListener("keydown", onActivity);
     window.addEventListener("touchstart", onActivity, { passive: true });
+    window.addEventListener("scroll", onActivity, { passive: true });
+    window.addEventListener("wheel", onActivity, { passive: true });
+    window.addEventListener("pointermove", onActivity, { passive: true });
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
       window.removeEventListener("touchstart", onActivity);
+      window.removeEventListener("scroll", onActivity);
+      window.removeEventListener("wheel", onActivity);
+      window.removeEventListener("pointermove", onActivity);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       if (inactivityTimerRef.current !== null) {
         window.clearTimeout(inactivityTimerRef.current);
@@ -218,9 +239,7 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, userId }: 
                 {locale === "th" ? "ยืนยัน PIN เพื่อปลดล็อก" : "Enter PIN to unlock"}
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                {locale === "th"
-                  ? "ระบบจะล็อกอัตโนมัติเมื่อไม่มีการใช้งาน"
-                  : "App will lock automatically after inactivity."}
+                {formatTimeoutText(locale, safeTimeoutSec)}
               </p>
             </div>
 

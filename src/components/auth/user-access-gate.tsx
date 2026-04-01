@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 import { PinSessionGate } from "@/components/auth/pin-session-gate";
+import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/lib/pin-session";
 
 const POLL_MS = 5000;
 
@@ -69,6 +70,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   const [lastAutoOtp, setLastAutoOtp] = useState("");
   const [hasPin, setHasPin] = useState(false);
   const [pinSessionEnabled, setPinSessionEnabled] = useState(true);
+  const [pinSessionTimeoutSec, setPinSessionTimeoutSec] = useState(DEFAULT_PIN_SESSION_TIMEOUT_SEC);
   const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -111,6 +113,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         pendingApproval?: boolean;
         hasPin?: boolean;
         pinSessionEnabled?: boolean;
+        pinSessionTimeoutSec?: unknown;
         userId?: string;
       };
       const nextEmail = String(payload.email ?? "");
@@ -119,6 +122,9 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
       setEmail(nextEmail);
       setHasPin(Boolean(payload.hasPin));
       setPinSessionEnabled(payload.pinSessionEnabled !== false);
+      setPinSessionTimeoutSec(
+        clampPinSessionTimeoutSec(payload.pinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC),
+      );
       setUserId(String(payload.userId ?? ""));
 
       if (needsOtp) {
@@ -302,7 +308,11 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   }, [mode, loading, otp]);
 
   if (mode === "active") {
-    return h(PinSessionGate, { hasPin, userId, pinSessionEnabled }, props.children);
+    return h(
+      PinSessionGate,
+      { hasPin, userId, pinSessionEnabled, pinSessionTimeoutSec },
+      props.children,
+    );
   }
 
   let resendDisabled = false;
