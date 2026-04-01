@@ -77,7 +77,7 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSession
       window.clearTimeout(inactivityTimerRef.current);
     }
     inactivityTimerRef.current = window.setTimeout(() => {
-      lockNow();
+      armInactivityLock();
     }, inactivityLockMs);
   }, [inactivityLockMs, lockNow]);
 
@@ -111,7 +111,7 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSession
     const onActivity = () => armInactivityLock();
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        lockNow();
+        armInactivityLock();
       } else {
         armInactivityLock();
       }

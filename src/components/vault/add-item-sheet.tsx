@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -47,7 +47,7 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
 
  if (res.status === 401) {
  setLoading(false);
- showToast(locale === 'th' ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่' : 'Session expired. Please sign in again.', 'error');
+ showToast(locale === 'th' ? 'เน€เธเธชเธเธฑเธเธซเธกเธ”เธญเธฒเธขเธธ เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธซเธกเน' : 'Session expired. Please sign in again.', 'error');
  router.replace('/login');
  return;
  }
@@ -77,7 +77,7 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  } catch (error) {
  setLoading(false);
  if ((error as Error).name === 'AbortError') {
- showToast(locale === 'th' ? 'บันทึกล่าช้า กรุณาลองอีกครั้ง' : 'Save is taking too long. Please retry.', 'error');
+ showToast(locale === 'th' ? 'เธเธฑเธเธ—เธถเธเธฅเนเธฒเธเนเธฒ เธเธฃเธธเธ“เธฒเธฅเธญเธเธญเธตเธเธเธฃเธฑเนเธ' : 'Save is taking too long. Please retry.', 'error');
  return;
  }
  showToast(t('addItem.saveFailed'), 'error');
@@ -98,8 +98,8 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  </button>
 
  {open ? (
- <div className='fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[2px]'>
- <div className='absolute inset-x-0 bottom-0 mx-auto w-full max-w-[480px] animate-slide-up rounded-t-[28px] bg-white p-4 shadow-2xl'>
+ <div className='fixed inset-0 z-[70] bg-slate-950/40 backdrop-blur-[2px]'>
+ <div className='absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+78px)] mx-auto w-[calc(100%-12px)] max-h-[calc(100dvh-120px)] max-w-[480px] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
  <h2 className='text-base font-semibold'>{t('addItem.title')}</h2>
  <button onClick={() => setOpen(false)} className='rounded-full p-1 text-slate-500 hover:bg-slate-100' aria-label={t('addItem.closeAria')}>
@@ -133,3 +133,4 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  </>
  );
 }
+

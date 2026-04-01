@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { vaultSchema } from "@/lib/validators";
@@ -39,7 +39,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const limit = parseLimit(searchParams.get("limit"));
   const page = parsePage(searchParams.get("page"));
-  const q = normalizeSearchQuery(searchParams.get("q"));
+  const q = normalizeSearchQuery(searchParams.get('q'));
+ const includeStorage = searchParams.get('includeStorage') === '1';
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
@@ -72,10 +73,33 @@ export async function GET(req: Request) {
     username_value_encrypted: undefined,
   }));
 
-  recordApiMetric(ROUTE_PATH, "GET", 200, Date.now() - startedAt);
+  let storageUsedBytes = 0;
+ if (includeStorage) {
+ const storageQuery = await admin
+ .from('vault_items')
+ .select('title,url,category,username_value_encrypted,secret_value_encrypted,notes_encrypted')
+ .eq('owner_user_id', ownerId);
+
+ if (!storageQuery.error) {
+ storageUsedBytes = (storageQuery.data ?? []).reduce(function (sum, row) {
+ return sum +
+ Buffer.byteLength(String(row.title ?? ''), 'utf8') +
+ Buffer.byteLength(String(row.url ?? ''), 'utf8') +
+ Buffer.byteLength(String(row.category ?? ''), 'utf8') +
+ Buffer.byteLength(String(row.username_value_encrypted ?? ''), 'utf8') +
+ Buffer.byteLength(String(row.secret_value_encrypted ?? ''), 'utf8') +
+ Buffer.byteLength(String(row.notes_encrypted ?? ''), 'utf8');
+ }, 0);
+ }
+ }
+
+ recordApiMetric(ROUTE_PATH, 'GET', 200, Date.now() - startedAt);
   return NextResponse.json({
     items: safeItems,
-    pagination: {
+ storage: {
+ usedBytes: storageUsedBytes,
+ },
+ pagination: {
       page,
       limit,
       total,
@@ -152,3 +176,7 @@ export async function POST(req: Request) {
     },
   });
 }
+
+
+
+

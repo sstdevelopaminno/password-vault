@@ -47,8 +47,8 @@ export function VaultItemModal({ mode, initialValue, onClose, onSubmit }: VaultI
   const loadingText = mode === "add" ? t("addItem.saving") : locale === "th" ? "กำลังอัปเดต..." : "Updating...";
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[2px]">
-      <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[480px] animate-slide-up rounded-t-[28px] bg-white p-4 shadow-2xl">
+    <div className="fixed inset-0 z-[70] bg-slate-950/40 backdrop-blur-[2px]">
+      <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+78px)] mx-auto w-[calc(100%-12px)] max-h-[calc(100dvh-120px)] max-w-[480px] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold">{modalTitle}</h2>
           <button onClick={onClose} className="rounded-full p-1 text-slate-500 hover:bg-slate-100" aria-label={t("addItem.closeAria")}>
@@ -88,3 +88,4 @@ export function VaultItemModal({ mode, initialValue, onClose, onSubmit }: VaultI
     </div>
   );
 }
+
