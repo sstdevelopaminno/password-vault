@@ -86,7 +86,7 @@ export const messages = {
     vault: {
       title: "คลังรหัส",
       subtitle: "ทุกการกระทำที่สำคัญต้องยืนยัน PIN 6 หลัก",
-      searchPlaceholder: "ค้นหาชื่อรายการ หรือชื่อผู้ใช้",
+      searchPlaceholder: "ค้นหาชื่อรายการ",
       protectedByPin: "ป้องกันด้วย PIN",
       addItemAria: "เพิ่มรายการใหม่",
       time2h: "2 ชั่วโมงที่แล้ว",
@@ -247,7 +247,7 @@ export const messages = {
     vault: {
       title: "Vault",
       subtitle: "All sensitive actions require your 6-digit PIN",
-      searchPlaceholder: "Search title, username",
+      searchPlaceholder: "Search by title",
       protectedByPin: "Protected by PIN",
       addItemAria: "Add vault item",
       time2h: "2h ago",

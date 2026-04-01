@@ -92,7 +92,7 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  type='button'
  aria-label={t('vault.addItemAria')}
  onClick={() => { if (!open) setOpen(true); }}
- className='fixed bottom-24 right-5 z-30 inline-flex h-14 w-14 touch-manipulation items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-[0_10px_24px_rgba(37,99,235,0.45)] transition active:scale-[0.98] hover:brightness-110'
+ className='fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+96px)] z-30 inline-flex h-14 w-14 touch-manipulation items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-[0_10px_24px_rgba(37,99,235,0.45)] transition active:scale-[0.98] hover:brightness-110'
  >
  <Plus className='h-6 w-6' />
  </button>

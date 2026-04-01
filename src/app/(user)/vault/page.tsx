@@ -2,7 +2,7 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { VaultCard } from '@/components/vault/vault-card';
 import { AddVaultItemSheet } from '@/components/vault/add-item-sheet';
 import { PinModal } from '@/components/vault/pin-modal';
@@ -34,15 +34,13 @@ type VaultApiResponse = {
  error?: string;
  items?: VaultApiItem[];
  pagination?: {
- hasMore?: boolean;
- nextCursor?: string | null;
+ page?: number;
+ limit?: number;
+ total?: number;
+ totalPages?: number;
+ hasPrev?: boolean;
+ hasNext?: boolean;
  };
-};
-
-type VaultCachePayload = {
- items: VaultItem[];
- nextCursor: string | null;
- hasMore: boolean;
 };
 
 type EditFormValue = {
@@ -62,16 +60,20 @@ type PendingEdit = {
 type SecureAction = 'edit_secret' | 'delete_secret';
 type AssertionCacheEntry = { token: string; expiresAt: number };
 
-const PAGE_SIZE = 50;
-const CACHE_KEY = 'vault_items_cache_v3';
+const PAGE_SIZE = 12;
 const ASSERTION_TTL_MS = 30_000;
 const FETCH_TIMEOUT_MS = 12_000;
 
-function mergeUniqueById(base: VaultItem[], incoming: VaultItem[]) {
- const map = new Map<string, VaultItem>();
- for (const item of base) map.set(item.id, item);
- for (const item of incoming) map.set(item.id, item);
- return Array.from(map.values());
+function clampPage(value: number, totalPages: number) {
+ const next = Number.isFinite(value) ? Math.floor(value) : 1;
+ return Math.min(Math.max(1, next), Math.max(1, totalPages));
+}
+
+function buildPageNumbers(page: number, totalPages: number) {
+ if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+ if (page <= 4) return [1, 2, 3, 4, 5];
+ if (page >= totalPages - 3) return [totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+ return [page - 2, page - 1, page, page + 1, page + 2];
 }
 
 export default function VaultPage() {
@@ -81,10 +83,10 @@ export default function VaultPage() {
 
  const [items, setItems] = useState<VaultItem[]>([]);
  const [search, setSearch] = useState('');
- const [nextCursor, setNextCursor] = useState<string | null>(null);
- const [hasMore, setHasMore] = useState(false);
- const [loadingMore, setLoadingMore] = useState(false);
- const [initialLoading, setInitialLoading] = useState(false);
+ const [page, setPage] = useState(1);
+ const [totalPages, setTotalPages] = useState(1);
+ const [totalItems, setTotalItems] = useState(0);
+ const [loadingPage, setLoadingPage] = useState(false);
 
  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
  const [editingItem, setEditingItem] = useState<VaultItem | null>(null);
@@ -92,7 +94,6 @@ export default function VaultPage() {
  const [mutating, setMutating] = useState(false);
 
  const deferredSearch = useDeferredValue(search);
- const loadMoreAnchorRef = useRef<HTMLDivElement | null>(null);
  const requestLockRef = useRef(false);
  const assertionCacheRef = useRef<Partial<Record<SecureAction, AssertionCacheEntry>>>({});
 
@@ -106,11 +107,6 @@ export default function VaultPage() {
  [locale, t],
  );
 
- const saveCache = useCallback((nextItems: VaultItem[], cursor: string | null, more: boolean) => {
- const payload: VaultCachePayload = { items: nextItems, nextCursor: cursor, hasMore: more };
- sessionStorage.setItem(CACHE_KEY, JSON.stringify(payload));
- }, []);
-
  const mapApiItems = useCallback(
  (source: VaultApiItem[]) =>
  source.map((item) => ({
@@ -123,26 +119,6 @@ export default function VaultPage() {
  })),
  [t, toDisplayTime],
  );
-
- const hydrateCache = useCallback(() => {
- const cached = sessionStorage.getItem(CACHE_KEY);
- if (!cached) return false;
- try {
- const parsed = JSON.parse(cached) as VaultItem[] | VaultCachePayload;
- if (Array.isArray(parsed)) {
- if (parsed.length === 0) return false;
- setItems(parsed);
- return true;
- }
- if (!parsed || !Array.isArray(parsed.items)) return false;
- setItems(parsed.items);
- setNextCursor(typeof parsed.nextCursor === 'string' ? parsed.nextCursor : null);
- setHasMore(Boolean(parsed.hasMore && parsed.nextCursor));
- return parsed.items.length > 0;
- } catch {
- return false;
- }
- }, []);
 
  const setCachedAssertion = useCallback((action: SecureAction, token: string) => {
  assertionCacheRef.current[action] = { token, expiresAt: Date.now() + ASSERTION_TTL_MS };
@@ -168,16 +144,17 @@ export default function VaultPage() {
  }, [locale, router, showToast]);
 
  const loadItems = useCallback(
- async ({ cursor = null, append = false, silent = false }: { cursor?: string | null; append?: boolean; silent?: boolean } = {}) => {
+ async (targetPage: number) => {
  if (requestLockRef.current) return;
  requestLockRef.current = true;
- if (append) setLoadingMore(true);
- else if (!silent) setInitialLoading(true);
+ setLoadingPage(true);
 
  try {
+ const safePage = Math.max(1, targetPage);
  const params = new URLSearchParams();
  params.set('limit', String(PAGE_SIZE));
- if (cursor) params.set('cursor', cursor);
+ params.set('page', String(safePage));
+ if (deferredSearch.trim()) params.set('q', deferredSearch.trim());
 
  const controller = new AbortController();
  const timer = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -199,16 +176,14 @@ export default function VaultPage() {
  }
 
  const mapped = mapApiItems(body.items ?? []);
- const newCursor = body.pagination?.nextCursor ?? null;
- const newHasMore = Boolean(body.pagination?.hasMore && newCursor);
- setNextCursor(newCursor);
- setHasMore(newHasMore);
+ const nextTotalPages = Math.max(1, Number(body.pagination?.totalPages ?? 1));
+ const nextPage = clampPage(Number(body.pagination?.page ?? safePage), nextTotalPages);
+ const nextTotalItems = Math.max(0, Number(body.pagination?.total ?? 0));
 
- setItems((prev) => {
- const next = append ? mergeUniqueById(prev, mapped) : mapped;
- saveCache(next, newCursor, newHasMore);
- return next;
- });
+ setItems(mapped);
+ setTotalPages(nextTotalPages);
+ setTotalItems(nextTotalItems);
+ if (nextPage !== page) setPage(nextPage);
  } catch (error) {
  if ((error as Error).name === 'AbortError') {
  showToast(locale === 'th' ? 'โหลดข้อมูลช้าเกินไป กรุณาลองอีกครั้ง' : 'Loading timed out. Please retry.', 'error');
@@ -217,45 +192,19 @@ export default function VaultPage() {
  }
  } finally {
  requestLockRef.current = false;
- setLoadingMore(false);
- setInitialLoading(false);
+ setLoadingPage(false);
  }
  },
- [handleUnauthorized, locale, mapApiItems, saveCache, showToast, t],
+ [deferredSearch, handleUnauthorized, locale, mapApiItems, page, showToast, t],
  );
 
  useEffect(() => {
- const hadCache = hydrateCache();
- void loadItems({ append: false, silent: hadCache });
- }, [hydrateCache, loadItems]);
-
- const loadNextPage = useCallback(() => {
- if (!hasMore || !nextCursor || loadingMore || initialLoading || mutating) return;
- void loadItems({ cursor: nextCursor, append: true, silent: true });
- }, [hasMore, initialLoading, loadItems, loadingMore, mutating, nextCursor]);
+ setPage(1);
+ }, [deferredSearch]);
 
  useEffect(() => {
- if (!hasMore) return;
- if (typeof IntersectionObserver === 'undefined') return;
- const target = loadMoreAnchorRef.current;
- if (!target) return;
-
- const observer = new IntersectionObserver(
- (entries) => {
- if (entries.some((entry) => entry.isIntersecting)) loadNextPage();
- },
- { rootMargin: '240px 0px' },
- );
-
- observer.observe(target);
- return () => observer.disconnect();
- }, [hasMore, loadNextPage]);
-
- const filtered = useMemo(() => {
- const q = deferredSearch.toLowerCase().trim();
- if (!q) return items;
- return items.filter((item) => item.title.toLowerCase().includes(q) || item.username.toLowerCase().includes(q));
- }, [deferredSearch, items]);
+ void loadItems(page);
+ }, [page, deferredSearch, loadItems]);
 
  const performDelete = useCallback(
  async (targetId: string, assertionToken: string) => {
@@ -277,14 +226,15 @@ export default function VaultPage() {
  return;
  }
 
- setItems((prev) => {
- const next = prev.filter((item) => item.id !== targetId);
- saveCache(next, nextCursor, hasMore);
- return next;
- });
  showToast(t('vaultDetail.deletedToast'), 'success');
+ const targetPage = items.length <= 1 && page > 1 ? page - 1 : page;
+ if (targetPage !== page) {
+ setPage(targetPage);
+ } else {
+ void loadItems(targetPage);
+ }
  },
- [clearCachedAssertion, handleUnauthorized, hasMore, nextCursor, saveCache, showToast, t],
+ [clearCachedAssertion, handleUnauthorized, items.length, loadItems, page, showToast, t],
  );
 
  const performUpdate = useCallback(
@@ -309,8 +259,8 @@ export default function VaultPage() {
  }
 
  const now = toDisplayTime();
- setItems((prev) => {
- const next = prev.map((item) =>
+ setItems((prev) =>
+ prev.map((item) =>
  item.id === target.id
  ? {
  ...item,
@@ -321,18 +271,18 @@ export default function VaultPage() {
  updatedAt: now,
  }
  : item,
+ ),
  );
- saveCache(next, nextCursor, hasMore);
- return next;
- });
 
  showToast(t('vaultDetail.updatedToast'), 'success');
  },
- [clearCachedAssertion, handleUnauthorized, hasMore, nextCursor, saveCache, showToast, t, toDisplayTime],
+ [clearCachedAssertion, handleUnauthorized, showToast, t, toDisplayTime],
  );
 
+ const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
+
  return (
- <section className='space-y-5 pb-24 pt-2'>
+ <section className='space-y-4 pb-24 pt-2'>
  <header className='space-y-1'>
  <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{t('vault.title')}</h1>
  <p className='text-sm leading-6 text-slate-500'>{t('vault.subtitle')}</p>
@@ -344,12 +294,12 @@ export default function VaultPage() {
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  placeholder={t('vault.searchPlaceholder')}
- className='h-12 rounded-[16px] pl-11 text-base'
+ className='h-11 rounded-[14px] pl-11 text-[15px]'
  />
  </div>
 
- <div className='grid gap-3.5'>
- {filtered.map((item) => (
+ <div className='grid gap-2.5'>
+ {items.map((item) => (
  <VaultCard
  key={item.id}
  id={item.id}
@@ -376,32 +326,73 @@ export default function VaultPage() {
  ))}
  </div>
 
- {initialLoading && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{t('common.loading')}</p> : null}
- {!initialLoading && filtered.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'ยังไม่มีรายการในคลังรหัส' : 'No vault items yet'}</p> : null}
+ {loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{t('common.loading')}</p> : null}
+ {!loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'ยังไม่มีรายการในคลังรหัส' : 'No vault items yet'}</p> : null}
 
- <div ref={loadMoreAnchorRef} className='h-1 w-full' />
-
- {hasMore ? (
+ {items.length > 0 ? (
+ <div className='space-y-2 pt-1'>
+ <p className='text-center text-xs text-slate-500'>
+ {locale === 'th'
+ ? `หน้า ${page}/${totalPages} • ทั้งหมด ${totalItems} รายการ`
+ : `Page ${page}/${totalPages} • ${totalItems} total items`}
+ </p>
+ <div className='flex items-center justify-center gap-1.5'>
  <Button
  type='button'
  variant='secondary'
- className='h-11 w-full rounded-[16px]'
- onClick={loadNextPage}
- disabled={loadingMore || mutating}
+ className='h-9 rounded-xl px-3 text-xs'
+ onClick={() => setPage((v) => Math.max(1, v - 1))}
+ disabled={page <= 1 || loadingPage}
  >
- {loadingMore ? t('common.loading') : (locale === 'th' ? 'โหลดเพิ่มเติม' : 'Load more')}
+ <ChevronLeft className='mr-1 h-3.5 w-3.5' />
+ {locale === 'th' ? 'ก่อนหน้า' : 'Prev'}
  </Button>
- ) : filtered.length > 0 ? (
- <p className='text-center text-xs text-slate-400'>{locale === 'th' ? 'แสดงครบทั้งหมดแล้ว' : 'You have reached the end'}</p>
+
+ {pageNumbers[0] > 1 ? (
+ <>
+ <Button type='button' variant='secondary' className='h-9 min-w-[2.2rem] rounded-xl px-0 text-xs' onClick={() => setPage(1)} disabled={loadingPage}>1</Button>
+ <span className='px-1 text-xs text-slate-400'>...</span>
+ </>
+ ) : null}
+
+ {pageNumbers.map((num) => (
+ <Button
+ key={num}
+ type='button'
+ variant={num === page ? 'default' : 'secondary'}
+ className='h-9 min-w-[2.2rem] rounded-xl px-0 text-xs'
+ onClick={() => setPage(num)}
+ disabled={loadingPage}
+ >
+ {num}
+ </Button>
+ ))}
+
+ {pageNumbers[pageNumbers.length - 1] < totalPages ? (
+ <>
+ <span className='px-1 text-xs text-slate-400'>...</span>
+ <Button type='button' variant='secondary' className='h-9 min-w-[2.2rem] rounded-xl px-0 text-xs' onClick={() => setPage(totalPages)} disabled={loadingPage}>{totalPages}</Button>
+ </>
+ ) : null}
+
+ <Button
+ type='button'
+ variant='secondary'
+ className='h-9 rounded-xl px-3 text-xs'
+ onClick={() => setPage((v) => Math.min(totalPages, v + 1))}
+ disabled={page >= totalPages || loadingPage}
+ >
+ {locale === 'th' ? 'ถัดไป' : 'Next'}
+ <ChevronRight className='ml-1 h-3.5 w-3.5' />
+ </Button>
+ </div>
+ </div>
  ) : null}
 
  <AddVaultItemSheet
- onCreated={(item) => {
- setItems((prev) => {
- const next = [item, ...prev];
- saveCache(next, nextCursor, hasMore);
- return next;
- });
+ onCreated={() => {
+ setPage(1);
+ void loadItems(1);
  }}
  />
 

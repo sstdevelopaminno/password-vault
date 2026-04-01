@@ -8,26 +8,20 @@ import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/adm
 
 const ROUTE_PATH = "/api/vault";
 
-function parseLimit(raw: string | null, fallback = 50, max = 100) {
+function parseLimit(raw: string | null, fallback = 12, max = 20) {
   const value = Number(raw ?? fallback);
   if (!Number.isFinite(value)) return fallback;
   return Math.min(max, Math.max(1, Math.floor(value)));
 }
 
-function decodeCursor(raw: string | null): { updated_at: string; id: string } | null {
-  if (!raw) return null;
-  try {
-    const json = Buffer.from(raw, "base64url").toString("utf8");
-    const parsed = JSON.parse(json);
-    if (typeof parsed?.updated_at !== "string" || typeof parsed?.id !== "string") return null;
-    return { updated_at: parsed.updated_at, id: parsed.id };
-  } catch {
-    return null;
-  }
+function parsePage(raw: string | null, fallback = 1) {
+  const value = Number(raw ?? fallback);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(1, Math.floor(value));
 }
 
-function encodeCursor(value: { updated_at: string; id: string }) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+function normalizeSearchQuery(raw: string | null) {
+  return String(raw ?? "").trim();
 }
 
 export async function GET(req: Request) {
@@ -44,38 +38,35 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const limit = parseLimit(searchParams.get("limit"));
-  const cursor = decodeCursor(searchParams.get("cursor"));
+  const page = parsePage(searchParams.get("page"));
+  const q = normalizeSearchQuery(searchParams.get("q"));
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
   let query = admin
     .from("vault_items")
-    .select("id,title,url,category,updated_at,username_value_encrypted")
+    .select("id,title,url,category,updated_at,username_value_encrypted", { count: "exact" })
     .eq("owner_user_id", ownerId)
     .order("updated_at", { ascending: false })
     .order("id", { ascending: false })
-    .limit(limit + 1);
+    .range(from, to);
 
-  if (cursor) {
-    query = query.or("updated_at.lt." + cursor.updated_at + ",and(updated_at.eq." + cursor.updated_at + ",id.lt." + cursor.id + ")");
+  if (q) {
+    query = query.ilike("title", `%${q}%`);
   }
 
-  const { data: items, error } = await query;
+  const { data: items, error, count } = await query;
 
   if (error) {
     recordApiMetric(ROUTE_PATH, "GET", 400, Date.now() - startedAt);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const hasMore = (items ?? []).length > limit;
-  const currentPage = (items ?? []).slice(0, limit);
-  const last = currentPage[currentPage.length - 1];
-  const nextCursor = hasMore && last
-    ? encodeCursor({
-        updated_at: new Date(last.updated_at).toISOString(),
-        id: String(last.id),
-      })
-    : null;
+  const total = Number(count ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const hasMore = page < totalPages;
 
-  const safeItems = currentPage.map((item) => ({
+  const safeItems = (items ?? []).map((item) => ({
     ...item,
     username: decryptText(item.username_value_encrypted),
     username_value_encrypted: undefined,
@@ -85,9 +76,14 @@ export async function GET(req: Request) {
   return NextResponse.json({
     items: safeItems,
     pagination: {
+      page,
       limit,
+      total,
+      totalPages,
+      hasPrev: page > 1,
+      hasNext: hasMore,
       hasMore,
-      nextCursor,
+      nextCursor: null,
     },
   });
 }

@@ -16,7 +16,7 @@ type VaultCardProps = {
   onDelete: (id: string) => void;
 };
 
-const ACTION_WIDTH = 136;
+const ACTION_WIDTH = 124;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -83,15 +83,15 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
   }
 
   return (
-    <div className='relative overflow-hidden rounded-[24px]'>
-      <div className='absolute inset-y-0 right-0 flex w-[136px] items-center justify-end gap-2 rounded-[24px] bg-slate-100 p-2'>
+    <div className='relative overflow-hidden rounded-[20px]'>
+      <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[20px] bg-slate-100 p-1.5'>
         <button
           type='button'
           onClick={() => {
             closeSwipe();
             onEdit(id);
           }}
-          className='inline-flex h-full w-[60px] flex-col items-center justify-center rounded-[16px] bg-gradient-to-b from-indigo-500 to-blue-600 text-white shadow-[0_8px_18px_rgba(37,99,235,0.28)] transition hover:brightness-110'
+          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-indigo-500 to-blue-600 text-white shadow-[0_8px_16px_rgba(37,99,235,0.26)] transition hover:brightness-110'
         >
           <Pencil className='h-4 w-4' />
           <span className='mt-1 text-[10px] font-semibold'>{t('vaultDetail.edit')}</span>
@@ -103,7 +103,7 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
             closeSwipe();
             onDelete(id);
           }}
-          className='inline-flex h-full w-[60px] flex-col items-center justify-center rounded-[16px] bg-gradient-to-b from-rose-500 to-red-600 text-white shadow-[0_8px_18px_rgba(225,29,72,0.28)] transition hover:brightness-110'
+          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-rose-500 to-red-600 text-white shadow-[0_8px_16px_rgba(225,29,72,0.26)] transition hover:brightness-110'
         >
           <Trash2 className='h-4 w-4' />
           <span className='mt-1 text-[10px] font-semibold'>{t('vaultDetail.delete')}</span>
@@ -118,26 +118,26 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        <Card className='space-y-3 rounded-[24px] p-4 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(37,99,235,0.14)]' onClick={onCardClick}>
+        <Card className='space-y-2.5 rounded-[20px] p-3.5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_22px_rgba(37,99,235,0.12)]' onClick={onCardClick}>
           <div className='flex items-start justify-between gap-3'>
-            <div>
-              <h3 className='text-2xl font-semibold leading-tight text-slate-900'>{title}</h3>
-              <p className='mt-2 inline-flex items-center gap-2 text-base leading-6 text-slate-500'>
-                <UserRound className='h-4 w-4' />
-                {username}
+            <div className='min-w-0'>
+              <h3 className='truncate text-[22px] font-semibold leading-tight text-slate-900'>{title}</h3>
+              <p className='mt-1.5 inline-flex w-full items-center gap-1.5 text-[16px] leading-5 text-slate-500'>
+                <UserRound className='h-3.5 w-3.5 shrink-0' />
+                <span className='truncate'>{username}</span>
               </p>
             </div>
-            <span className='rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700'>{category}</span>
+            <span className='shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700'>{category}</span>
           </div>
 
-          <div className='flex items-center justify-between text-sm text-slate-500'>
-            <span className='inline-flex items-center gap-1.5'>
-              <KeyRound className='h-4 w-4' />
+          <div className='flex items-center justify-between text-[13px] text-slate-500'>
+            <span className='inline-flex items-center gap-1.5 truncate'>
+              <KeyRound className='h-3.5 w-3.5 shrink-0' />
               {t('vault.protectedByPin')}
             </span>
-            <span className='inline-flex items-center gap-1.5'>
-              <Globe className='h-4 w-4' />
-              {updatedAt}
+            <span className='inline-flex items-center gap-1.5 whitespace-nowrap'>
+              <Globe className='h-3.5 w-3.5 shrink-0' />
+              <span>{updatedAt}</span>
             </span>
           </div>
         </Card>
