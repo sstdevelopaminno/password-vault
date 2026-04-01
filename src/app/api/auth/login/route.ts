@@ -69,119 +69,133 @@ async function bindActiveSession(userId: string, appMetadata: unknown) {
 }
 
 export async function POST(req: Request) {
-  const { email, password } = await req.json();
-  const normalizedEmail = String(email ?? "").trim().toLowerCase();
-
-  const ip = clientIp(req);
-  const limit = takeRateLimit(`login:${ip}:${normalizedEmail}`, { limit: 10, windowMs: 5 * 60 * 1000 });
-  if (!limit.allowed) {
-    return NextResponse.json(
-      { error: "Too many login attempts. Please wait.", retryAfterSec: limit.retryAfterSec },
-      { status: 429 },
-    );
-  }
-
-  const supabase = await createClient();
-  const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
-  }
-
-  const user = signInData?.user;
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const authEmail = user.email?.toLowerCase() ?? normalizedEmail;
-
-  let profile;
   try {
-    const resolved = await resolveProfileForAuthUser({
+    const { email, password } = await req.json();
+    const normalizedEmail = String(email ?? "").trim().toLowerCase();
+
+    const ip = clientIp(req);
+    const limit = takeRateLimit(`login:${ip}:${normalizedEmail}`, { limit: 10, windowMs: 5 * 60 * 1000 });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please wait.", retryAfterSec: limit.retryAfterSec },
+        { status: 429 },
+      );
+    }
+
+    const supabase = await createClient();
+    // Ensure stale local cookies won't block a fresh handover login on this device.
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+
+    const user = signInData?.user;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const authEmail = user.email?.toLowerCase() ?? normalizedEmail;
+
+    let profile;
+    try {
+      const resolved = await resolveProfileForAuthUser({
+        userId: user.id,
+        email: authEmail,
+        fullName: String(user.user_metadata?.full_name ?? ""),
+      });
+      profile = resolved.profile;
+    } catch (resolveError) {
+      console.error("Failed to resolve profile in login:", resolveError);
+      await supabase.auth.signOut();
+      return NextResponse.json({ error: "Account profile mismatch. Please contact admin." }, { status: 409 });
+    }
+
+    if (profile.status === "disabled") {
+      await supabase.auth.signOut();
+      return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
+    }
+
+    let status = String(profile.status ?? "pending_approval");
+    let role = String(profile.role ?? "pending");
+    const emailVerifiedAt = profile.email_verified_at
+      ? String(profile.email_verified_at)
+      : user.email_confirmed_at
+        ? String(user.email_confirmed_at)
+        : "";
+
+    const autoApprove = await tryAutoApprove({
       userId: user.id,
-      email: authEmail,
-      fullName: String(user.user_metadata?.full_name ?? ""),
+      status,
+      role,
+      emailVerifiedAt,
     });
-    profile = resolved.profile;
-  } catch (resolveError) {
-    console.error("Failed to resolve profile in login:", resolveError);
-    await supabase.auth.signOut();
-    return NextResponse.json({ error: "Account profile mismatch. Please contact admin." }, { status: 409 });
-  }
 
-  if (profile.status === "disabled") {
-    await supabase.auth.signOut();
-    return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
-  }
+    status = autoApprove.status;
+    role = autoApprove.role;
+    if (isPendingStatus(status)) {
+      status = "pending_approval";
+    }
 
-  let status = String(profile.status ?? "pending_approval");
-  let role = String(profile.role ?? "pending");
-  const emailVerifiedAt = profile.email_verified_at
-    ? String(profile.email_verified_at)
-    : user.email_confirmed_at
-      ? String(user.email_confirmed_at)
-      : "";
+    const binding = await bindActiveSession(user.id, user.app_metadata);
+    const metadataToken =
+      user.app_metadata &&
+      typeof user.app_metadata === "object" &&
+      typeof (user.app_metadata as Record<string, unknown>).pv_active_session === "string"
+        ? String((user.app_metadata as Record<string, unknown>).pv_active_session)
+        : "";
+    if (binding.error) {
+      console.error("Active session binding failed in login, fallback to metadata token:", binding.error.message);
+    }
+    const activeCookieToken = binding.error ? metadataToken || createActiveSessionToken() : binding.token;
 
-  const autoApprove = await tryAutoApprove({
-    userId: user.id,
-    status,
-    role,
-    emailVerifiedAt,
-  });
+    const needsOtpVerification = !emailVerifiedAt;
+    const pendingApproval = !needsOtpVerification && status !== "active";
 
-  status = autoApprove.status;
-  role = autoApprove.role;
-  if (isPendingStatus(status)) {
-    status = "pending_approval";
-  }
+    const response = NextResponse.json({
+      ok: true,
+      status,
+      role,
+      autoApproved: autoApprove.autoApproved,
+      email: authEmail,
+      needsOtpVerification,
+      pendingApproval,
+      activeSessionBound: !binding.error,
+    });
 
-  const binding = await bindActiveSession(user.id, user.app_metadata);
-  if (binding.error) {
-    console.error("Active session binding failed in login:", binding.error.message);
-    await supabase.auth.signOut();
+    response.cookies.set({
+      name: ACTIVE_SESSION_COOKIE,
+      value: activeCookieToken,
+      httpOnly: true,
+      ...getSharedCookieOptions(),
+    });
+
+    void enqueuePushNotification({
+      userId: user.id,
+      kind: "auth",
+      title: "Login successful",
+      message: `A login was completed from IP ${ip}.`,
+      href: "/home",
+      tag: "auth-login-success",
+      priority: 6,
+    })
+      .then((queued) => {
+        if (!queued.ok) return;
+        void processPushQueue({ batchSize: 10 }).catch((queueError) => {
+          console.error("Push process after login failed:", queueError);
+        });
+      })
+      .catch((queueError) => {
+        console.error("Push enqueue on login failed:", queueError);
+      });
+
+    return response;
+  } catch (error) {
+    console.error("Unhandled login error:", error);
     return NextResponse.json(
-      { error: "Unable to secure this login session. Please try again." },
-      { status: 503 },
+      { error: "Login service unavailable. Please retry." },
+      { status: 500 },
     );
   }
-
-  const needsOtpVerification = !emailVerifiedAt;
-  const pendingApproval = !needsOtpVerification && status !== "active";
-
-  const response = NextResponse.json({
-    ok: true,
-    status,
-    role,
-    autoApproved: autoApprove.autoApproved,
-    email: authEmail,
-    needsOtpVerification,
-    pendingApproval,
-  });
-
-  response.cookies.set({
-    name: ACTIVE_SESSION_COOKIE,
-    value: binding.token,
-    httpOnly: true,
-    ...getSharedCookieOptions(),
-  });
-
-  void enqueuePushNotification({
-    userId: user.id,
-    kind: "auth",
-    title: "Login successful",
-    message: `A login was completed from IP ${ip}.`,
-    href: "/home",
-    tag: "auth-login-success",
-    priority: 6,
-  })
-    .then((queued) => {
-      if (!queued.ok) return;
-      void processPushQueue({ batchSize: 10 }).catch((queueError) => {
-        console.error("Push process after login failed:", queueError);
-      });
-    })
-    .catch((queueError) => {
-      console.error("Push enqueue on login failed:", queueError);
-    });
-
-  return response;
 }
