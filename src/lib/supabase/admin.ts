@@ -23,6 +23,7 @@ export type ResolvedAuthProfile = {
   role: "pending" | "user" | "approver" | "admin" | "super_admin";
   status: "pending_approval" | "active" | "disabled";
   pin_hash: string | null;
+  email_verified_at: string | null;
 };
 
 function isDuplicateEmailConstraintError(message: unknown) {
@@ -41,7 +42,7 @@ export async function resolveProfileForAuthUser(input: {
 
   const byId = await admin
     .from("profiles")
-    .select("id,email,full_name,role,status,pin_hash")
+    .select("id,email,full_name,role,status,pin_hash,email_verified_at")
     .eq("id", input.userId)
     .maybeSingle();
   if (byId.error) throw new Error(byId.error.message);
@@ -52,7 +53,7 @@ export async function resolveProfileForAuthUser(input: {
   if (normalizedEmail) {
     const byEmail = await admin
       .from("profiles")
-      .select("id,email,full_name,role,status,pin_hash")
+      .select("id,email,full_name,role,status,pin_hash,email_verified_at")
       .eq("email", normalizedEmail)
       .maybeSingle();
     if (byEmail.error) throw new Error(byEmail.error.message);
@@ -74,14 +75,14 @@ export async function resolveProfileForAuthUser(input: {
       role: "pending",
       status: "pending_approval",
     })
-    .select("id,email,full_name,role,status,pin_hash")
+    .select("id,email,full_name,role,status,pin_hash,email_verified_at")
     .maybeSingle();
 
   if (inserted.error) {
     if (isDuplicateEmailConstraintError(inserted.error.message)) {
       const retryByEmail = await admin
         .from("profiles")
-        .select("id,email,full_name,role,status,pin_hash")
+        .select("id,email,full_name,role,status,pin_hash,email_verified_at")
         .eq("email", normalizedEmail)
         .maybeSingle();
       if (retryByEmail.error) throw new Error(retryByEmail.error.message);

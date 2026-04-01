@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 
 const AUTO_APPROVE_AFTER_MS = 2 * 60 * 1000;
 const PENDING_STATUSES = new Set(["pending_approval", "pending", "awaiting_approval"]);
@@ -63,24 +63,16 @@ export async function GET() {
 
   const authEmail = String(auth.user.email ?? "").toLowerCase();
 
-  let { data: profile } = await supabase
-    .from("profiles")
-    .select("id,full_name,email,role,status,email_verified_at,pin_hash")
-    .eq("id", auth.user.id)
-    .maybeSingle();
+  const resolved = await resolveProfileForAuthUser({
+    userId: auth.user.id,
+    email: authEmail,
+    fullName: String(auth.user.user_metadata?.full_name ?? ""),
+  });
+  const profile = resolved.profile;
 
-  if (!profile && authEmail) {
-    const byEmail = await supabase
-      .from("profiles")
-      .select("id,full_name,email,role,status,email_verified_at,pin_hash")
-      .eq("email", authEmail)
-      .maybeSingle();
-    profile = byEmail.data ?? null;
-  }
-
-  let status = String(profile?.status ?? "pending_approval");
-  let role = String(profile?.role ?? "pending");
-  const emailVerifiedAt = profile?.email_verified_at
+  let status = String(profile.status ?? "pending_approval");
+  let role = String(profile.role ?? "pending");
+  const emailVerifiedAt = profile.email_verified_at
     ? String(profile.email_verified_at)
     : auth.user.email_confirmed_at
       ? String(auth.user.email_confirmed_at)
@@ -88,7 +80,7 @@ export async function GET() {
 
   const autoApprove = await tryAutoApprove({
     userId: auth.user.id,
-    profileEmail: String(profile?.email ?? authEmail),
+    profileEmail: String(profile.email ?? authEmail),
     status,
     role,
     emailVerifiedAt,
@@ -102,13 +94,13 @@ export async function GET() {
 
   const needsOtpVerification = !emailVerifiedAt;
   const pendingApproval = !needsOtpVerification && status !== "active";
-  const hasPin = Boolean(profile?.pin_hash);
+  const hasPin = Boolean(profile.pin_hash);
 
   return NextResponse.json({
     ok: true,
     userId: String(auth.user.id),
-    fullName: String(profile?.full_name ?? auth.user.user_metadata?.full_name ?? ""),
-    email: String(profile?.email ?? auth.user.email ?? ""),
+    fullName: String(profile.full_name ?? auth.user.user_metadata?.full_name ?? ""),
+    email: String(profile.email ?? auth.user.email ?? ""),
     role,
     status,
     emailVerifiedAt,

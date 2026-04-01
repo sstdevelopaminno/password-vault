@@ -1,7 +1,7 @@
 "use client";
 
 import { createElement, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ function mapGateError(message: unknown, locale: string) {
 export function UserAccessGate(props: { children: React.ReactNode }) {
   const h = createElement;
   const router = useRouter();
+  const pathname = usePathname();
   const { showToast } = useToast();
   const { locale } = useI18n();
 
@@ -233,6 +234,10 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   }, []);
 
   useEffect(function () {
+    void loadProfile(false);
+  }, [pathname]);
+
+  useEffect(function () {
     if (resendIn === 0) {
       return;
     }
@@ -260,6 +265,18 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
       window.clearInterval(timer);
     };
   }, [mode]);
+
+  useEffect(function () {
+    if (mode !== "active" || hasPin) {
+      return;
+    }
+    const timer = window.setInterval(function () {
+      void loadProfile(false);
+    }, 2500);
+    return function () {
+      window.clearInterval(timer);
+    };
+  }, [mode, hasPin]);
 
   useEffect(function () {
     if (mode !== "otp") {
