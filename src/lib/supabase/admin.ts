@@ -31,13 +31,17 @@ function isDuplicateEmailConstraintError(message: unknown) {
   return text.includes("duplicate key value") && text.includes("profiles_email_key");
 }
 
+function normalizeEmail(email: unknown) {
+  return String(email ?? "").trim().toLowerCase();
+}
+
 export async function resolveProfileForAuthUser(input: {
   userId: string;
   email?: string | null;
   fullName?: string | null;
 }): Promise<{ profile: ResolvedAuthProfile; source: "id" | "email" | "created" }> {
   const admin = createAdminClient();
-  const normalizedEmail = String(input.email ?? "").trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(input.email);
   const fallbackName = String(input.fullName ?? "").trim() || "User";
 
   const byId = await admin
@@ -46,10 +50,8 @@ export async function resolveProfileForAuthUser(input: {
     .eq("id", input.userId)
     .maybeSingle();
   if (byId.error) throw new Error(byId.error.message);
-  if (byId.data?.id) {
-    return { profile: byId.data as ResolvedAuthProfile, source: "id" };
-  }
 
+  let byEmailData: ResolvedAuthProfile | null = null;
   if (normalizedEmail) {
     const byEmail = await admin
       .from("profiles")
@@ -57,9 +59,27 @@ export async function resolveProfileForAuthUser(input: {
       .eq("email", normalizedEmail)
       .maybeSingle();
     if (byEmail.error) throw new Error(byEmail.error.message);
-    if (byEmail.data?.id) {
-      return { profile: byEmail.data as ResolvedAuthProfile, source: "email" };
+    byEmailData = (byEmail.data as ResolvedAuthProfile | null) ?? null;
+  }
+
+  const byIdData = (byId.data as ResolvedAuthProfile | null) ?? null;
+  if (byIdData && byEmailData && byIdData.id !== byEmailData.id) {
+    const byIdMatchesAuthEmail = normalizeEmail(byIdData.email) === normalizedEmail;
+    const byIdHasPin = Boolean(byIdData.pin_hash);
+    const byEmailHasPin = Boolean(byEmailData.pin_hash);
+    const shouldPreferEmail = !byIdMatchesAuthEmail || (!byIdHasPin && byEmailHasPin);
+
+    if (shouldPreferEmail) {
+      return { profile: byEmailData, source: "email" };
     }
+  }
+
+  if (byIdData?.id) {
+    return { profile: byIdData, source: "id" };
+  }
+
+  if (byEmailData?.id) {
+    return { profile: byEmailData, source: "email" };
   }
 
   if (!normalizedEmail) {
