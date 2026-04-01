@@ -84,6 +84,10 @@ export async function GET() {
   const needsOtpVerification = !emailVerifiedAt;
   const pendingApproval = !needsOtpVerification && status !== "active";
   const hasPin = Boolean(profile.pin_hash);
+  const pinSessionEnabled =
+    auth.user.user_metadata && typeof auth.user.user_metadata === "object"
+      ? (auth.user.user_metadata as Record<string, unknown>).pv_pin_session_enabled !== false
+      : true;
 
   return NextResponse.json({
     ok: true,
@@ -94,6 +98,7 @@ export async function GET() {
     status,
     emailVerifiedAt,
     hasPin,
+    pinSessionEnabled,
     needsOtpVerification,
     pendingApproval,
     autoApproved: autoApprove.autoApproved,

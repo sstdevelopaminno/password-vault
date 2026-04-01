@@ -17,10 +17,11 @@ function storageKey(userId: string) {
 type PinSessionGateProps = {
   children?: React.ReactNode;
   hasPin: boolean;
+  pinSessionEnabled: boolean;
   userId: string;
 };
 
-export function PinSessionGate({ children, hasPin, userId }: PinSessionGateProps) {
+export function PinSessionGate({ children, hasPin, pinSessionEnabled, userId }: PinSessionGateProps) {
   const { locale } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
@@ -36,7 +37,7 @@ export function PinSessionGate({ children, hasPin, userId }: PinSessionGateProps
   const isSettingsPage = pathname.startsWith("/settings");
 
   const lockNow = useCallback(() => {
-    if (!hasPin) return;
+    if (!hasPin || !pinSessionEnabled) return;
     setLocked(true);
     setPin("");
     setError("");
@@ -44,7 +45,7 @@ export function PinSessionGate({ children, hasPin, userId }: PinSessionGateProps
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem(key);
     }
-  }, [hasPin, key]);
+  }, [hasPin, key, pinSessionEnabled]);
 
   const markUnlocked = useCallback(() => {
     setLocked(false);
@@ -66,8 +67,11 @@ export function PinSessionGate({ children, hasPin, userId }: PinSessionGateProps
   }, [lockNow]);
 
   useEffect(() => {
-    if (!hasPin) {
+    if (!hasPin || !pinSessionEnabled) {
       setLocked(false);
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(key);
+      }
       return;
     }
     if (typeof window === "undefined") {
@@ -76,10 +80,10 @@ export function PinSessionGate({ children, hasPin, userId }: PinSessionGateProps
     }
     const cached = window.sessionStorage.getItem(key);
     setLocked(cached !== "1");
-  }, [hasPin, key]);
+  }, [hasPin, key, pinSessionEnabled]);
 
   useEffect(() => {
-    if (!hasPin || locked) {
+    if (!hasPin || !pinSessionEnabled || locked) {
       if (inactivityTimerRef.current !== null) {
         window.clearTimeout(inactivityTimerRef.current);
         inactivityTimerRef.current = null;
@@ -113,7 +117,7 @@ export function PinSessionGate({ children, hasPin, userId }: PinSessionGateProps
         inactivityTimerRef.current = null;
       }
     };
-  }, [armInactivityLock, hasPin, lockNow, locked]);
+  }, [armInactivityLock, hasPin, lockNow, locked, pinSessionEnabled]);
 
   useEffect(() => {
     if (!locked) return;
@@ -169,7 +173,7 @@ export function PinSessionGate({ children, hasPin, userId }: PinSessionGateProps
 
   const pinSlots = useMemo(() => Array.from({ length: 6 }, (_, idx) => pin[idx] ?? ""), [pin]);
 
-  if (!hasPin && !isSettingsPage) {
+  if (!hasPin && pinSessionEnabled && !isSettingsPage) {
     return (
       <div className="relative">
         {children}
@@ -199,7 +203,7 @@ export function PinSessionGate({ children, hasPin, userId }: PinSessionGateProps
     );
   }
 
-  if (!locked || !hasPin) {
+  if (!locked || !hasPin || !pinSessionEnabled) {
     return <>{children}</>;
   }
 

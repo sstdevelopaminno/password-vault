@@ -29,6 +29,7 @@ export const profileOtpPurposeSchema = z.enum([
   "change_email",
   "change_profile",
   "change_password",
+  "change_pin_security",
 ]);
 
 export const vaultSchema = z.object({

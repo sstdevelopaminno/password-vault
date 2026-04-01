@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, ChevronRight, KeyRound, Languages, Lock, LogOut, Mail, UserRound, X } from 'lucide-react';
+import { Bell, ChevronRight, KeyRound, Languages, Lock, LogOut, Mail, Shield, UserRound, X } from 'lucide-react';
 import { OtpInput } from '@/components/auth/otp-input';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,8 @@ export default function SettingsPage() {
 
   const [fullName, setFullName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
+  const [pinSessionEnabled, setPinSessionEnabled] = useState(true);
+  const [pinSecuritySaving, setPinSecuritySaving] = useState(false);
 
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailAutoLoading, setEmailAutoLoading] = useState(false);
@@ -103,6 +105,7 @@ export default function SettingsPage() {
     if (!res.ok) return;
     setFullName(String(body?.fullName ?? ''));
     setProfileEmail(String(body?.email ?? ''));
+    setPinSessionEnabled(body?.pinSessionEnabled !== false);
   }
 
   async function apiCall(url: string, method: 'POST' | 'PATCH', payload: unknown, fallback: string) {
@@ -134,6 +137,33 @@ export default function SettingsPage() {
     toast.showToast(String(body?.message ?? t('settings.profileUpdated')), 'success');
     setActive('');
     void loadProfile();
+  }
+
+  async function updatePinSecurity(enabled: boolean) {
+    if (pinSecuritySaving) return;
+    setPinSecuritySaving(true);
+
+    const body = await apiCall(
+      '/api/profile/update',
+      'PATCH',
+      { purpose: 'change_pin_security', pinSessionEnabled: enabled },
+      t('settings.updateFailed'),
+    );
+
+    setPinSecuritySaving(false);
+    if (!body) return;
+
+    setPinSessionEnabled(enabled);
+    toast.showToast(
+      locale === 'th'
+        ? enabled
+          ? 'เปิดการล็อกหน้าจอด้วย PIN แล้ว'
+          : 'ปิดการล็อกหน้าจอด้วย PIN แล้ว'
+        : enabled
+          ? 'PIN screen lock enabled.'
+          : 'PIN screen lock disabled.',
+      'success',
+    );
   }
 
   async function sendEmailOtp() {
@@ -431,6 +461,39 @@ export default function SettingsPage() {
 
   const pinView = (
     <Card className='space-y-3 rounded-[24px] p-4'>
+      <div className='rounded-2xl border border-slate-200 bg-slate-50 p-3'>
+        <div className='mb-2 flex items-start gap-2'>
+          <Shield className='mt-0.5 h-4 w-4 text-slate-600' />
+          <div>
+            <p className='text-sm font-semibold text-slate-800'>
+              {locale === 'th' ? 'เปิดรักษาความปลอดภัย PIN ล็อกหน้าจอ' : 'Enable PIN screen lock security'}
+            </p>
+            <p className='text-xs text-slate-500'>
+              {locale === 'th'
+                ? 'ปิดได้หากไม่ต้องการให้แอปเด้งล็อก PIN ทุกครั้ง'
+                : 'Turn off if you do not want app-level PIN lock prompt.'}
+            </p>
+          </div>
+        </div>
+        <div className='grid grid-cols-2 gap-2'>
+          <Button
+            variant={pinSessionEnabled ? 'default' : 'secondary'}
+            className='h-10 rounded-xl'
+            onClick={() => void updatePinSecurity(true)}
+            disabled={pinSecuritySaving}
+          >
+            {locale === 'th' ? 'เปิดใช้งาน' : 'Enabled'}
+          </Button>
+          <Button
+            variant={!pinSessionEnabled ? 'default' : 'secondary'}
+            className='h-10 rounded-xl'
+            onClick={() => void updatePinSecurity(false)}
+            disabled={pinSecuritySaving}
+          >
+            {locale === 'th' ? 'ปิดใช้งาน' : 'Disabled'}
+          </Button>
+        </div>
+      </div>
       <Input type='password' inputMode='numeric' maxLength={6} value={currentPin} placeholder={t('settings.currentPinPlaceholder')} onChange={(ev) => setCurrentPin(digits(ev.target.value))} />
       <Input type='password' inputMode='numeric' maxLength={6} value={newPin} placeholder={t('settings.newPinPlaceholder')} onChange={(ev) => setNewPin(digits(ev.target.value))} />
       <Input type='password' inputMode='numeric' maxLength={6} value={confirmPin} placeholder={t('settings.confirmPinPlaceholder')} onChange={(ev) => setConfirmPin(digits(ev.target.value))} />

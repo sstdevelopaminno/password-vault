@@ -68,6 +68,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   const [otp, setOtp] = useState("");
   const [lastAutoOtp, setLastAutoOtp] = useState("");
   const [hasPin, setHasPin] = useState(false);
+  const [pinSessionEnabled, setPinSessionEnabled] = useState(true);
   const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -109,6 +110,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         needsOtpVerification?: boolean;
         pendingApproval?: boolean;
         hasPin?: boolean;
+        pinSessionEnabled?: boolean;
         userId?: string;
       };
       const nextEmail = String(payload.email ?? "");
@@ -116,6 +118,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
       const pending = Boolean(payload.pendingApproval);
       setEmail(nextEmail);
       setHasPin(Boolean(payload.hasPin));
+      setPinSessionEnabled(payload.pinSessionEnabled !== false);
       setUserId(String(payload.userId ?? ""));
 
       if (needsOtp) {
@@ -267,7 +270,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   }, [mode]);
 
   useEffect(function () {
-    if (mode !== "active" || hasPin) {
+    if (mode !== "active" || hasPin || !pinSessionEnabled) {
       return;
     }
     const timer = window.setInterval(function () {
@@ -276,7 +279,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     return function () {
       window.clearInterval(timer);
     };
-  }, [mode, hasPin]);
+  }, [mode, hasPin, pinSessionEnabled]);
 
   useEffect(function () {
     if (mode !== "otp") {
@@ -299,7 +302,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   }, [mode, loading, otp]);
 
   if (mode === "active") {
-    return h(PinSessionGate, { hasPin, userId }, props.children);
+    return h(PinSessionGate, { hasPin, userId, pinSessionEnabled }, props.children);
   }
 
   let resendDisabled = false;

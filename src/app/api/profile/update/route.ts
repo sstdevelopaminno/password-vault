@@ -9,7 +9,10 @@ import { verifyPinAssertionToken } from '@/lib/pin';
 export async function PATCH(req: Request) {
   const body = await req.json();
   const parsedPurpose = profileOtpPurposeSchema.safeParse(body.purpose);
-  if (!parsedPurpose.success || !['change_profile', 'change_email', 'change_password'].includes(parsedPurpose.data)) {
+  if (
+    !parsedPurpose.success ||
+    !['change_profile', 'change_email', 'change_password', 'change_pin_security'].includes(parsedPurpose.data)
+  ) {
     return NextResponse.json({ error: 'Unsupported update purpose' }, { status: 400 });
   }
 
@@ -49,6 +52,36 @@ export async function PATCH(req: Request) {
 
     await logAudit('profile_email_changed', { actor_user_id: auth.user.id, email_target: newEmail });
     return NextResponse.json({ ok: true, message: 'Email changed successfully.' });
+  }
+
+  if (parsedPurpose.data === 'change_pin_security') {
+    const pinSessionEnabled = Boolean(body.pinSessionEnabled);
+    const currentMetadata =
+      auth.user.user_metadata && typeof auth.user.user_metadata === 'object'
+        ? { ...(auth.user.user_metadata as Record<string, unknown>) }
+        : {};
+    currentMetadata.pv_pin_session_enabled = pinSessionEnabled;
+
+    const { error: metadataError } = await admin.auth.admin.updateUserById(auth.user.id, {
+      user_metadata: currentMetadata,
+    });
+
+    if (metadataError) {
+      return NextResponse.json({ error: metadataError.message }, { status: 400 });
+    }
+
+    await logAudit('pin_session_security_changed', {
+      actor_user_id: auth.user.id,
+      pin_session_enabled: pinSessionEnabled,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      pinSessionEnabled,
+      message: pinSessionEnabled
+        ? 'PIN session lock enabled.'
+        : 'PIN session lock disabled.',
+    });
   }
 
   if (parsedPurpose.data === 'change_password') {
