@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createPinAssertionToken, verifyPin } from "@/lib/pin";
 import { logAudit } from "@/lib/audit";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
-import { resolveProfileForAuthUser } from "@/lib/supabase/admin";
+import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 
 async function withTimeout<T>(promiseLike: PromiseLike<T>, ms: number, message: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -47,17 +47,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Too many PIN attempts. Please wait.", retryAfterSec: limit.retryAfterSec }, { status: 429 });
     }
 
-    const resolved = await withTimeout(
-      resolveProfileForAuthUser({
-        userId: data.user.id,
-        email: data.user.email ?? "",
-        fullName: String(data.user.user_metadata?.full_name ?? ""),
-      }),
+    const admin = createAdminClient();
+    const byId = await withTimeout(
+      admin.from("profiles").select("id,pin_hash").eq("id", data.user.id).maybeSingle(),
       8000,
       "Supabase profile timeout",
     );
 
-    const pinHash = String(resolved.profile.pin_hash ?? "");
+    if (byId.error) {
+      return NextResponse.json({ error: byId.error.message }, { status: 400 });
+    }
+
+    let pinHash = String(byId.data?.pin_hash ?? "");
+    let profileId = String(byId.data?.id ?? data.user.id);
+    let profileSource: "id" | "email" | "created" = "id";
+
+    if (!byId.data?.id) {
+      const resolved = await withTimeout(
+        resolveProfileForAuthUser({
+          userId: data.user.id,
+          email: data.user.email ?? "",
+          fullName: String(data.user.user_metadata?.full_name ?? ""),
+        }),
+        8000,
+        "Supabase profile timeout",
+      );
+      pinHash = String(resolved.profile.pin_hash ?? "");
+      profileId = resolved.profile.id;
+      profileSource = resolved.source;
+    }
+
     if (!pinHash || !(await verifyPin(parsed.data.pin, pinHash))) {
       void logAudit("pin_verify_failed", {
         action: parsed.data.action,
@@ -78,8 +97,8 @@ export async function POST(req: Request) {
       action: parsed.data.action,
       targetItemId: parsed.data.targetItemId ?? null,
       ip,
-      profileSource: resolved.source,
-      profileId: resolved.profile.id,
+      profileSource,
+      profileId,
     }).catch(() => {});
 
     return NextResponse.json({ ok: true, assertionToken });

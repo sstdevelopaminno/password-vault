@@ -1,4 +1,3 @@
-﻿
 'use client';
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
@@ -66,6 +65,7 @@ type AssertionCacheEntry = { token: string; expiresAt: number };
 const PAGE_SIZE = 50;
 const CACHE_KEY = 'vault_items_cache_v3';
 const ASSERTION_TTL_MS = 30_000;
+const FETCH_TIMEOUT_MS = 12_000;
 
 function mergeUniqueById(base: VaultItem[], incoming: VaultItem[]) {
  const map = new Map<string, VaultItem>();
@@ -95,7 +95,6 @@ export default function VaultPage() {
  const loadMoreAnchorRef = useRef<HTMLDivElement | null>(null);
  const requestLockRef = useRef(false);
  const assertionCacheRef = useRef<Partial<Record<SecureAction, AssertionCacheEntry>>>({});
-
 
  const toDisplayTime = useCallback(
  (raw?: string) => {
@@ -163,14 +162,10 @@ export default function VaultPage() {
  delete assertionCacheRef.current[action];
  }, []);
 
- useEffect(() => {
- void fetch('/api/pin/verify', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json', 'x-pin-preload': '1' },
- cache: 'no-store',
- body: JSON.stringify({ pin: '000000', action: 'edit_secret' }),
- }).catch(() => {});
- }, []);
+ const handleUnauthorized = useCallback(() => {
+ showToast(locale === 'th' ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่' : 'Session expired. Please sign in again.', 'error');
+ router.replace('/login');
+ }, [locale, router, showToast]);
 
  const loadItems = useCallback(
  async ({ cursor = null, append = false, silent = false }: { cursor?: string | null; append?: boolean; silent?: boolean } = {}) => {
@@ -184,9 +179,21 @@ export default function VaultPage() {
  params.set('limit', String(PAGE_SIZE));
  if (cursor) params.set('cursor', cursor);
 
- const res = await fetch('/api/vault?' + params.toString(), { cache: 'no-store' });
+ const controller = new AbortController();
+ const timer = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+ let res: Response;
+ try {
+ res = await fetch('/api/vault?' + params.toString(), { cache: 'no-store', signal: controller.signal });
+ } finally {
+ window.clearTimeout(timer);
+ }
+
  const body = (await res.json().catch(() => ({}))) as VaultApiResponse;
  if (!res.ok) {
+ if (res.status === 401) {
+ handleUnauthorized();
+ return;
+ }
  showToast(body.error ?? t('vaultDetail.loadFailed'), 'error');
  return;
  }
@@ -202,17 +209,20 @@ export default function VaultPage() {
  saveCache(next, newCursor, newHasMore);
  return next;
  });
- } catch {
+ } catch (error) {
+ if ((error as Error).name === 'AbortError') {
+ showToast(locale === 'th' ? 'โหลดข้อมูลช้าเกินไป กรุณาลองอีกครั้ง' : 'Loading timed out. Please retry.', 'error');
+ } else {
  showToast(t('vaultDetail.loadFailed'), 'error');
+ }
  } finally {
  requestLockRef.current = false;
  setLoadingMore(false);
  setInitialLoading(false);
  }
  },
- [mapApiItems, saveCache, showToast, t],
+ [handleUnauthorized, locale, mapApiItems, saveCache, showToast, t],
  );
-
 
  useEffect(() => {
  const hadCache = hydrateCache();
@@ -258,6 +268,10 @@ export default function VaultPage() {
  setMutating(false);
 
  if (!res.ok) {
+ if (res.status === 401) {
+ handleUnauthorized();
+ return;
+ }
  clearCachedAssertion('delete_secret');
  showToast(body.error ?? t('vaultDetail.deleteFailed'), 'error');
  return;
@@ -270,7 +284,7 @@ export default function VaultPage() {
  });
  showToast(t('vaultDetail.deletedToast'), 'success');
  },
- [clearCachedAssertion, hasMore, nextCursor, saveCache, showToast, t],
+ [clearCachedAssertion, handleUnauthorized, hasMore, nextCursor, saveCache, showToast, t],
  );
 
  const performUpdate = useCallback(
@@ -285,6 +299,10 @@ export default function VaultPage() {
  setMutating(false);
 
  if (!res.ok) {
+ if (res.status === 401) {
+ handleUnauthorized();
+ return;
+ }
  clearCachedAssertion('edit_secret');
  showToast(body.error ?? t('vaultDetail.updateFailed'), 'error');
  return;
@@ -310,9 +328,8 @@ export default function VaultPage() {
 
  showToast(t('vaultDetail.updatedToast'), 'success');
  },
- [clearCachedAssertion, hasMore, nextCursor, saveCache, showToast, t, toDisplayTime],
+ [clearCachedAssertion, handleUnauthorized, hasMore, nextCursor, saveCache, showToast, t, toDisplayTime],
  );
-
 
  return (
  <section className='space-y-5 pb-24 pt-2'>
@@ -388,7 +405,6 @@ export default function VaultPage() {
  }}
  />
 
-
  {editingItem ? (
  <VaultItemModal
  mode='edit'
@@ -446,5 +462,3 @@ export default function VaultPage() {
  </section>
  );
 }
-
-

@@ -3,12 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { logAudit } from "@/lib/audit";
 import { requirePinAssertion } from "@/lib/pin-guard";
-import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
-
-async function resolveOwner(input: { userId: string; email?: string | null; fullName?: string | null }) {
-  const resolved = await resolveProfileForAuthUser(input);
-  return { ownerId: resolved.profile.id, source: resolved.source };
-}
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,18 +13,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const owner = await resolveOwner({
-    userId: auth.user.id,
-    email: auth.user.email ?? "",
-    fullName: String(auth.user.user_metadata?.full_name ?? ""),
-  });
+  const ownerId = auth.user.id;
   const admin = createAdminClient();
 
   const { data: item, error } = await admin
     .from("vault_items")
     .select("id,title,url,category,updated_at,username_value_encrypted")
     .eq("id", id)
-    .eq("owner_user_id", owner.ownerId)
+    .eq("owner_user_id", ownerId)
     .maybeSingle();
 
   if (error) {
@@ -62,11 +53,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const pinCheck = requirePinAssertion({ request: req, userId: auth.user.id, action: "edit_secret", targetItemId: id });
   if (pinCheck.ok === false) return pinCheck.response;
 
-  const owner = await resolveOwner({
-    userId: auth.user.id,
-    email: auth.user.email ?? "",
-    fullName: String(auth.user.user_metadata?.full_name ?? ""),
-  });
+  const ownerId = auth.user.id;
   const admin = createAdminClient();
 
   const { error } = await admin
@@ -80,11 +67,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       category: payload.category ?? null,
     })
     .eq("id", id)
-    .eq("owner_user_id", owner.ownerId);
+    .eq("owner_user_id", ownerId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  await logAudit("vault_item_updated", { target_vault_item_id: id, profile_source: owner.source });
+  await logAudit("vault_item_updated", { target_vault_item_id: id });
   return NextResponse.json({ ok: true });
 }
 
@@ -97,16 +84,12 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const pinCheck = requirePinAssertion({ request: req, userId: auth.user.id, action: "delete_secret", targetItemId: id });
   if (pinCheck.ok === false) return pinCheck.response;
 
-  const owner = await resolveOwner({
-    userId: auth.user.id,
-    email: auth.user.email ?? "",
-    fullName: String(auth.user.user_metadata?.full_name ?? ""),
-  });
+  const ownerId = auth.user.id;
   const admin = createAdminClient();
 
-  const { error } = await admin.from("vault_items").delete().eq("id", id).eq("owner_user_id", owner.ownerId);
+  const { error } = await admin.from("vault_items").delete().eq("id", id).eq("owner_user_id", ownerId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  await logAudit("vault_item_deleted", { target_vault_item_id: id, profile_source: owner.source });
+  await logAudit("vault_item_deleted", { target_vault_item_id: id });
   return NextResponse.json({ ok: true });
 }

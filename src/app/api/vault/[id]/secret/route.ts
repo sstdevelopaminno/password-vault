@@ -5,7 +5,7 @@ import { logAudit } from "@/lib/audit";
 import { pinActionSchema } from "@/lib/validators";
 import { requirePinAssertion } from "@/lib/pin-guard";
 import { enqueuePushNotification, processPushQueue } from "@/lib/push-queue";
-import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,12 +33,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return pinCheck.response;
   }
 
-  const resolved = await resolveProfileForAuthUser({
-    userId: auth.user.id,
-    email: auth.user.email ?? "",
-    fullName: String(auth.user.user_metadata?.full_name ?? ""),
-  });
-  const ownerId = resolved.profile.id;
+  const ownerId = auth.user.id;
   const admin = createAdminClient();
 
   const { data: item, error } = await admin
@@ -57,7 +52,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   void logAudit(actionParsed.data === "copy_secret" ? "vault_secret_copied" : "vault_secret_viewed", {
     target_vault_item_id: id,
-    profile_source: resolved.source,
   }).catch(function () {});
 
   const copied = actionParsed.data === "copy_secret";

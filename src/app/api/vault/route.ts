@@ -39,12 +39,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const resolved = await resolveProfileForAuthUser({
-    userId: data.user.id,
-    email: data.user.email ?? "",
-    fullName: String(data.user.user_metadata?.full_name ?? ""),
-  });
-  const ownerId = resolved.profile.id;
+  const ownerId = data.user.id;
   const admin = createAdminClient();
 
   const { searchParams } = new URL(req.url);
@@ -110,34 +105,45 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const resolved = await resolveProfileForAuthUser({
-    userId: data.user.id,
-    email: data.user.email ?? "",
-    fullName: String(data.user.user_metadata?.full_name ?? ""),
-  });
-  const ownerId = resolved.profile.id;
-  const admin = createAdminClient();
-
   const body = parsed.data;
-  const { data: inserted, error } = await admin
-    .from("vault_items")
-    .insert({
-      owner_user_id: ownerId,
-      title: body.title,
-      username_value_encrypted: encryptText(body.username),
-      secret_value_encrypted: encryptText(body.secret),
-      notes_encrypted: body.notes ? encryptText(body.notes) : null,
-      url: body.url || null,
-      category: body.category || null,
-    })
-    .select("id,title,category,updated_at")
-    .single();
+  const admin = createAdminClient();
+  let ownerId = data.user.id;
+
+  async function createItem(targetOwnerId: string) {
+    return admin
+      .from("vault_items")
+      .insert({
+        owner_user_id: targetOwnerId,
+        title: body.title,
+        username_value_encrypted: encryptText(body.username),
+        secret_value_encrypted: encryptText(body.secret),
+        notes_encrypted: body.notes ? encryptText(body.notes) : null,
+        url: body.url || null,
+        category: body.category || null,
+      })
+      .select("id,title,category,updated_at")
+      .single();
+  }
+
+  let { data: inserted, error } = await createItem(ownerId);
+
+  if (error?.code === "23503") {
+    const resolved = await resolveProfileForAuthUser({
+      userId: data.user.id,
+      email: data.user.email ?? "",
+      fullName: String(data.user.user_metadata?.full_name ?? ""),
+    });
+    ownerId = resolved.profile.id;
+    const retried = await createItem(ownerId);
+    inserted = retried.data;
+    error = retried.error;
+  }
 
   if (error || !inserted) {
     return NextResponse.json({ error: error?.message ?? "Failed to create item" }, { status: 400 });
   }
 
-  await logAudit("vault_item_created", { owner_user_id: ownerId, title: body.title, profile_source: resolved.source });
+  await logAudit("vault_item_created", { owner_user_id: ownerId, title: body.title });
 
   return NextResponse.json({
     ok: true,

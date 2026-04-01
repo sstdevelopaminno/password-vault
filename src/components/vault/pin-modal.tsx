@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
@@ -28,18 +28,6 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onClos
     const timer = window.setTimeout(() => inputRef.current?.focus(), 60);
     return () => window.clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    void fetch("/api/pin/verify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-pin-preload": "1",
-      },
-      cache: "no-store",
-      body: JSON.stringify({ pin: "000000", action, targetItemId }),
-    }).catch(() => {});
-  }, [action, targetItemId]);
 
   const slots = useMemo(() => Array.from({ length: 6 }, (_, i) => pin[i] ?? ""), [pin]);
   const confirmPrefix = locale === "th" ? "ยืนยัน PIN 6 หลักเพื่อ" : "Confirm 6-digit PIN to";

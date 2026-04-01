@@ -7,6 +7,7 @@ import {
 
 const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
 const userPaths = ["/home", "/vault", "/settings", "/requests"];
+const ACTIVE_SESSION_SYNC_GRACE_MS = 20_000;
 
 const publicApiPaths = new Set([
   "/api/auth/login",
@@ -116,19 +117,29 @@ export async function proxy(request: NextRequest) {
       user.app_metadata && typeof user.app_metadata.pv_active_session === "string"
         ? user.app_metadata.pv_active_session
         : "";
+    const metadataIssuedAtMs = parseTokenIssuedAtMs(metadataToken);
     const metadataUpdatedAtMs =
       user.app_metadata && typeof user.app_metadata.pv_active_updated_at === "string"
         ? parseMetadataUpdatedAtMs(user.app_metadata.pv_active_updated_at)
         : 0;
+    const metadataReferenceAtMs = Math.max(metadataIssuedAtMs, metadataUpdatedAtMs);
     const cookieIssuedAtMs = parseTokenIssuedAtMs(cookieToken);
     const now = Date.now();
     const cookieLooksValidTime =
       cookieIssuedAtMs > 0 &&
       cookieIssuedAtMs <= now + 60_000;
+    const cookieWithinSyncWindow =
+      cookieLooksValidTime &&
+      metadataReferenceAtMs > 0 &&
+      Math.abs(cookieIssuedAtMs - metadataReferenceAtMs) <= ACTIVE_SESSION_SYNC_GRACE_MS;
     const cookieAppearsNewerThanMetadata =
       cookieLooksValidTime &&
-      metadataUpdatedAtMs > 0 &&
-      cookieIssuedAtMs > metadataUpdatedAtMs;
+      metadataReferenceAtMs > 0 &&
+      cookieIssuedAtMs >= metadataReferenceAtMs;
+    const metadataAppearsNewerThanCookie =
+      metadataReferenceAtMs > 0 &&
+      cookieIssuedAtMs > 0 &&
+      metadataReferenceAtMs - cookieIssuedAtMs > ACTIVE_SESSION_SYNC_GRACE_MS;
 
     if (metadataToken && !cookieToken) {
       response.cookies.set({
@@ -139,10 +150,21 @@ export async function proxy(request: NextRequest) {
       });
     }
 
-    if (metadataToken && cookieToken && cookieToken !== metadataToken && !cookieAppearsNewerThanMetadata) {
-      const out = unauthorizedFor(request, "Session expired due to login from another device.");
-      clearAuthCookies(request, out);
-      return out;
+    if (metadataToken && cookieToken && cookieToken !== metadataToken) {
+      if (cookieAppearsNewerThanMetadata || cookieWithinSyncWindow) {
+        if (cookieWithinSyncWindow) {
+          response.cookies.set({
+            name: ACTIVE_SESSION_COOKIE,
+            value: metadataToken,
+            httpOnly: true,
+            ...getSharedCookieOptions(),
+          });
+        }
+      } else if (metadataAppearsNewerThanCookie || !cookieLooksValidTime) {
+        const out = unauthorizedFor(request, "Session expired due to login from another device.");
+        clearAuthCookies(request, out);
+        return out;
+      }
     }
   }
 

@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,7 +14,10 @@ type AddVaultItemSheetProps = {
  onCreated: (item: { id: string; title: string; username: string; updatedAt: string; category: string }) => void;
 };
 
+const SAVE_TIMEOUT_MS = 12000;
+
 export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
+ const router = useRouter();
  const { showToast } = useToast();
  const { t, locale } = useI18n();
  const [open, setOpen] = useState(false);
@@ -22,12 +26,17 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
 
  async function submit(e: React.FormEvent) {
  e.preventDefault();
+ if (loading) return;
  setLoading(true);
+
+ const controller = new AbortController();
+ const timer = window.setTimeout(() => controller.abort(), SAVE_TIMEOUT_MS);
 
  try {
  const res = await fetch('/api/vault', {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
+ signal: controller.signal,
  body: JSON.stringify(form),
  });
 
@@ -35,6 +44,13 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  error?: string;
  item?: { id: string; title: string; username: string; category?: string | null; updatedAt?: string };
  };
+
+ if (res.status === 401) {
+ setLoading(false);
+ showToast(locale === 'th' ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่' : 'Session expired. Please sign in again.', 'error');
+ router.replace('/login');
+ return;
+ }
 
  if (!res.ok || !body.item) {
  setLoading(false);
@@ -58,9 +74,15 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  setOpen(false);
  setForm({ title: '', username: '', secret: '', category: t('vault.categoryGeneral'), url: '', notes: '' });
  showToast(t('addItem.saveSuccess'), 'success');
- } catch {
+ } catch (error) {
  setLoading(false);
+ if ((error as Error).name === 'AbortError') {
+ showToast(locale === 'th' ? 'บันทึกล่าช้า กรุณาลองอีกครั้ง' : 'Save is taking too long. Please retry.', 'error');
+ return;
+ }
  showToast(t('addItem.saveFailed'), 'error');
+ } finally {
+ window.clearTimeout(timer);
  }
  }
 
@@ -111,5 +133,3 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  </>
  );
 }
-
-
