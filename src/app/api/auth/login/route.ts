@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
 import {
   ACTIVE_SESSION_COOKIE,
@@ -16,7 +16,7 @@ function isPendingStatus(status: string) {
   return PENDING_STATUSES.has(String(status ?? "").toLowerCase());
 }
 
-async function tryAutoApprove(input: { userId: string; profileEmail: string; status: string; role: string; emailVerifiedAt: string }) {
+async function tryAutoApprove(input: { userId: string; status: string; role: string; emailVerifiedAt: string }) {
   const status = String(input.status ?? "");
   const role = String(input.role ?? "pending");
   const emailVerifiedAt = String(input.emailVerifiedAt ?? "");
@@ -36,16 +36,6 @@ async function tryAutoApprove(input: { userId: string; profileEmail: string; sta
   const byId = await admin.from("profiles").update({ status: "active", role: nextRole }).eq("id", input.userId);
   if (byId.error) {
     console.error("Auto-approve profile update by id failed in login:", byId.error.message);
-  }
-
-  if (input.profileEmail) {
-    const byEmail = await admin
-      .from("profiles")
-      .update({ status: "active", role: nextRole, email_verified_at: emailVerifiedAt })
-      .eq("email", input.profileEmail.toLowerCase());
-    if (byEmail.error) {
-      console.error("Auto-approve profile update by email failed in login:", byEmail.error.message);
-    }
   }
 
   const requestResult = await admin
@@ -104,29 +94,28 @@ export async function POST(req: Request) {
 
   const authEmail = user.email?.toLowerCase() ?? normalizedEmail;
 
-  let { data: profile } = await supabase
-    .from("profiles")
-    .select("id,status,email,email_verified_at,role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile && authEmail) {
-    const byEmail = await supabase
-      .from("profiles")
-      .select("id,status,email,email_verified_at,role")
-      .eq("email", authEmail)
-      .maybeSingle();
-    profile = byEmail.data ?? null;
+  let profile;
+  try {
+    const resolved = await resolveProfileForAuthUser({
+      userId: user.id,
+      email: authEmail,
+      fullName: String(user.user_metadata?.full_name ?? ""),
+    });
+    profile = resolved.profile;
+  } catch (resolveError) {
+    console.error("Failed to resolve profile in login:", resolveError);
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "Account profile mismatch. Please contact admin." }, { status: 409 });
   }
 
-  if (profile?.status === "disabled") {
+  if (profile.status === "disabled") {
     await supabase.auth.signOut();
     return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
   }
 
-  let status = String(profile?.status ?? "pending_approval");
-  let role = String(profile?.role ?? "pending");
-  const emailVerifiedAt = profile?.email_verified_at
+  let status = String(profile.status ?? "pending_approval");
+  let role = String(profile.role ?? "pending");
+  const emailVerifiedAt = profile.email_verified_at
     ? String(profile.email_verified_at)
     : user.email_confirmed_at
       ? String(user.email_confirmed_at)
@@ -134,7 +123,6 @@ export async function POST(req: Request) {
 
   const autoApprove = await tryAutoApprove({
     userId: user.id,
-    profileEmail: String(profile?.email ?? authEmail),
     status,
     role,
     emailVerifiedAt,

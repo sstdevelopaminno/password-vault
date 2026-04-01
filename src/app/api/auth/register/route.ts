@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { registerSchema } from "@/lib/validators";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, findAuthUserByEmail, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   isOtpProviderConfigError,
@@ -38,8 +38,9 @@ export async function POST(req: Request) {
         .select("id")
         .eq("email", normalizedEmail)
         .maybeSingle();
+      const existingAuthUser = await findAuthUserByEmail(normalizedEmail);
 
-      if (existingProfile?.id) {
+      if (existingProfile?.id || existingAuthUser?.id) {
         return NextResponse.json({ error: "Email already registered" }, { status: 409 });
       }
 
@@ -154,28 +155,44 @@ export async function POST(req: Request) {
       }
     }
 
-    await admin
-      .from("profiles")
-      .update({ email_verified_at: new Date().toISOString(), status: "pending_approval", role: "user" })
-      .eq("email", normalizedEmail);
-
     const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id;
+    const user = authData.user;
+    if (!user?.id) {
+      return NextResponse.json({ error: "Unable to resolve verified user session" }, { status: 401 });
+    }
 
-    if (userId) {
-      const { data: pendingRequest } = await admin
-        .from("approval_requests")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("request_status", "pending")
-        .maybeSingle();
+    const resolved = await resolveProfileForAuthUser({
+      userId: user.id,
+      email: String(user.email ?? normalizedEmail),
+      fullName: String(user.user_metadata?.full_name ?? fullName),
+    });
 
-      if (!pendingRequest?.id) {
-        await admin.from("approval_requests").insert({
-          user_id: userId,
-          request_status: "pending",
-        });
-      }
+    const { error: updateProfileError } = await admin
+      .from("profiles")
+      .update({
+        email_verified_at: new Date().toISOString(),
+        status: "pending_approval",
+        role: resolved.profile.role === "pending" ? "user" : resolved.profile.role,
+        email: String(user.email ?? normalizedEmail).toLowerCase(),
+      })
+      .eq("id", user.id);
+
+    if (updateProfileError) {
+      return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
+    }
+
+    const { data: pendingRequest } = await admin
+      .from("approval_requests")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("request_status", "pending")
+      .maybeSingle();
+
+    if (!pendingRequest?.id) {
+      await admin.from("approval_requests").insert({
+        user_id: user.id,
+        request_status: "pending",
+      });
     }
 
     return NextResponse.json({

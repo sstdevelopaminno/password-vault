@@ -18,18 +18,63 @@ type LoginResponse = {
   needsOtpVerification?: boolean;
   pendingApproval?: boolean;
   autoApproved?: boolean;
+  retryAfterSec?: number;
 };
 
-function mapLoginError(message: unknown, fallback: string) {
-  const text = String(message ?? "");
+function mapLoginError(input: {
+  message: unknown;
+  fallback: string;
+  locale: "th" | "en";
+  retryAfterSec?: number;
+}) {
+  const text = String(input.message ?? "");
   const lower = text.toLowerCase();
-  if (lower.includes("invalid login credentials")) return fallback;
-  if (lower.includes("too many login attempts")) return fallback;
-  if (lower.includes("please wait")) return fallback;
-  if (lower.includes("rate")) return fallback;
-  if (lower.includes("account is disabled")) return fallback;
+  const locale = input.locale;
+
+  if (lower.includes("account is disabled")) {
+    return locale === "th"
+      ? "บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
+      : "This account is disabled. Please contact an administrator.";
+  }
+
+  if (lower.includes("profile mismatch")) {
+    return locale === "th"
+      ? "ตรวจพบข้อมูลบัญชีไม่ตรงกัน ระบบกำลังซ่อมแซมอัตโนมัติ กรุณาลองอีกครั้ง"
+      : "Account profile mismatch detected. Please retry shortly.";
+  }
+
+  if (lower.includes("unable to secure this login session")) {
+    return locale === "th"
+      ? "ไม่สามารถยืนยันความปลอดภัยของเซสชันได้ กรุณาเข้าสู่ระบบใหม่"
+      : "Unable to secure this login session. Please sign in again.";
+  }
+
+  if (lower.includes("too many login attempts") || lower.includes("please wait") || lower.includes("rate")) {
+    const retry = Number(input.retryAfterSec ?? 0);
+    if (Number.isFinite(retry) && retry > 0) {
+      return locale === "th"
+        ? `ลองใหม่อีกครั้งใน ${retry} วินาที`
+        : `Please retry in ${retry} seconds.`;
+    }
+    return locale === "th"
+      ? "พยายามเข้าสู่ระบบถี่เกินไป กรุณารอสักครู่"
+      : "Too many attempts. Please wait a moment.";
+  }
+
+  if (lower.includes("invalid login credentials")) {
+    return locale === "th"
+      ? "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
+      : "Invalid email or password.";
+  }
+
+  if (lower.includes("email not confirmed")) {
+    return locale === "th"
+      ? "ยังไม่ยืนยันอีเมล กรุณายืนยัน OTP ก่อนเข้าสู่ระบบ"
+      : "Email not confirmed. Please verify OTP first.";
+  }
+
   if (text) return text;
-  return fallback;
+  return input.fallback;
 }
 
 export default function LoginPage() {
@@ -66,7 +111,15 @@ export default function LoginPage() {
 
     if (!response.ok) {
       const errorText = String(body.error ?? "");
-      showToast(mapLoginError(body.error, t("login.failed")), "error");
+      showToast(
+        mapLoginError({
+          message: body.error,
+          retryAfterSec: body.retryAfterSec,
+          locale,
+          fallback: t("login.failed"),
+        }),
+        "error",
+      );
 
       if (response.status === 429 || errorText.toLowerCase().includes("too many login attempts")) {
         notify({

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, findAuthUserByEmail } from "@/lib/supabase/admin";
 
 const payloadSchema = z.object({
   email: z.email(),
@@ -15,6 +15,14 @@ export async function POST(req: Request) {
     }
 
     const normalizedEmail = parsed.data.email.trim().toLowerCase();
+    const authUser = await findAuthUserByEmail(normalizedEmail);
+    if (authUser?.id) {
+      return NextResponse.json({
+        ok: true,
+        exists: true,
+      });
+    }
+
     const admin = createAdminClient();
     const { data, error } = await admin.from("profiles").select("id").eq("email", normalizedEmail).maybeSingle();
 

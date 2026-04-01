@@ -1,6 +1,6 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { findAuthUserByEmail, resolveProfileForAuthUser, createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { verifyPin } from "@/lib/pin";
 
@@ -20,16 +20,17 @@ export async function POST(req: Request) {
   const email = parsed.data.email.trim().toLowerCase();
   const { pin, newPassword } = parsed.data;
 
-  const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id,email,status,pin_hash")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (!profile) {
+  const authUser = await findAuthUserByEmail(email);
+  if (!authUser?.id) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
+
+  const resolved = await resolveProfileForAuthUser({
+    userId: authUser.id,
+    email: authUser.email,
+    fullName: "",
+  });
+  const profile = resolved.profile;
 
   if (profile.status !== "active") {
     return NextResponse.json({ error: "Account is not approved yet" }, { status: 403 });
@@ -44,7 +45,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid PIN" }, { status: 403 });
   }
 
-  const { error: updateError } = await admin.auth.admin.updateUserById(profile.id, {
+  const admin = createAdminClient();
+  const { error: updateError } = await admin.auth.admin.updateUserById(authUser.id, {
     password: newPassword,
   });
 
@@ -54,7 +56,7 @@ export async function POST(req: Request) {
 
   const supabase = await createClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
+    email: authUser.email,
     password: newPassword,
   });
 
