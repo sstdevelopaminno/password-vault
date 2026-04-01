@@ -65,14 +65,14 @@ export async function GET() {
 
   let { data: profile } = await supabase
     .from("profiles")
-    .select("id,full_name,email,role,status,email_verified_at")
+    .select("id,full_name,email,role,status,email_verified_at,pin_hash")
     .eq("id", auth.user.id)
     .maybeSingle();
 
   if (!profile && authEmail) {
     const byEmail = await supabase
       .from("profiles")
-      .select("id,full_name,email,role,status,email_verified_at")
+      .select("id,full_name,email,role,status,email_verified_at,pin_hash")
       .eq("email", authEmail)
       .maybeSingle();
     profile = byEmail.data ?? null;
@@ -102,14 +102,17 @@ export async function GET() {
 
   const needsOtpVerification = !emailVerifiedAt;
   const pendingApproval = !needsOtpVerification && status !== "active";
+  const hasPin = Boolean(profile?.pin_hash);
 
   return NextResponse.json({
     ok: true,
+    userId: String(auth.user.id),
     fullName: String(profile?.full_name ?? auth.user.user_metadata?.full_name ?? ""),
     email: String(profile?.email ?? auth.user.email ?? ""),
     role,
     status,
     emailVerifiedAt,
+    hasPin,
     needsOtpVerification,
     pendingApproval,
     autoApproved: autoApprove.autoApproved,

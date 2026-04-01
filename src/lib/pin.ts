@@ -11,7 +11,8 @@ export type PinAction =
   | "delete_secret"
   | "admin_view_vault"
   | "approve_signup_request"
-  | "delete_signup_request";
+  | "delete_signup_request"
+  | "unlock_app";
 
 type AssertionPayload = {
   userId: string;

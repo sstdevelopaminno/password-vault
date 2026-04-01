@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createPinAssertionToken, verifyPin } from "@/lib/pin";
 import { logAudit } from "@/lib/audit";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
+import { resolveProfileForAuthUser } from "@/lib/supabase/admin";
 
 async function withTimeout<T>(promiseLike: PromiseLike<T>, ms: number, message: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -46,17 +47,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Too many PIN attempts. Please wait.", retryAfterSec: limit.retryAfterSec }, { status: 429 });
     }
 
-    const { data: profile, error: profileError } = await withTimeout(
-      supabase.from("profiles").select("pin_hash").eq("id", data.user.id).maybeSingle(),
+    const resolved = await withTimeout(
+      resolveProfileForAuthUser({
+        userId: data.user.id,
+        email: data.user.email ?? "",
+        fullName: String(data.user.user_metadata?.full_name ?? ""),
+      }),
       8000,
       "Supabase profile timeout",
     );
 
-    if (profileError) {
-      return NextResponse.json({ error: profileError.message }, { status: 400 });
-    }
-
-    if (!profile?.pin_hash || !(await verifyPin(parsed.data.pin, profile.pin_hash))) {
+    const pinHash = String(resolved.profile.pin_hash ?? "");
+    if (!pinHash || !(await verifyPin(parsed.data.pin, pinHash))) {
       void logAudit("pin_verify_failed", {
         action: parsed.data.action,
         targetItemId: parsed.data.targetItemId ?? null,
@@ -76,6 +78,8 @@ export async function POST(req: Request) {
       action: parsed.data.action,
       targetItemId: parsed.data.targetItemId ?? null,
       ip,
+      profileSource: resolved.source,
+      profileId: resolved.profile.id,
     }).catch(() => {});
 
     return NextResponse.json({ ok: true, assertionToken });

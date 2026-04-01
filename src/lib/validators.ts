@@ -52,6 +52,7 @@ export const pinActionSchema = z.enum([
   "admin_view_vault",
   "approve_signup_request",
   "delete_signup_request",
+  "unlock_app",
 ] satisfies [PinAction, ...PinAction[]]);
 
 export const pinVerifySchema = z.object({
