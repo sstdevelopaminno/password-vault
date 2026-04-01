@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const packageVersion = String(process.env.npm_package_version ?? "0.1.0");
-const releaseVersion = String(process.env.APP_VERSION_OVERRIDE ?? "").trim() || packageVersion;
+const releaseVersion = packageVersion;
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
