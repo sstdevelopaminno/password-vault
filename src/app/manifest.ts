@@ -1,4 +1,4 @@
-import type { MetadataRoute } from "next";
+﻿import type { MetadataRoute } from "next";
 
 const LOGO_URL =
   "https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/Imagemaster" +
@@ -10,7 +10,9 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Password Vault",
     short_name: "Vault",
     description: "Secure mobile-first password manager",
-    start_url: "/",
+ id: "/",
+ scope: "/",
+    start_url: "/home",
     display: "standalone",
     background_color: "#f4f7ff",
     theme_color: "#2563eb",
@@ -35,3 +37,4 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
   };
 }
+

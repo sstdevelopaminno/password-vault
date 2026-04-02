@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Providers } from "@/app/providers";
 import "./globals.css";
 
@@ -14,6 +14,11 @@ export const metadata: Metadata = {
     icon: [{ url: LOGO_URL, type: "image/png" }],
     shortcut: [{ url: LOGO_URL, type: "image/png" }],
     apple: [{ url: LOGO_URL, type: "image/png" }],
+ },
+ appleWebApp: {
+ capable: true,
+ statusBarStyle: "default",
+ title: "Password Vault",
   },
 };
 
@@ -34,3 +39,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+

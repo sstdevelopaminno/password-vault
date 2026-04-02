@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+﻿import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import {
   ACTIVE_SESSION_COOKIE,
@@ -7,7 +7,7 @@ import {
 
 const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
 const userPaths = ["/home", "/vault", "/settings", "/requests"];
-const ACTIVE_SESSION_SYNC_GRACE_MS = 20_000;
+const ACTIVE_SESSION_SYNC_GRACE_MS = 300_000;
 
 const publicApiPaths = new Set([
   "/api/auth/login",
@@ -192,3 +192,4 @@ export const config = {
     "/api/:path*",
   ],
 };
+
