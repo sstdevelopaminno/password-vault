@@ -633,8 +633,8 @@ export default function SettingsPage() {
       </div>
 
       {body && (
-        <div className='fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-[2px]' onClick={() => setActive('')}>
-          <div className='absolute inset-x-0 bottom-0 mx-auto w-[calc(100%-12px)] max-w-[540px] rounded-t-[30px] bg-white px-5 pt-5 pb-6 shadow-[0_-10px_40px_rgba(15,23,42,0.24)]' onClick={(ev) => ev.stopPropagation()}>
+        <div className='mt-2' onClick={() => setActive('')}>
+          <div className='mx-auto w-full max-w-[540px] rounded-[30px] bg-white px-5 pt-5 pb-6 shadow-[0_10px_35px_rgba(15,23,42,0.16)]' onClick={(ev) => ev.stopPropagation()}>
             <div className='mb-5 flex items-center justify-between'>
               <h2 className='text-xl font-semibold leading-tight text-slate-900'>
                 {activeTitle}

@@ -77,7 +77,7 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSession
       window.clearTimeout(inactivityTimerRef.current);
     }
     inactivityTimerRef.current = window.setTimeout(() => {
-      armInactivityLock();
+      lockNow();
     }, inactivityLockMs);
   }, [inactivityLockMs, lockNow]);
 
@@ -291,3 +291,4 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSession
     </div>
   );
 }
+
