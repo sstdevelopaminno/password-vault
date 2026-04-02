@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Bell, ChevronRight, KeyRound, Languages, Lock, LogOut, Mail, Shield, UserRound, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Bell, ChevronLeft, ChevronRight, KeyRound, Languages, Lock, LogOut, Mail, Shield, UserRound } from 'lucide-react';
 import { OtpInput } from '@/components/auth/otp-input';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,12 +36,29 @@ function mapError(message: unknown, t: (key: any) => string, locale: 'th' | 'en'
   return String(message ?? 'Unknown error');
 }
 
+type SettingsSection = '' | 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout';
+const SETTINGS_SECTION_QUERY = 'section';
+
+function parseSettingsSection(raw: string | null): SettingsSection {
+ if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'pin' || raw === 'language' || raw === 'logout') {
+ return raw;
+ }
+ return '';
+}
+
 export default function SettingsPage() {
   const toast = useToast();
   const { t, locale, setLocale } = useI18n();
   const router = useRouter();
 
-  const [active, setActive] = useState('' as '' | 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout');
+  const searchParams = useSearchParams();
+ const active = useMemo(() => parseSettingsSection(searchParams.get(SETTINGS_SECTION_QUERY)), [searchParams]);
+ const openSection = useCallback((section: Exclude<SettingsSection, ''>) => {
+ router.push('/settings?' + SETTINGS_SECTION_QUERY + '=' + section);
+ }, [router]);
+ const goMenuRoot = useCallback(() => {
+ router.push('/settings');
+ }, [router]);
   const [loading, setLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
@@ -144,7 +161,7 @@ export default function SettingsPage() {
     if (!body) return;
 
     toast.showToast(String(body?.message ?? t('settings.profileUpdated')), 'success');
-    setActive('');
+    goMenuRoot();
     void loadProfile();
   }
 
@@ -246,7 +263,7 @@ export default function SettingsPage() {
     }
 
     toast.showToast(String(body?.message ?? t('settings.profileUpdated')), 'success');
-    setActive('');
+    goMenuRoot();
     setEmailStep('enter_email');
     setEmailOtp('');
     setResendIn(0);
@@ -302,7 +319,7 @@ export default function SettingsPage() {
     }
 
     toast.showToast(String(body?.message ?? t('settings.profileUpdated')), 'success');
-    setActive('');
+    goMenuRoot();
     setPasswordStep('enter_password');
     setNewPassword('');
     setPasswordPin('');
@@ -320,7 +337,7 @@ export default function SettingsPage() {
     if (!body) return;
 
     toast.showToast(t('settings.pinUpdated'), 'success');
-    setActive('');
+    goMenuRoot();
   }
 
   async function logout() {
@@ -356,7 +373,7 @@ export default function SettingsPage() {
     <button
       key={key}
       type='button'
-      onClick={() => setActive(key)}
+      onClick={() => openSection(key)}
       className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
     >
       <span className='inline-flex items-center gap-3'>
@@ -407,7 +424,7 @@ export default function SettingsPage() {
         className='h-12 rounded-2xl border-2 border-blue-300 bg-white text-slate-900 placeholder:text-slate-400'
       />
       <div className='grid grid-cols-2 gap-2'>
-        <Button variant='secondary' className='h-12 rounded-2xl' onClick={() => setActive('')} disabled={emailLoading}>
+        <Button variant='secondary' className='h-12 rounded-2xl' onClick={() => goMenuRoot()} disabled={emailLoading}>
           {locale === 'th' ? 'ยกเลิก' : 'Cancel'}
         </Button>
         <Button className='h-12 rounded-2xl bg-white text-blue-900 hover:bg-blue-50' onClick={() => void sendEmailOtp()} disabled={emailLoading || resendIn > 0}>
@@ -606,9 +623,9 @@ export default function SettingsPage() {
 
   return (
     <section className='space-y-5 pb-24 pt-2'>
-      <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{t('settings.title')}</h1>
-      <p className='text-sm leading-6 text-slate-500'>{locale === 'th' ? 'เลือกเมนูที่ต้องการปรับแต่งโปรไฟล์ของคุณ' : 'Select a menu to update your profile settings.'}</p>
-      <div className='grid gap-3.5'>
+      {active ? null : <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{t('settings.title')}</h1>}
+      {active ? null : <p className='text-sm leading-6 text-slate-500'>{locale === 'th' ? 'เลือกเมนูที่ต้องการปรับแต่งโปรไฟล์ของคุณ' : 'Select a menu to update your profile settings.'}</p>}
+      <div className={active ? 'hidden' : 'grid gap-3.5'}>
         {menuBtn('name', t('settings.nameTitle'), UserRound)}
         {menuBtn('email', t('settings.emailTitle'), Mail)}
         {menuBtn('password', t('settings.passwordTitle'), Lock)}
@@ -633,16 +650,21 @@ export default function SettingsPage() {
       </div>
 
       {body && (
-        <div className='mt-2' onClick={() => setActive('')}>
-          <div className='mx-auto w-full max-w-[540px] rounded-[30px] bg-white px-5 pt-5 pb-6 shadow-[0_10px_35px_rgba(15,23,42,0.16)]' onClick={(ev) => ev.stopPropagation()}>
-            <div className='mb-5 flex items-center justify-between'>
-              <h2 className='text-xl font-semibold leading-tight text-slate-900'>
-                {activeTitle}
-              </h2>
-              <button type='button' className='rounded-full p-1 text-slate-500 hover:bg-slate-100' onClick={() => setActive('')} aria-label='Close'>
-                <X className='h-5 w-5' />
-              </button>
-            </div>
+        <div className='mt-2 space-y-3'>
+          <div className='mx-auto w-full max-w-[540px] rounded-[30px] bg-white px-5 pt-5 pb-8 shadow-[0_10px_35px_rgba(15,23,42,0.16)]'>
+ <div className='mb-5 flex items-center gap-2'>
+ <button
+ type='button'
+ className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600'
+ onClick={goMenuRoot}
+ aria-label={locale === 'th' ? 'ย้อนกลับ' : 'Back'}
+ >
+ <ChevronLeft className='h-4 w-4' />
+ </button>
+ <h2 className='text-xl font-semibold leading-tight text-slate-900'>
+ {activeTitle}
+ </h2>
+ </div>
             {body}
           </div>
         </div>
