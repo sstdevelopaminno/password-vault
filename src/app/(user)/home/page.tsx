@@ -62,14 +62,13 @@ export default function HomePage() {
  }, []);
 
  const securityLabel = useMemo(() => {
- if (locale === 'th') return securityScore > 79 ? '��' : '�ҹ��ҧ';
+ if (locale === 'th') return securityScore > 79 ? '\u0e14\u0e35' : '\u0e1b\u0e32\u0e19\u0e01\u0e25\u0e32\u0e07';
  return securityScore > 79 ? 'Good' : 'Moderate';
  }, [locale, securityScore]);
 
- const roleText = locale === 'th' ? '�����ҹ�����' : 'General User';
- const roleLabel = locale === 'th' ? '�Է���: ' : 'Role: ';
+ const roleText = locale === 'th' ? '\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e17\u0e31\u0e48\u0e27\u0e44\u0e1b' : 'General User';
+ const roleLabel = locale === 'th' ? '\u0e2a\u0e34\u0e17\u0e18\u0e34\u0e4c: ' : 'Role: ';
  const versionText = versionLabel(locale);
- const healthScore = Math.round(clamp(securityScore * 0.58 + stabilityScore * 0.42, 0, 99));
 
  return (
  <section className='space-y-4 pb-24 pt-2'>
@@ -84,36 +83,21 @@ export default function HomePage() {
  </div>
  </Card>
 
- <Card className='overflow-hidden rounded-[24px] border border-emerald-200/70 bg-gradient-to-br from-white via-emerald-50/65 to-cyan-50/65 px-4 py-4 shadow-[0_20px_36px_rgba(16,139,128,0.18)]'>
- <p className='text-sm font-medium text-emerald-900/80'>{locale === 'th' ? '��ṹ�آ�Ҿ�к�' : 'System health score'}</p>
- <p className='mt-1 text-[82px] font-semibold leading-[0.9] tracking-[-0.03em] text-slate-900'>{healthScore}</p>
- <div className='mt-4 grid grid-cols-3 gap-2'>
- {[4, -2, -6].map((offset, index) => {
- const segment = clamp(healthScore + offset, 20, 100);
- return (
- <div key={index} className='h-2.5 overflow-hidden rounded-full bg-emerald-100/80'>
- <div className='h-full rounded-full bg-gradient-to-r from-lime-400 to-emerald-300 transition-all duration-500' style={{ width: String(segment) + '%' }} />
- </div>
- );
- })}
- </div>
- </Card>
-
  <div className='grid grid-cols-2 gap-3.5'>
  <Card className='min-h-[150px] rounded-[20px] bg-white/90 px-3.5 py-3.5'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '��¡��㹤�ѧ' : 'Vault items'}</p>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07' : 'Vault items'}</p>
  <p className='mt-1 text-[39px] font-semibold leading-[1.03] text-slate-900'>{itemCount}</p>
- <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '���������' : 'All categories'}</p>
+ <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '\u0e23\u0e27\u0e21\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14' : 'All categories'}</p>
  </Card>
 
  <Card className='min-h-[150px] rounded-[20px] bg-white/90 px-3.5 py-3.5'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '�дѺ������ʹ����к�' : 'System security'}</p>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e23\u0e30\u0e14\u0e31\u0e1a\u0e04\u0e27\u0e32\u0e21\u0e1b\u0e25\u0e2d\u0e14\u0e20\u0e31\u0e22\u0e23\u0e30\u0e1a\u0e1a' : 'System security'}</p>
  <p className='mt-1 text-[39px] font-semibold leading-[1.03] text-slate-900'>{securityScore}</p>
  <p className='mt-2 text-xs text-slate-500'>{securityLabel}</p>
  </Card>
 
  <Card className='min-h-[150px] rounded-[20px] bg-white/90 px-3.5 py-3.5'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '�����ʶ����к�' : 'System stability'}</p>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e04\u0e27\u0e32\u0e21\u0e40\u0e2a\u0e16\u0e35\u0e22\u0e23\u0e23\u0e30\u0e1a\u0e1a' : 'System stability'}</p>
  <p className='mt-1 text-[32px] font-semibold leading-none text-slate-900'>{stabilityScore}/100</p>
  <div className='mt-3 flex items-end gap-1.5'>
  {[24, 37, 58, 42, 31].map((value, index) => {
@@ -124,9 +108,9 @@ export default function HomePage() {
  </Card>
 
  <Card className='min-h-[150px] rounded-[20px] bg-white/90 px-3.5 py-3.5'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '��鹷����ҹ��ԧ�ͧ�س' : 'Your actual data usage'}</p>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e1e\u0e37\u0e49\u0e19\u0e17\u0e35\u0e48\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e08\u0e23\u0e34\u0e07\u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13' : 'Your actual data usage'}</p>
  <p className='mt-1 text-[30px] font-semibold leading-none text-slate-900'>{formatStorage(storageUsedBytes)}</p>
- <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '�ӹǳ�ҡ�����ŷ��ѹ�֡��ԧ' : 'Calculated from your saved items'}</p>
+ <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '\u0e04\u0e33\u0e19\u0e27\u0e13\u0e08\u0e32\u0e01\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e17\u0e35\u0e48\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e08\u0e23\u0e34\u0e07' : 'Calculated from your saved items'}</p>
  </Card>
  </div>
  </section>
