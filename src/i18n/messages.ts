@@ -12,8 +12,8 @@ export const messages = {
     },
     nav: {
       home: "หน้าแรก",
-      vault: "คลังรหัส",
-      orgShared: "รหัสองค์กรร่วม",
+      vault: "รหัสส่วนตัว",
+      orgShared: "รหัสทีม",
       settings: "ตั้งค่า",
       approvals: "อนุมัติ",
       users: "ผู้ใช้",
@@ -85,7 +85,7 @@ export const messages = {
       sampleLastActivity: "2 นาทีที่แล้ว",
     },
     vault: {
-      title: "คลังรหัส",
+      title: "รหัสส่วนตัว",
       subtitle: "ทุกการกระทำที่สำคัญต้องยืนยัน PIN 6 หลัก",
       searchPlaceholder: "ค้นหาชื่อรายการ",
       protectedByPin: "ป้องกันด้วย PIN",
@@ -98,9 +98,9 @@ export const messages = {
       sampleCloud: "คลาวด์",
     },
     orgShared: {
-      title: "รหัสร่วมองค์กร",
+      title: "รหัสทีม",
       subtitle: "ทุกการกระทำที่สำคัญต้องยืนยัน PIN 6 หลัก",
-      empty: "ยังไม่มีรายการในรหัสร่วมองค์กร",
+      empty: "ยังไม่มีรายการในรหัสทีม",
     },
     addItem: {
       title: "เพิ่มรายการคลังรหัส",
@@ -179,8 +179,8 @@ export const messages = {
     },
     nav: {
       home: "Home",
-      vault: "Vault",
-      orgShared: "Shared Vault",
+      vault: "Personal Keys",
+      orgShared: "Team Keys",
       settings: "Settings",
       approvals: "Approvals",
       users: "Users",
@@ -252,7 +252,7 @@ export const messages = {
       sampleLastActivity: "2m ago",
     },
     vault: {
-      title: "Vault",
+      title: "Personal Keys",
       subtitle: "All sensitive actions require your 6-digit PIN",
       searchPlaceholder: "Search by title",
       protectedByPin: "Protected by PIN",
@@ -265,9 +265,9 @@ export const messages = {
       sampleCloud: "Cloud",
     },
     orgShared: {
-      title: "Organization Shared Vault",
+      title: "Team Keys",
       subtitle: "All sensitive actions require your 6-digit PIN",
-      empty: "No items in the organization shared vault yet",
+      empty: "No team keys yet",
     },
     addItem: {
       title: "Add Vault Item",

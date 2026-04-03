@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Home, KeyRound, LayoutDashboard, ScrollText, ShieldCheck, User, Vault } from 'lucide-react';
+import { Cog, House, KeyRound, KeySquare, LayoutDashboard, ScrollText, ShieldCheck, User } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 
 type Item = {
@@ -53,9 +53,9 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
 
   const userItems: Item[] = useMemo(() => {
     const items: Item[] = [
-      { href: '/home', label: t('nav.home'), icon: Home },
-      { href: '/vault', label: t('nav.vault'), icon: Vault },
-      { href: '/org-shared', label: t('nav.orgShared'), icon: KeyRound },
+      { href: '/home', label: t('nav.home'), icon: House },
+      { href: '/vault', label: t('nav.vault'), icon: KeyRound },
+      { href: '/org-shared', label: t('nav.orgShared'), icon: KeySquare },
     ];
     if (canSeeRequests) {
       items.push({
@@ -64,7 +64,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
         icon: ShieldCheck,
       });
     }
-    items.push({ href: '/settings', label: t('nav.settings'), icon: User });
+    items.push({ href: '/settings', label: t('nav.settings'), icon: Cog });
     return items;
   }, [canSeeRequests, locale, t]);
 
@@ -93,15 +93,15 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                 <Link
                   href={item.href}
                   className={
-                    'group flex min-h-[58px] w-full select-none flex-col items-center justify-center gap-0.5 rounded-[14px] px-2 py-1 text-[11px] font-semibold transition active:scale-[0.98] ' +
+                    'group flex min-h-[58px] w-full select-none flex-col items-center justify-center gap-1 rounded-[14px] px-1.5 py-1 text-[10px] font-semibold transition active:scale-[0.98] ' +
                     (active
                       ? 'bg-gradient-to-r from-sky-100 via-indigo-100 to-fuchsia-100 text-blue-700 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.22)]'
                       : 'text-slate-500 hover:bg-slate-100/80')
                   }
                   aria-current={active ? 'page' : undefined}
                 >
-                  <Icon className={'h-4 w-4 ' + (active ? 'text-blue-700' : 'text-slate-500 group-hover:text-slate-700')} />
-                  <span className={item.href === '/org-shared' ? 'text-center text-[10px] leading-tight whitespace-normal px-0.5' : 'truncate'}>{item.label}</span>
+                  <Icon className={'h-[17px] w-[17px] ' + (active ? 'text-blue-700' : 'text-slate-500 group-hover:text-slate-700')} />
+                  <span className={['/vault', '/org-shared'].includes(item.href) ? 'text-center text-[10px] leading-tight whitespace-normal px-0.5' : 'truncate text-center text-[10px] leading-tight'}>{item.label}</span>
                 </Link>
               </li>
             );
