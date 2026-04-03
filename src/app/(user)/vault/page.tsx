@@ -7,6 +7,7 @@ import { VaultCard } from '@/components/vault/vault-card';
 import { AddVaultItemSheet } from '@/components/vault/add-item-sheet';
 import { PinModal } from '@/components/vault/pin-modal';
 import { VaultItemModal } from '@/components/vault/vault-item-modal';
+import { ShareToTeamModal } from '@/components/vault/share-to-team-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
@@ -92,6 +93,7 @@ export default function VaultPage() {
  const [editingItem, setEditingItem] = useState<VaultItem | null>(null);
  const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
  const [mutating, setMutating] = useState(false);
+ const [sharingItem, setSharingItem] = useState<VaultItem | null>(null);
 
  const deferredSearch = useDeferredValue(search);
  const requestLockRef = useRef(false);
@@ -322,6 +324,10 @@ export default function VaultPage() {
  }
  setPendingDeleteId(id);
  }}
+ onShare={(id) => {
+ const found = items.find((it) => it.id === id);
+ if (found) setSharingItem(found);
+ }}
  />
  ))}
  </div>
@@ -448,6 +454,18 @@ export default function VaultPage() {
  if (target) void performUpdate(target, assertionToken);
  }}
  onClose={() => setPendingEdit(null)}
+ />
+ ) : null}
+
+ {sharingItem ? (
+ <ShareToTeamModal
+ open={Boolean(sharingItem)}
+ itemId={sharingItem.id}
+ itemTitle={sharingItem.title}
+ onClose={() => setSharingItem(null)}
+ onShared={() => {
+ void loadItems(page);
+ }}
  />
  ) : null}
  </section>

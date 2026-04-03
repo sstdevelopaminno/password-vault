@@ -41,6 +41,20 @@ export const vaultSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const teamRoomCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const teamRoomMessageSchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+});
+
+export const teamRoomShareSchema = z.object({
+  vaultItemId: z.string().uuid(),
+  note: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
 export const pinSchema = z.object({
   pin: z.string().regex(/^\d{6}$/),
 });

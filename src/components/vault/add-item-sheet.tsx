@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,19 +10,46 @@ import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
 
+type CreatedItem = {
+ id: string;
+ title: string;
+ username: string;
+ updatedAt: string;
+ category: string;
+};
+
 type AddVaultItemSheetProps = {
- onCreated: (item: { id: string; title: string; username: string; updatedAt: string; category: string }) => void;
+ onCreated: (item: CreatedItem) => void;
+ endpoint?: string;
+ fabOffsetPx?: number;
+ sheetOffsetPx?: number;
 };
 
 const SAVE_TIMEOUT_MS = 12000;
 
-export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
+export function AddVaultItemSheet({
+ onCreated,
+ endpoint = '/api/vault',
+ fabOffsetPx = 96,
+ sheetOffsetPx = 78,
+}: AddVaultItemSheetProps) {
  const router = useRouter();
  const { showToast } = useToast();
  const { t, locale } = useI18n();
+
  const [open, setOpen] = useState(false);
  const [loading, setLoading] = useState(false);
- const [form, setForm] = useState({ title: '', username: '', secret: '', category: t('vault.categoryGeneral'), url: '', notes: '' });
+ const [form, setForm] = useState({
+ title: '',
+ username: '',
+ secret: '',
+ category: t('vault.categoryGeneral'),
+ url: '',
+ notes: '',
+ });
+
+ const fabBottom = useMemo(() => 'calc(env(safe-area-inset-bottom) + ' + String(fabOffsetPx) + 'px)', [fabOffsetPx]);
+ const sheetBottom = useMemo(() => 'calc(env(safe-area-inset-bottom) + ' + String(sheetOffsetPx) + 'px)', [sheetOffsetPx]);
 
  async function submit(e: React.FormEvent) {
  e.preventDefault();
@@ -33,7 +60,7 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  const timer = window.setTimeout(() => controller.abort(), SAVE_TIMEOUT_MS);
 
  try {
- const res = await fetch('/api/vault', {
+ const res = await fetch(endpoint, {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
  signal: controller.signal,
@@ -47,7 +74,7 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
 
  if (res.status === 401) {
  setLoading(false);
- showToast(locale === 'th' ? 'เน€เธเธชเธเธฑเธเธซเธกเธ”เธญเธฒเธขเธธ เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธซเธกเน' : 'Session expired. Please sign in again.', 'error');
+ showToast(locale === 'th' ? 'Session expired. Please sign in again.' : 'Session expired. Please sign in again.', 'error');
  router.replace('/login');
  return;
  }
@@ -77,7 +104,7 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  } catch (error) {
  setLoading(false);
  if ((error as Error).name === 'AbortError') {
- showToast(locale === 'th' ? 'เธเธฑเธเธ—เธถเธเธฅเนเธฒเธเนเธฒ เธเธฃเธธเธ“เธฒเธฅเธญเธเธญเธตเธเธเธฃเธฑเนเธ' : 'Save is taking too long. Please retry.', 'error');
+ showToast(locale === 'th' ? 'Save is taking too long. Please retry.' : 'Save is taking too long. Please retry.', 'error');
  return;
  }
  showToast(t('addItem.saveFailed'), 'error');
@@ -91,18 +118,28 @@ export function AddVaultItemSheet({ onCreated }: AddVaultItemSheetProps) {
  <button
  type='button'
  aria-label={t('vault.addItemAria')}
- onClick={() => { if (!open) setOpen(true); }}
- className='fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+96px)] z-30 inline-flex h-14 w-14 touch-manipulation items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-[0_10px_24px_rgba(37,99,235,0.45)] transition active:scale-[0.98] hover:brightness-110'
+ onClick={() => {
+ if (!open) setOpen(true);
+ }}
+ style={{ bottom: fabBottom }}
+ className='fixed right-5 z-30 inline-flex h-14 w-14 touch-manipulation items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-[0_10px_24px_rgba(37,99,235,0.45)] transition active:scale-[0.98] hover:brightness-110'
  >
  <Plus className='h-6 w-6' />
  </button>
 
  {open ? (
  <div className='fixed inset-0 z-[70] bg-slate-950/40 backdrop-blur-[2px]'>
- <div className='absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+78px)] mx-auto w-[calc(100%-12px)] max-h-[calc(100dvh-120px)] max-w-[480px] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
+ <div
+ className='absolute inset-x-0 mx-auto w-[calc(100%-12px)] max-h-[calc(100dvh-120px)] max-w-[480px] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'
+ style={{ bottom: sheetBottom }}
+ >
  <div className='mb-3 flex items-center justify-between'>
  <h2 className='text-base font-semibold'>{t('addItem.title')}</h2>
- <button onClick={() => setOpen(false)} className='rounded-full p-1 text-slate-500 hover:bg-slate-100' aria-label={t('addItem.closeAria')}>
+ <button
+ onClick={() => setOpen(false)}
+ className='rounded-full p-1 text-slate-500 hover:bg-slate-100'
+ aria-label={t('addItem.closeAria')}
+ >
  <X className='h-5 w-5' />
  </button>
  </div>
