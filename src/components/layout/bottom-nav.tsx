@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Home, LayoutDashboard, ScrollText, ShieldCheck, User, Vault } from 'lucide-react';
+import { Home, KeyRound, LayoutDashboard, ScrollText, ShieldCheck, User, Vault } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 
 type Item = {
@@ -55,6 +55,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
     const items: Item[] = [
       { href: '/home', label: t('nav.home'), icon: Home },
       { href: '/vault', label: t('nav.vault'), icon: Vault },
+      { href: '/org-shared', label: t('nav.orgShared'), icon: KeyRound },
     ];
     if (canSeeRequests) {
       items.push({
@@ -100,7 +101,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                   aria-current={active ? 'page' : undefined}
                 >
                   <Icon className={'h-4 w-4 ' + (active ? 'text-blue-700' : 'text-slate-500 group-hover:text-slate-700')} />
-                  <span className='truncate'>{item.label}</span>
+                  <span className={item.href === '/org-shared' ? 'text-center text-[10px] leading-tight whitespace-normal px-0.5' : 'truncate'}>{item.label}</span>
                 </Link>
               </li>
             );
