@@ -63,6 +63,27 @@ export const teamRoomShareSchema = z.object({
  note: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+const isoDateTimeNullable = z
+ .string()
+ .datetime({ offset: true })
+ .nullable()
+ .optional()
+ .transform((value) => value ?? null);
+
+export const noteCreateSchema = z.object({
+ title: z.string().trim().min(1).max(140),
+ content: z.string().trim().min(1).max(20000),
+ reminderAt: isoDateTimeNullable,
+ meetingAt: isoDateTimeNullable,
+});
+
+export const noteUpdateSchema = z.object({
+ title: z.string().trim().min(1).max(140),
+ content: z.string().trim().min(1).max(20000),
+ reminderAt: isoDateTimeNullable,
+ meetingAt: isoDateTimeNullable,
+});
+
 export const pinSchema = z.object({
  pin: z.string().regex(/^\d{6}$/),
 });

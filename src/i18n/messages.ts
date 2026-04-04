@@ -12,6 +12,7 @@ export const messages = {
     },
     nav: {
       home: "หน้าแรก",
+      notes: "โน้ต",
       vault: "รหัสส่วนตัว",
       orgShared: "รหัสทีม",
       settings: "ตั้งค่า",
@@ -179,6 +180,7 @@ export const messages = {
     },
     nav: {
       home: "Home",
+      notes: "Notes",
       vault: "Personal Keys",
       orgShared: "Team Keys",
       settings: "Settings",

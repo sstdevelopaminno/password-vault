@@ -1,7 +1,7 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Globe, KeyRound, MessageCirclePlus, Pencil, Trash2, UserRound } from 'lucide-react';
+import { Globe, KeyRound, Link2Off, MessageCirclePlus, Pencil, Trash2, UserRound } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useI18n } from '@/i18n/provider';
 
@@ -11,10 +11,12 @@ type VaultCardProps = {
  username: string;
  updatedAt: string;
  category?: string;
+ sharedToTeamCount?: number;
  onOpen: (id: string) => void;
  onEdit: (id: string) => void;
  onDelete: (id: string) => void;
  onShare?: (id: string) => void;
+ onUnshare?: (id: string) => void;
 };
 
 const ACTION_WIDTH = 124;
@@ -23,8 +25,20 @@ function clamp(value: number, min: number, max: number) {
  return Math.min(max, Math.max(min, value));
 }
 
-export function VaultCard({ id, title, username, updatedAt, category = 'General', onOpen, onEdit, onDelete, onShare }: VaultCardProps) {
- const { t } = useI18n();
+export function VaultCard({
+ id,
+ title,
+ username,
+ updatedAt,
+ category = 'General',
+ sharedToTeamCount = 0,
+ onOpen,
+ onEdit,
+ onDelete,
+ onShare,
+ onUnshare,
+}: VaultCardProps) {
+ const { t, locale } = useI18n();
 
  const [offsetX, setOffsetX] = useState(0);
  const [dragging, setDragging] = useState(false);
@@ -35,14 +49,16 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
  const movedRef = useRef(false);
 
  const opened = useMemo(() => offsetX <= -ACTION_WIDTH + 2, [offsetX]);
+ const sharedCount = Math.max(0, sharedToTeamCount);
+ const isSharedToTeam = sharedCount > 0;
 
  function closeSwipe() {
  setOffsetX(0);
- }
+}
 
  function openSwipe() {
  setOffsetX(-ACTION_WIDTH);
- }
+}
 
  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
  if (event.button !== 0) return;
@@ -52,7 +68,7 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
  movedRef.current = false;
  setDragging(true);
  event.currentTarget.setPointerCapture(event.pointerId);
- }
+}
 
  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
  if (!dragging || pointerIdRef.current !== event.pointerId) return;
@@ -60,7 +76,7 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
  const next = clamp(dragStartOffsetRef.current + delta, -ACTION_WIDTH, 0);
  if (Math.abs(delta) > 4) movedRef.current = true;
  setOffsetX(next);
- }
+}
 
  function onPointerUp(event: React.PointerEvent<HTMLDivElement>) {
  if (pointerIdRef.current !== event.pointerId) return;
@@ -72,7 +88,7 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
  } else {
  closeSwipe();
  }
- }
+}
 
  function onCardClick() {
  if (movedRef.current) return;
@@ -81,7 +97,7 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
  return;
  }
  onOpen(id);
- }
+}
 
  return (
  <div className='relative overflow-hidden rounded-[20px]'>
@@ -129,6 +145,15 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
  </p>
  </div>
  <div className='shrink-0 flex items-center gap-1.5'>
+ {isSharedToTeam ? (
+ <span
+ className='inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700'
+ title={locale === 'th' ? 'แชร์ไปทีมแล้ว' : 'Shared to team'}
+ >
+ <span className='h-2 w-2 rounded-full bg-emerald-500' />
+ {sharedCount}
+ </span>
+ ) : null}
  {onShare ? (
  <button
  type='button'
@@ -138,10 +163,25 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
  onShare(id);
  }}
  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-blue-700 transition hover:bg-blue-100'
- title='Share to team room'
- aria-label='Share to team room'
+ title={locale === 'th' ? 'แชร์ไปทีม' : 'Share to team'}
+ aria-label={locale === 'th' ? 'แชร์ไปทีม' : 'Share to team'}
  >
  <MessageCirclePlus className='h-4 w-4' />
+ </button>
+ ) : null}
+ {isSharedToTeam && onUnshare ? (
+ <button
+ type='button'
+ onClick={(event) => {
+ event.stopPropagation();
+ closeSwipe();
+ onUnshare(id);
+ }}
+ className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-100 bg-rose-50 text-rose-700 transition hover:bg-rose-100'
+ title={locale === 'th' ? 'ยกเลิกแชร์ไปทีม' : 'Cancel team share'}
+ aria-label={locale === 'th' ? 'ยกเลิกแชร์ไปทีม' : 'Cancel team share'}
+ >
+ <Link2Off className='h-4 w-4' />
  </button>
  ) : null}
  <span className='rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700'>{category}</span>
@@ -163,4 +203,3 @@ export function VaultCard({ id, title, username, updatedAt, category = 'General'
  </div>
  );
 }
-

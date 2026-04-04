@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decryptText, encryptText } from "@/lib/crypto";
 import { vaultSchema } from "@/lib/validators";
@@ -7,6 +7,10 @@ import { recordApiMetric } from "@/lib/api-metrics";
 import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 
 const ROUTE_PATH = "/api/vault";
+
+type TeamShareCountRow = {
+  source_vault_item_id: string | null;
+};
 
 function parseLimit(raw: string | null, fallback = 12, max = 20) {
   const value = Number(raw ?? fallback);
@@ -39,8 +43,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const limit = parseLimit(searchParams.get("limit"));
   const page = parsePage(searchParams.get("page"));
-  const q = normalizeSearchQuery(searchParams.get('q'));
- const includeStorage = searchParams.get('includeStorage') === '1';
+  const q = normalizeSearchQuery(searchParams.get("q"));
+  const includeStorage = searchParams.get("includeStorage") === "1";
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
@@ -63,6 +67,23 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  const itemIds = (items ?? []).map((item) => String(item.id));
+  const sharedCountBySource = new Map<string, number>();
+
+  if (itemIds.length > 0) {
+    const { data: shareRows } = await admin
+      .from("team_room_items")
+      .select("source_vault_item_id")
+      .eq("created_by", ownerId)
+      .in("source_vault_item_id", itemIds);
+
+    for (const row of (shareRows as TeamShareCountRow[] | null) ?? []) {
+      const sourceId = String(row.source_vault_item_id ?? "").trim();
+      if (!sourceId) continue;
+      sharedCountBySource.set(sourceId, (sharedCountBySource.get(sourceId) ?? 0) + 1);
+    }
+  }
+
   const total = Number(count ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasMore = page < totalPages;
@@ -71,35 +92,38 @@ export async function GET(req: Request) {
     ...item,
     username: decryptText(item.username_value_encrypted),
     username_value_encrypted: undefined,
+    shared_to_team_count: sharedCountBySource.get(String(item.id)) ?? 0,
   }));
 
   let storageUsedBytes = 0;
- if (includeStorage) {
- const storageQuery = await admin
- .from('vault_items')
- .select('title,url,category,username_value_encrypted,secret_value_encrypted,notes_encrypted')
- .eq('owner_user_id', ownerId);
+  if (includeStorage) {
+    const storageQuery = await admin
+      .from("vault_items")
+      .select("title,url,category,username_value_encrypted,secret_value_encrypted,notes_encrypted")
+      .eq("owner_user_id", ownerId);
 
- if (!storageQuery.error) {
- storageUsedBytes = (storageQuery.data ?? []).reduce(function (sum, row) {
- return sum +
- Buffer.byteLength(String(row.title ?? ''), 'utf8') +
- Buffer.byteLength(String(row.url ?? ''), 'utf8') +
- Buffer.byteLength(String(row.category ?? ''), 'utf8') +
- Buffer.byteLength(String(row.username_value_encrypted ?? ''), 'utf8') +
- Buffer.byteLength(String(row.secret_value_encrypted ?? ''), 'utf8') +
- Buffer.byteLength(String(row.notes_encrypted ?? ''), 'utf8');
- }, 0);
- }
- }
+    if (!storageQuery.error) {
+      storageUsedBytes = (storageQuery.data ?? []).reduce(function (sum, row) {
+        return (
+          sum +
+          Buffer.byteLength(String(row.title ?? ""), "utf8") +
+          Buffer.byteLength(String(row.url ?? ""), "utf8") +
+          Buffer.byteLength(String(row.category ?? ""), "utf8") +
+          Buffer.byteLength(String(row.username_value_encrypted ?? ""), "utf8") +
+          Buffer.byteLength(String(row.secret_value_encrypted ?? ""), "utf8") +
+          Buffer.byteLength(String(row.notes_encrypted ?? ""), "utf8")
+        );
+      }, 0);
+    }
+  }
 
- recordApiMetric(ROUTE_PATH, 'GET', 200, Date.now() - startedAt);
+  recordApiMetric(ROUTE_PATH, "GET", 200, Date.now() - startedAt);
   return NextResponse.json({
     items: safeItems,
- storage: {
- usedBytes: storageUsedBytes,
- },
- pagination: {
+    storage: {
+      usedBytes: storageUsedBytes,
+    },
+    pagination: {
       page,
       limit,
       total,
@@ -176,7 +200,3 @@ export async function POST(req: Request) {
     },
   });
 }
-
-
-
-

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, MessageSquare, MessageSquareOff, Search, Send } from 'lucide-react';
+import { ArrowLeft, MessageSquare, MessageSquareOff, Search, Send, X } from 'lucide-react';
 import { VaultCard } from '@/components/vault/vault-card';
 import { AddVaultItemSheet } from '@/components/vault/add-item-sheet';
 import { VaultItemModal } from '@/components/vault/vault-item-modal';
@@ -42,7 +42,7 @@ export default function TeamRoomPage() {
  const [loading, setLoading] = useState(false);
  const [sending, setSending] = useState(false);
  const [chatInput, setChatInput] = useState('');
- const [chatHidden, setChatHidden] = useState(true);
+ const [chatOpen, setChatOpen] = useState(false);
 
  const [editingItem, setEditingItem] = useState<TeamItem | null>(null);
  const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
@@ -50,19 +50,25 @@ export default function TeamRoomPage() {
  const [mutating, setMutating] = useState(false);
  const [assertions, setAssertions] = useState<Partial<Record<SecureAction, AssertionCacheEntry>>>({});
 
- const toDisplayDate = useCallback((raw?: string) => {
+ const toDisplayDate = useCallback(
+ (raw?: string) => {
  if (!raw) return locale === 'th' ? 'เมื่อสักครู่' : 'Just now';
  const parsed = new Date(raw);
  if (Number.isNaN(parsed.getTime())) return locale === 'th' ? 'เมื่อสักครู่' : 'Just now';
  return parsed.toLocaleString(locale === 'th' ? 'th-TH' : 'en-US');
- }, [locale]);
+ },
+ [locale],
+ );
 
- const getCachedAssertion = useCallback((action: SecureAction) => {
+ const getCachedAssertion = useCallback(
+ (action: SecureAction) => {
  const hit = assertions[action];
  if (!hit) return null;
  if (hit.expiresAt <= Date.now()) return null;
  return hit.token;
- }, [assertions]);
+ },
+ [assertions],
+ );
 
  const setCachedAssertion = useCallback((action: SecureAction, token: string) => {
  setAssertions((prev) => ({ ...prev, [action]: { token, expiresAt: Date.now() + ASSERTION_TTL_MS } }));
@@ -77,8 +83,14 @@ export default function TeamRoomPage() {
  fetch('/api/team-rooms/' + encodeURIComponent(roomId) + '/messages?limit=80', { cache: 'no-store' }),
  ]);
  const roomBody = (await roomRes.json().catch(() => ({}))) as { error?: string; room?: { id: string; name: string; description?: string } };
- const itemsBody = (await itemsRes.json().catch(() => ({}))) as { error?: string; items?: Array<{ id: string; title: string; username?: string; updated_at?: string; category?: string | null; url?: string | null }> };
- const msgBody = (await msgRes.json().catch(() => ({}))) as { error?: string; messages?: Array<{ id: string; senderName?: string; messageType?: 'text' | 'shared_item'; body?: string; metadata?: { title?: string }; createdAt?: string }> };
+ const itemsBody = (await itemsRes.json().catch(() => ({}))) as {
+ error?: string;
+ items?: Array<{ id: string; title: string; username?: string; updated_at?: string; category?: string | null; url?: string | null }>;
+ };
+ const msgBody = (await msgRes.json().catch(() => ({}))) as {
+ error?: string;
+ messages?: Array<{ id: string; senderName?: string; messageType?: 'text' | 'shared_item'; body?: string; metadata?: { title?: string }; createdAt?: string }>;
+ };
  setLoading(false);
 
  if (!roomRes.ok || !roomBody.room) {
@@ -88,33 +100,39 @@ export default function TeamRoomPage() {
  }
 
  setRoom({ id: roomBody.room.id, name: roomBody.room.name, description: roomBody.room.description ?? '' });
- setItems((itemsBody.items ?? []).map((item) => ({
+ setItems(
+ (itemsBody.items ?? []).map((item) => ({
  id: item.id,
  title: item.title,
  username: item.username ?? '',
  updatedAt: toDisplayDate(item.updated_at),
  category: item.category ?? (locale === 'th' ? 'ทั่วไป' : 'General'),
  url: item.url ?? undefined,
- })));
+ })),
+ );
 
- setMessages((msgBody.messages ?? []).map((msg) => ({
+ setMessages(
+ (msgBody.messages ?? []).map((msg) => ({
  id: msg.id,
  senderName: msg.senderName ?? 'Member',
  messageType: msg.messageType ?? 'text',
  body: msg.body ?? '',
  metadata: msg.metadata ?? {},
  createdAt: msg.createdAt ?? '',
- })));
+ })),
+ );
  }, [locale, roomId, router, showToast, toDisplayDate]);
 
  useEffect(() => {
  void loadAll();
  }, [loadAll]);
 
-
  async function performDelete(itemId: string, assertionToken: string) {
  setMutating(true);
- const res = await fetch('/api/team-room-items/' + encodeURIComponent(itemId), { method: 'DELETE', headers: { 'x-pin-assertion': assertionToken } });
+ const res = await fetch('/api/team-room-items/' + encodeURIComponent(itemId), {
+ method: 'DELETE',
+ headers: { 'x-pin-assertion': assertionToken },
+ });
  const body = (await res.json().catch(() => ({}))) as { error?: string };
  setMutating(false);
  if (!res.ok) {
@@ -173,18 +191,31 @@ export default function TeamRoomPage() {
  <div className='flex items-start justify-between gap-2'>
  <div className='min-w-0'>
  <div className='flex items-center gap-2'>
- <button type='button' className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50' onClick={() => router.push('/org-shared')} aria-label={locale === 'th' ? 'ย้อนกลับรายการห้องทีม' : 'Back to rooms'}>
+ <button
+ type='button'
+ className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50'
+ onClick={() => router.push('/org-shared')}
+ aria-label={locale === 'th' ? 'ย้อนกลับรายการห้องทีม' : 'Back to rooms'}
+ >
  <ArrowLeft className='h-4 w-4' />
  </button>
  <h1 className='truncate text-3xl font-semibold leading-tight text-slate-900'>{room?.name ?? (locale === 'th' ? 'ห้องทีม' : 'Team Room')}</h1>
  </div>
- <p className='pl-10 text-sm leading-6 text-slate-500'>{room?.description || (locale === 'th' ? 'จัดการรหัสทีมและแชทภายในห้องนี้' : 'Manage team items and room chat')}</p>
+ <p className='pl-10 text-sm leading-6 text-slate-500'>
+ {room?.description || (locale === 'th' ? 'จัดการรหัสทีมและแชทภายในห้องนี้' : 'Manage team items and room chat')}
+ </p>
  </div>
 
- <Button type='button' variant='secondary' size='sm' className='h-9 shrink-0 rounded-xl px-2.5' onClick={() => setChatHidden((value) => !value)}>
+ <Button
+ type='button'
+ variant='secondary'
+ size='sm'
+ className='h-9 shrink-0 rounded-xl px-2.5'
+ onClick={() => setChatOpen((value) => !value)}
+ >
  <span className='inline-flex items-center gap-1 text-xs font-semibold'>
- {chatHidden ? <MessageSquare className='h-3.5 w-3.5' /> : <MessageSquareOff className='h-3.5 w-3.5' />}
- {chatHidden ? (locale === 'th' ? 'แสดงแชท' : 'Show chat') : locale === 'th' ? 'ซ่อนแชท' : 'Hide chat'}
+ {chatOpen ? <MessageSquareOff className='h-3.5 w-3.5' /> : <MessageSquare className='h-3.5 w-3.5' />}
+ {chatOpen ? (locale === 'th' ? 'ซ่อนแชท' : 'Hide chat') : locale === 'th' ? 'แสดงแชท' : 'Show chat'}
  </span>
  </Button>
  </div>
@@ -192,7 +223,12 @@ export default function TeamRoomPage() {
 
  <div className='relative'>
  <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400' />
- <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={locale === 'th' ? 'ค้นหารายการในห้อง' : 'Search items in room'} className='h-11 rounded-[14px] pl-11 text-[15px]' />
+ <Input
+ value={search}
+ onChange={(e) => setSearch(e.target.value)}
+ placeholder={locale === 'th' ? 'ค้นหารายการในห้อง' : 'Search items in room'}
+ className='h-11 rounded-[14px] pl-11 text-[15px]'
+ />
  </div>
 
  {loading && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
@@ -225,17 +261,38 @@ export default function TeamRoomPage() {
  ))}
  </div>
 
- {!loading && filteredItems.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'ยังไม่มีรายการในห้องนี้' : 'No items in this room yet'}</p> : null}
+ {!loading && filteredItems.length === 0 ? (
+ <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'ยังไม่มีรายการในห้องนี้' : 'No items in this room yet'}</p>
+ ) : null}
 
- {chatHidden ? null : (
- <Card className='space-y-3 rounded-[20px]'>
+ {chatOpen ? (
+ <div className='fixed inset-0 z-[85] flex items-end justify-center bg-slate-950/45 p-3 backdrop-blur-[1px] sm:items-center' role='dialog' aria-modal='true'>
+ <button
+ type='button'
+ className='absolute inset-0'
+ onClick={() => setChatOpen(false)}
+ aria-label={locale === 'th' ? 'ปิดแชทห้องทีม' : 'Close team room chat'}
+ />
+
+ <Card className='relative z-10 w-full max-w-[560px] space-y-3 rounded-[24px] border border-blue-100 p-3.5 shadow-[0_20px_50px_rgba(15,23,42,0.28)] sm:p-4'>
  <div className='flex items-center justify-between'>
  <h2 className='text-sm font-semibold text-slate-900'>{locale === 'th' ? 'แชทห้องทีม' : 'Team Room Chat'}</h2>
- <span className='text-xs text-slate-500'>{messages.length} {locale === 'th' ? 'ข้อความ' : 'messages'}</span>
+ <div className='flex items-center gap-2'>
+ <span className='text-xs text-slate-500'>
+ {messages.length} {locale === 'th' ? 'ข้อความ' : 'messages'}
+ </span>
+ <button
+ type='button'
+ onClick={() => setChatOpen(false)}
+ className='inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-700'
+ aria-label={locale === 'th' ? 'ปิดหน้าต่างแชท' : 'Close chat modal'}
+ >
+ <X className='h-3.5 w-3.5' />
+ </button>
+ </div>
  </div>
 
-
- <div className='max-h-56 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2.5'>
+ <div className='max-h-[52vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2.5'>
  {messages.length === 0 ? <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'ยังไม่มีข้อความในห้อง' : 'No messages yet'}</p> : null}
  {messages.map((msg) => (
  <div key={msg.id} className='rounded-xl border border-slate-200 bg-white px-3 py-2'>
@@ -257,13 +314,25 @@ export default function TeamRoomPage() {
  </div>
 
  <div className='flex items-center gap-2'>
- <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder={locale === 'th' ? 'พิมพ์ข้อความถึงทีม...' : 'Type a message...'} />
- <Button type='button' size='sm' className='h-12 rounded-xl px-3' onClick={() => void sendMessage()} disabled={sending || !chatInput.trim()}>
+ <Input
+ value={chatInput}
+ onChange={(e) => setChatInput(e.target.value)}
+ placeholder={locale === 'th' ? 'พิมพ์ข้อความถึงทีม...' : 'Type a message...'}
+ className='h-12 rounded-xl'
+ />
+ <Button
+ type='button'
+ size='sm'
+ className='h-12 rounded-xl px-3'
+ onClick={() => void sendMessage()}
+ disabled={sending || !chatInput.trim()}
+ >
  <Send className='h-4 w-4' />
  </Button>
  </div>
  </Card>
- )}
+ </div>
+ ) : null}
 
  <AddVaultItemSheet
  endpoint={'/api/team-rooms/' + encodeURIComponent(roomId) + '/items'}

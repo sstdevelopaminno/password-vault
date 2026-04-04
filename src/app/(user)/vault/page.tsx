@@ -19,6 +19,7 @@ type VaultItem = {
  username: string;
  updatedAt: string;
  category: string;
+ sharedToTeamCount: number;
  url?: string;
 };
 
@@ -28,6 +29,7 @@ type VaultApiItem = {
  username?: string;
  updated_at?: string;
  category?: string | null;
+ shared_to_team_count?: number | null;
  url?: string | null;
 };
 
@@ -117,6 +119,7 @@ export default function VaultPage() {
  username: item.username ?? '',
  updatedAt: toDisplayTime(item.updated_at),
  category: item.category ?? t('vault.categoryGeneral'),
+ sharedToTeamCount: Math.max(0, Number(item.shared_to_team_count ?? 0)),
  url: item.url ?? undefined,
  })),
  [t, toDisplayTime],
@@ -281,6 +284,40 @@ export default function VaultPage() {
  [clearCachedAssertion, handleUnauthorized, showToast, t, toDisplayTime],
  );
 
+ const unshareItemFromTeams = useCallback(
+ async (itemId: string) => {
+ if (mutating) return;
+ const ok = window.confirm(locale === 'th' ? 'ต้องการยกเลิกแชร์รายการนี้ออกจากทุกห้องทีมใช่หรือไม่' : 'Cancel sharing this item from all team rooms?');
+ if (!ok) return;
+
+ setMutating(true);
+ const res = await fetch('/api/vault/' + encodeURIComponent(itemId) + '/team-shares', {
+ method: 'DELETE',
+ });
+ const body = (await res.json().catch(() => ({}))) as { error?: string; removedCount?: number };
+ setMutating(false);
+
+ if (!res.ok) {
+ if (res.status === 401) {
+ handleUnauthorized();
+ return;
+ }
+ showToast(body.error ?? (locale === 'th' ? 'ยกเลิกแชร์ไม่สำเร็จ' : 'Failed to cancel sharing'), 'error');
+ return;
+ }
+
+ const removedCount = Number(body.removedCount ?? 0);
+ showToast(
+ locale === 'th'
+ ? 'ยกเลิกแชร์แล้ว ' + removedCount + ' รายการ'
+ : 'Removed team shares: ' + removedCount,
+ 'success',
+ );
+ void loadItems(page);
+ },
+ [handleUnauthorized, loadItems, locale, mutating, page, showToast],
+ );
+
  const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
 
  return (
@@ -309,6 +346,7 @@ export default function VaultPage() {
  username={item.username}
  updatedAt={item.updatedAt}
  category={item.category}
+ sharedToTeamCount={item.sharedToTeamCount}
  onOpen={(id) => router.push('/vault/' + encodeURIComponent(id))}
  onEdit={(id) => {
  if (mutating) return;
@@ -327,6 +365,9 @@ export default function VaultPage() {
  onShare={(id) => {
  const found = items.find((it) => it.id === id);
  if (found) setSharingItem(found);
+ }}
+ onUnshare={(id) => {
+ void unshareItemFromTeams(id);
  }}
  />
  ))}

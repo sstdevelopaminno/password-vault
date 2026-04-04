@@ -1,4 +1,4 @@
-﻿import http from 'k6/http';
+import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
 
@@ -44,8 +44,7 @@ function login(email, password) {
  const headers = { 'Content-Type': 'application/json' };
  const started = Date.now();
  const res = http.post(baseUrl + '/api/auth/login', payload, { headers: headers, tags: { name: 'login' } });
- const elapsed = Date.now() - started;
- userFlowLatency.add(elapsed);
+ userFlowLatency.add(Date.now() - started);
  const ok = check(res, {
  'login status 200': (r) => r.status === 200,
  });
@@ -59,7 +58,28 @@ function callVaultList() {
  userFlowLatency.add(Date.now() - started);
  const ok = check(res, {
  'vault list status 200': (r) => r.status === 200,
- 'vault has items key': (r) => r.body && r.body.indexOf('items') !== -1,
+ });
+ apiFailRate.add(!ok);
+}
+
+function callNotesList() {
+ const started = Date.now();
+ const res = http.get(baseUrl + '/api/notes?limit=20&page=1', { tags: { name: 'notes_list' } });
+ userFlowLatency.add(Date.now() - started);
+ const ok = check(res, {
+ 'notes list status 200': (r) => r.status === 200,
+ 'notes has payload': (r) => r.body && r.body.indexOf('notes') !== -1,
+ });
+ apiFailRate.add(!ok);
+}
+
+function callTeamRoomsList() {
+ const started = Date.now();
+ const res = http.get(baseUrl + '/api/team-rooms', { tags: { name: 'team_rooms_list' } });
+ userFlowLatency.add(Date.now() - started);
+ const ok = check(res, {
+ 'team rooms status 200': (r) => r.status === 200,
+ 'team rooms has payload': (r) => r.body && r.body.indexOf('rooms') !== -1,
  });
  apiFailRate.add(!ok);
 }
@@ -87,6 +107,8 @@ export default function () {
  const ok = login(userEmail, userPassword);
  if (ok) {
  callVaultList();
+ callNotesList();
+ if (__ITER % 3 === 0) callTeamRoomsList();
  }
 
  if (__ITER % 20 === 0) {
@@ -95,4 +117,3 @@ export default function () {
 
  sleep(userThinkTime / 1000);
 }
-

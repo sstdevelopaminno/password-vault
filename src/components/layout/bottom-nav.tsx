@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Cog, House, KeyRound, KeySquare, LayoutDashboard, ScrollText, ShieldCheck, User } from 'lucide-react';
+import { Cog, FileText, House, KeyRound, KeySquare, LayoutDashboard, ScrollText, ShieldCheck, User } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 
 type Item = {
@@ -54,6 +54,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
   const userItems: Item[] = useMemo(() => {
     const items: Item[] = [
       { href: '/home', label: t('nav.home'), icon: House },
+      { href: '/notes', label: t('nav.notes'), icon: FileText },
       { href: '/vault', label: t('nav.vault'), icon: KeyRound },
       { href: '/org-shared', label: t('nav.orgShared'), icon: KeySquare },
     ];
@@ -101,7 +102,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                   aria-current={active ? 'page' : undefined}
                 >
                   <Icon className={'h-[17px] w-[17px] ' + (active ? 'text-blue-700' : 'text-slate-500 group-hover:text-slate-700')} />
-                  <span className={['/vault', '/org-shared'].includes(item.href) ? 'text-center text-[10px] leading-tight whitespace-normal px-0.5' : 'truncate text-center text-[10px] leading-tight'}>{item.label}</span>
+                  <span className={['/vault', '/org-shared', '/notes'].includes(item.href) ? 'text-center text-[10px] leading-tight whitespace-normal px-0.5' : 'truncate text-center text-[10px] leading-tight'}>{item.label}</span>
                 </Link>
               </li>
             );
