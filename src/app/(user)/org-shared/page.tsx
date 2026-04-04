@@ -93,9 +93,9 @@ export default function OrgSharedPage() {
  }, [rooms, search]);
 
  function toDisplayDate(raw: string) {
- if (!raw) return locale === 'th' ? 'เน€เธโฌเน€เธเธเน€เธเธ—เน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธย' : 'Just now';
+ if (!raw) return locale === 'th' ? 'เมื่อสักครู่' : 'Just now';
  const parsed = new Date(raw);
- if (Number.isNaN(parsed.getTime())) return locale === 'th' ? 'เน€เธโฌเน€เธเธเน€เธเธ—เน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธย' : 'Just now';
+ if (Number.isNaN(parsed.getTime())) return locale === 'th' ? 'เมื่อสักครู่' : 'Just now';
  return parsed.toLocaleString(locale === 'th' ? 'th-TH' : 'en-US');
  }
 
@@ -109,7 +109,7 @@ export default function OrgSharedPage() {
  if (creating) return;
  const name = roomName.trim();
  if (!name) {
- showToast(locale === 'th' ? 'เน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธเธ’เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Please enter room name', 'error');
+ showToast(locale === 'th' ? 'กรุณากรอกชื่อห้องทีม' : 'Please enter room name', 'error');
  return;
  }
 
@@ -127,7 +127,7 @@ export default function OrgSharedPage() {
  return;
  }
 
- showToast(locale === 'th' ? 'เน€เธเธเน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย' : 'Room created', 'success');
+ showToast(locale === 'th' ? 'สร้างห้องทีมสำเร็จ' : 'Room created', 'success');
  setCreateOpen(false);
  resetCreateForm();
  await loadRooms();
@@ -138,7 +138,7 @@ export default function OrgSharedPage() {
  if (!editingRoom || updatingRoom) return;
  const name = roomName.trim();
  if (!name) {
- showToast(locale === 'th' ? 'เน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธเธ’เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Please enter room name', 'error');
+ showToast(locale === 'th' ? 'กรุณากรอกชื่อห้องทีม' : 'Please enter room name', 'error');
  return;
  }
 
@@ -156,7 +156,7 @@ export default function OrgSharedPage() {
  return;
  }
 
- showToast(locale === 'th' ? 'เน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย' : 'Room updated', 'success');
+ showToast(locale === 'th' ? 'แก้ไขชื่อห้องสำเร็จ' : 'Room updated', 'success');
  setEditingRoom(null);
  resetCreateForm();
  await loadRooms();
@@ -174,7 +174,7 @@ export default function OrgSharedPage() {
  return;
  }
 
- showToast(locale === 'th' ? 'เน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธเน€เธยเน€เธเธ…เน€เธยเน€เธเธ' : 'Room deleted', 'success');
+ showToast(locale === 'th' ? 'ลบห้องทีมแล้ว' : 'Room deleted', 'success');
  setDeletingRoom(null);
  await loadRooms();
  }
@@ -235,7 +235,7 @@ export default function OrgSharedPage() {
  if (!sharingRoom || sharingBusy) return;
  const email = shareEmail.trim().toLowerCase();
  if (!email) {
- showToast(locale === 'th' ? 'เน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธเธ’เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธเธ•เน€เธโฌเน€เธเธเน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธย' : 'Please enter user email', 'error');
+ showToast(locale === 'th' ? 'กรุณากรอกอีเมลผู้ใช้งาน' : 'Please enter user email', 'error');
  return;
  }
 
@@ -255,7 +255,7 @@ export default function OrgSharedPage() {
 
  setShareEmail('');
  setShareSuggestions([]);
- showToast(locale === 'th' ? 'เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย' : 'Room shared', 'success');
+ showToast(locale === 'th' ? 'แชร์ห้องสำเร็จ' : 'Room shared', 'success');
  await loadRoomMembers(sharingRoom.id, '');
  await loadRooms();
  }
@@ -264,49 +264,49 @@ export default function OrgSharedPage() {
  return (
  <section className='space-y-4 pb-24 pt-2'>
  <header className='space-y-1'>
- <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{locale === 'th' ? 'เน€เธเธเน€เธเธเน€เธเธ‘เน€เธเธเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Team Keys'}</h1>
+ <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{locale === 'th' ? 'รหัสทีม' : 'Team Keys'}</h1>
  <p className='text-sm leading-6 text-slate-500'>
  {locale === 'th'
- ? 'เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธโ€เน€เธยเน€เธยเน€เธยเน€เธย 2 เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธโ€ขเน€เธยเน€เธเธเน€เธยเน€เธโ€“เน€เธเธ เน€เธยเน€เธเธ‘เน€เธโ€เน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธโ€เน€เธยเน€เธโ€”เน€เธเธ‘เน€เธยเน€เธโ€”เน€เธเธ• (เน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ—เน€เธยเน€เธเธ/เน€เธเธ…เน€เธย/เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธย)'
+ ? 'ห้องทีมจะแสดงแบบ 2 ช่องต่อแถว จัดการห้องได้ทันที (แก้ชื่อ/ลบ/แชร์ห้อง)'
  : 'Rooms are shown in a 2-column grid. You can edit, delete, and share rooms directly.'}
  </p>
  </header>
 
  <div className='relative'>
  <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400' />
- <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={locale === 'th' ? 'เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Search rooms'} className='h-11 rounded-[14px] pl-11 text-[15px]' />
+ <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={locale === 'th' ? 'ค้นหาห้องทีม' : 'Search rooms'} className='h-11 rounded-[14px] pl-11 text-[15px]' />
  </div>
 
  <Button type='button' className='h-11 w-full rounded-xl' onClick={() => setCreateOpen(true)}>
  <span className='inline-flex items-center gap-2'>
  <Plus className='h-4 w-4' />
- {locale === 'th' ? 'เน€เธเธเน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธย' : 'Create Team Room'}
+ {locale === 'th' ? 'สร้างห้องทีมใหม่' : 'Create Team Room'}
  </span>
  </Button>
 
- {loading ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธ…เน€เธโ€...' : 'Loading...'}</p> : null}
+ {loading ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
 
  {!loading && filteredRooms.length === 0 ? (
  <Card className='space-y-2 rounded-[20px] text-center'>
  <Users2 className='mx-auto h-8 w-8 text-slate-400' />
- <p className='text-sm font-semibold text-slate-700'>{locale === 'th' ? 'เน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ•เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'No team rooms yet'}</p>
- <p className='text-xs text-slate-500'>{locale === 'th' ? 'เน€เธโฌเน€เธเธเน€เธเธ”เน€เธยเน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธโ€' : 'Create your first room to continue.'}</p>
+ <p className='text-sm font-semibold text-slate-700'>{locale === 'th' ? 'ยังไม่มีห้องทีม' : 'No team rooms yet'}</p>
+ <p className='text-xs text-slate-500'>{locale === 'th' ? 'เริ่มจากการสร้างห้องแรกของคุณ' : 'Create your first room to continue.'}</p>
  </Card>
  ) : null}
 
  <div className='grid grid-cols-2 gap-2.5'>
  {filteredRooms.map((room) => (
  <Card key={room.id} className='relative flex min-h-[170px] flex-col rounded-[16px] p-3'>
- <button type='button' className='absolute inset-0 rounded-[16px]' onClick={() => router.push('/org-shared/' + encodeURIComponent(room.id))} aria-label={locale === 'th' ? 'เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Open team room'} />
+ <button type='button' className='absolute inset-0 rounded-[16px]' onClick={() => router.push('/org-shared/' + encodeURIComponent(room.id))} aria-label={locale === 'th' ? 'เปิดห้องทีม' : 'Open team room'} />
 
  <div className='relative z-[1] flex items-start justify-between gap-2'>
  <p className='line-clamp-2 text-sm font-semibold text-slate-900'>{room.name}</p>
  <span className='rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700'>
- {room.memberRole === 'owner' ? (locale === 'th' ? 'เน€เธโฌเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธย' : 'Owner') : locale === 'th' ? 'เน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธย' : 'Member'}
+ {room.memberRole === 'owner' ? (locale === 'th' ? 'เจ้าของ' : 'Owner') : locale === 'th' ? 'สมาชิก' : 'Member'}
  </span>
  </div>
 
- <p className='relative z-[1] mt-2 line-clamp-3 text-xs text-slate-500'>{room.description || (locale === 'th' ? 'เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ•เน€เธยเน€เธเธ“เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธ' : 'No description')}</p>
+ <p className='relative z-[1] mt-2 line-clamp-3 text-xs text-slate-500'>{room.description || (locale === 'th' ? 'ไม่มีคำอธิบาย' : 'No description')}</p>
 
  <div className='relative z-[1] mt-auto space-y-2'>
  <div className='text-[11px] text-slate-500'>{toDisplayDate(room.updatedAt)}</div>
@@ -359,7 +359,7 @@ export default function OrgSharedPage() {
  </div>
 
  <button type='button' onClick={(e) => { e.stopPropagation(); router.push('/org-shared/' + encodeURIComponent(room.id)); }} className='inline-flex w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700'>
- {locale === 'th' ? 'เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€เน€เธเธเน€เธยเน€เธเธเน€เธย' : 'Open'} <ArrowRight className='h-3.5 w-3.5' />
+ {locale === 'th' ? 'เปิดห้อง' : 'Open'} <ArrowRight className='h-3.5 w-3.5' />
  </button>
  </div>
  </Card>
@@ -371,16 +371,16 @@ export default function OrgSharedPage() {
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='mx-auto mt-10 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
- <h2 className='text-base font-semibold'>{locale === 'th' ? 'เน€เธเธเน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธย' : 'Create Team Room'}</h2>
+ <h2 className='text-base font-semibold'>{locale === 'th' ? 'สร้างห้องทีมใหม่' : 'Create Team Room'}</h2>
  <button onClick={() => { setCreateOpen(false); resetCreateForm(); }} className='rounded-full p-1 text-slate-500 hover:bg-slate-100'>
  <X className='h-5 w-5' />
  </button>
  </div>
  <Card className='space-y-3'>
- <Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={locale === 'th' ? 'เน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Room name'} maxLength={80} />
- <Input value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} placeholder={locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธ (เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธยเน€เธยเน€เธเธ‘เน€เธย)' : 'Description (optional)'} maxLength={500} />
+ <Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={locale === 'th' ? 'ชื่อห้องทีม' : 'Room name'} maxLength={80} />
+ <Input value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} placeholder={locale === 'th' ? 'คำอธิบาย (ไม่บังคับ)' : 'Description (optional)'} maxLength={500} />
  <Button type='button' className='w-full' onClick={() => void createRoom()} disabled={creating}>
- {creating ? (locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธ’เน€เธย...' : 'Creating...') : locale === 'th' ? 'เน€เธเธเน€เธเธเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธย' : 'Create Room'}
+ {creating ? (locale === 'th' ? 'กำลังสร้าง...' : 'Creating...') : locale === 'th' ? 'สร้างห้อง' : 'Create Room'}
  </Button>
  </Card>
  </div>
@@ -391,16 +391,16 @@ export default function OrgSharedPage() {
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='mx-auto mt-10 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
- <h2 className='text-base font-semibold'>{locale === 'th' ? 'เน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธเธเน€เธเธ…เน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Edit Team Room'}</h2>
+ <h2 className='text-base font-semibold'>{locale === 'th' ? 'แก้ไขข้อมูลห้องทีม' : 'Edit Team Room'}</h2>
  <button onClick={() => { setEditingRoom(null); resetCreateForm(); }} className='rounded-full p-1 text-slate-500 hover:bg-slate-100'>
  <X className='h-5 w-5' />
  </button>
  </div>
  <Card className='space-y-3'>
- <Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={locale === 'th' ? 'เน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Room name'} maxLength={80} />
- <Input value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} placeholder={locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธ (เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ‘เน€เธยเน€เธยเน€เธเธ‘เน€เธย)' : 'Description (optional)'} maxLength={500} />
+ <Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={locale === 'th' ? 'ชื่อห้องทีม' : 'Room name'} maxLength={80} />
+ <Input value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} placeholder={locale === 'th' ? 'คำอธิบาย (ไม่บังคับ)' : 'Description (optional)'} maxLength={500} />
  <Button type='button' className='w-full' onClick={() => void updateRoom()} disabled={updatingRoom}>
- {updatingRoom ? (locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธยเน€เธเธ‘เน€เธยเน€เธโ€”เน€เธเธ–เน€เธย...' : 'Saving...') : locale === 'th' ? 'เน€เธยเน€เธเธ‘เน€เธยเน€เธโ€”เน€เธเธ–เน€เธยเน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธย' : 'Save changes'}
+ {updatingRoom ? (locale === 'th' ? 'กำลังบันทึก...' : 'Saving...') : locale === 'th' ? 'บันทึกการแก้ไข' : 'Save changes'}
  </Button>
  </Card>
  </div>
@@ -410,17 +410,17 @@ export default function OrgSharedPage() {
  {deletingRoom ? (
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='mx-auto mt-14 w-full max-w-[420px] animate-slide-up rounded-[26px] bg-white p-4 shadow-2xl'>
- <h2 className='text-base font-semibold text-slate-900'>{locale === 'th' ? 'เน€เธเธเน€เธเธ—เน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธ’เน€เธเธเน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธ' : 'Confirm room deletion'}</h2>
+ <h2 className='text-base font-semibold text-slate-900'>{locale === 'th' ? 'ยืนยันการลบห้องทีม' : 'Confirm room deletion'}</h2>
  <p className='mt-2 text-sm text-slate-600'>
  {locale === 'th'
- ? 'เน€เธยเน€เธเธ’เน€เธเธเน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธเธ…เน€เธยเน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ…เน€เธเธเน€เธยเน€เธยเน€เธโ€”เน€เธโ€”เน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธ•เน€เธยเน€เธโ€“เน€เธเธ’เน€เธเธเน€เธเธ'
+ ? 'การลบห้องจะลบรายการและแชททั้งหมดในห้องนี้ถาวร'
  : 'Deleting this room will permanently remove all room items and chat messages.'}
  </p>
  <p className='mt-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800'>{deletingRoom.name}</p>
  <div className='mt-4 grid grid-cols-2 gap-2'>
- <Button type='button' variant='secondary' className='w-full' onClick={() => setDeletingRoom(null)}>{locale === 'th' ? 'เน€เธเธเน€เธยเน€เธโฌเน€เธเธ…เน€เธเธ”เน€เธย' : 'Cancel'}</Button>
+ <Button type='button' variant='secondary' className='w-full' onClick={() => setDeletingRoom(null)}>{locale === 'th' ? 'ยกเลิก' : 'Cancel'}</Button>
  <Button type='button' className='w-full' onClick={() => void deleteRoom()} disabled={deletingRoomBusy}>
- {deletingRoomBusy ? (locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธเธ…เน€เธย...' : 'Deleting...') : locale === 'th' ? 'เน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธย' : 'Delete room'}
+ {deletingRoomBusy ? (locale === 'th' ? 'กำลังลบ...' : 'Deleting...') : locale === 'th' ? 'ลบห้อง' : 'Delete room'}
  </Button>
  </div>
  </div>
@@ -431,7 +431,7 @@ export default function OrgSharedPage() {
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='mx-auto mt-8 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
- <h2 className='text-base font-semibold'>{locale === 'th' ? 'เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธโ€”เน€เธเธ•เน€เธเธเน€เธโ€เน€เธยเน€เธเธเน€เธเธเน€เธเธเน€เธเธ•เน€เธโฌเน€เธเธเน€เธเธ…' : 'Share room by email'}</h2>
+ <h2 className='text-base font-semibold'>{locale === 'th' ? 'แชร์ห้องทีมด้วยอีเมล' : 'Share room by email'}</h2>
  <button onClick={() => { setSharingRoom(null); setShareEmail(''); setShareSuggestions([]); setLoadingShareSuggestions(false); }} className='rounded-full p-1 text-slate-500 hover:bg-slate-100'>
  <X className='h-5 w-5' />
  </button>
@@ -440,19 +440,19 @@ export default function OrgSharedPage() {
  <Card className='space-y-3'>
  <p className='text-xs text-slate-500'>
  {locale === 'th'
- ? 'เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธโ€เน€เธยเน€เธโฌเน€เธยเน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธเธ•เน€เธโฌเน€เธเธเน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธโ€”เน€เธเธ•เน€เธยเน€เธเธเน€เธเธ•เน€เธยเน€เธเธ‘เน€เธยเน€เธยเน€เธเธ•เน€เธยเน€เธย Password Vault เน€เธยเน€เธเธ…เน€เธเธเน€เธเธเน€เธโ€“เน€เธเธ’เน€เธยเน€เธเธ Active'
+ ? 'แชร์ได้เฉพาะอีเมลผู้ใช้งานที่มีบัญชีใน Password Vault และสถานะ Active'
  : 'Only existing active Password Vault users can be invited by email.'}
  </p>
- <Input value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder={locale === 'th' ? 'เน€เธเธเน€เธเธ•เน€เธโฌเน€เธเธเน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธย' : 'App user email'} />
+ <Input value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder={locale === 'th' ? 'อีเมลผู้ใช้งานในระบบ' : 'App user email'} />
 
  {shareEmail.trim().length >= 2 ? (
  <div className='space-y-1 rounded-xl border border-slate-200 bg-slate-50 p-2'>
- <p className='text-[11px] font-semibold text-slate-600'>{locale === 'th' ? 'เน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ’เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธย' : 'Matched app users'}</p>
+ <p className='text-[11px] font-semibold text-slate-600'>{locale === 'th' ? 'ผลการค้นหาผู้ใช้งานในระบบ' : 'Matched app users'}</p>
  <div className='max-h-28 space-y-1 overflow-y-auto'>
  {loadingShareSuggestions ? (
- <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ’...' : 'Searching...'}</p>
+ <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'กำลังค้นหา...' : 'Searching...'}</p>
  ) : shareSuggestions.length === 0 ? (
- <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธโ€”เน€เธเธ•เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธโ€เน€เธย' : 'No shareable users found'}</p>
+ <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'ไม่พบผู้ใช้งานที่แชร์ได้' : 'No shareable users found'}</p>
  ) : (
  shareSuggestions.map((suggestion) => (
  <button
@@ -471,16 +471,16 @@ export default function OrgSharedPage() {
  ) : null}
 
  <Button type='button' className='w-full' onClick={() => void shareRoomToEmail()} disabled={sharingBusy}>
- {sharingBusy ? (locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธย...' : 'Sharing...') : locale === 'th' ? 'เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธย' : 'Share Room'}
+ {sharingBusy ? (locale === 'th' ? 'กำลังแชร์...' : 'Sharing...') : locale === 'th' ? 'แชร์ห้อง' : 'Share Room'}
  </Button>
 
  <div className='space-y-2'>
- <p className='text-xs font-semibold text-slate-600'>{locale === 'th' ? 'เน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธย' : 'Room members'}</p>
+ <p className='text-xs font-semibold text-slate-600'>{locale === 'th' ? 'สมาชิกในห้อง' : 'Room members'}</p>
  <div className='max-h-36 space-y-1.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2'>
  {loadingMembers ? (
- <div className='flex items-center justify-center py-2 text-xs text-slate-500'><Spinner /> <span className='ml-2'>{locale === 'th' ? 'เน€เธยเน€เธเธ“เน€เธเธ…เน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธเธ…เน€เธโ€...' : 'Loading...'}</span></div>
+ <div className='flex items-center justify-center py-2 text-xs text-slate-500'><Spinner /> <span className='ml-2'>{locale === 'th' ? 'กำลังโหลด...' : 'Loading...'}</span></div>
  ) : members.length === 0 ? (
- <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'เน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ•เน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธย' : 'No members yet'}</p>
+ <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'ยังไม่มีสมาชิก' : 'No members yet'}</p>
  ) : (
  members.map((member) => (
  <div key={member.userId} className='flex items-center justify-between rounded-lg bg-white px-2 py-1.5 text-xs'>
@@ -489,7 +489,7 @@ export default function OrgSharedPage() {
  <p className='truncate text-slate-500'>{member.email}</p>
  </div>
  <span className='rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700'>
- {member.memberRole === 'owner' ? (locale === 'th' ? 'เน€เธโฌเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธย' : 'Owner') : locale === 'th' ? 'เน€เธเธเน€เธเธเน€เธเธ’เน€เธยเน€เธเธ”เน€เธย' : 'Member'}
+ {member.memberRole === 'owner' ? (locale === 'th' ? 'เจ้าของ' : 'Owner') : locale === 'th' ? 'สมาชิก' : 'Member'}
  </span>
  </div>
  ))
