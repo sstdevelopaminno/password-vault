@@ -91,6 +91,9 @@ export default function NotesPage() {
  const [draftMeeting, setDraftMeeting] = useState('');
  const [saving, setSaving] = useState(false);
 
+ const [deleteTarget, setDeleteTarget] = useState<NoteItem | null>(null);
+ const [deleting, setDeleting] = useState(false);
+
  useEffect(() => {
  const timer = window.setTimeout(() => setSearchDebounced(search.trim()), 260);
  return () => window.clearTimeout(timer);
@@ -208,6 +211,18 @@ export default function NotesPage() {
  setEditorOpen(true);
  }
 
+ function buildShareableText(note: NoteItem) {
+ return [
+ note.title,
+ '',
+ note.content,
+ '',
+ (isTh ? 'อัปเดตล่าสุด' : 'Updated') + ': ' + new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US'),
+ (isTh ? 'เตือน' : 'Reminder') + ': ' + (note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'),
+ (isTh ? 'นัดหมาย' : 'Meeting') + ': ' + (note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'),
+ ].join('\n');
+ }
+
  async function saveNote() {
  const title = draftTitle.trim();
  const content = draftContent.trim();
@@ -249,15 +264,18 @@ export default function NotesPage() {
  if (viewMode === 'calendar') await loadCalendarNotes(searchDebounced);
  }
 
- async function deleteNote(note: NoteItem) {
- if (!window.confirm(isTh ? 'ต้องการลบโน้ตนี้ใช่หรือไม่' : 'Delete this note?')) return;
- const res = await fetch('/api/notes/' + encodeURIComponent(note.id), { method: 'DELETE' });
+ async function confirmDeleteNote() {
+ if (!deleteTarget || deleting) return;
+ setDeleting(true);
+ const res = await fetch('/api/notes/' + encodeURIComponent(deleteTarget.id), { method: 'DELETE' });
  const body = (await res.json().catch(() => ({}))) as { error?: string };
+ setDeleting(false);
  if (!res.ok) {
  showToast(body.error ?? (isTh ? 'ลบโน้ตไม่สำเร็จ' : 'Failed to delete note'), 'error');
  return;
  }
  showToast(isTh ? 'ลบโน้ตแล้ว' : 'Note deleted', 'success');
+ setDeleteTarget(null);
  const targetPage = pagination.page > 1 && notes.length === 1 ? pagination.page - 1 : pagination.page;
  await loadNotes(targetPage, searchDebounced);
  if (viewMode === 'calendar') await loadCalendarNotes(searchDebounced);
@@ -265,43 +283,60 @@ export default function NotesPage() {
 
  async function shareNote(note: NoteItem) {
  try {
- const res = await fetch('/api/notes/' + encodeURIComponent(note.id) + '/export?format=txt&locale=' + encodeURIComponent(isTh ? 'th-TH' : 'en-US'));
- if (!res.ok) {
- showToast(isTh ? 'แชร์ไฟล์ไม่สำเร็จ' : 'Failed to share file', 'error');
+ const text = buildShareableText(note);
+ if (navigator.share) {
+ try {
+ await navigator.share({ title: note.title, text });
+ showToast(isTh ? 'แชร์โน้ตแล้ว' : 'Note shared', 'success');
  return;
+ } catch (error) {
+ if ((error as Error).name === 'AbortError') return;
  }
- const text = await res.text();
- const file = new File([text], safeFilename(note.title) + '.txt', { type: 'text/plain;charset=utf-8' });
- if (navigator.share && (navigator as Navigator & { canShare?: (data: ShareData) => boolean }).canShare?.({ files: [file] })) {
- await navigator.share({ title: note.title, text: note.title, files: [file] });
- showToast(isTh ? 'แชร์ไฟล์แล้ว' : 'File shared', 'success');
- return;
  }
+
+ if (navigator.clipboard?.writeText) {
  await navigator.clipboard.writeText(text);
  showToast(isTh ? 'คัดลอกข้อความโน้ตไว้แล้ว' : 'Note text copied', 'success');
+ return;
+ }
+
+ const textarea = document.createElement('textarea');
+ textarea.value = text;
+ textarea.style.position = 'fixed';
+ textarea.style.opacity = '0';
+ document.body.appendChild(textarea);
+ textarea.focus();
+ textarea.select();
+ document.execCommand('copy');
+ document.body.removeChild(textarea);
+ showToast(isTh ? 'คัดลอกข้อความโน้ตไว้แล้ว' : 'Note text copied', 'success');
  } catch {
- // ignore
+ showToast(isTh ? 'แชร์ไฟล์ไม่สำเร็จ' : 'Failed to share file', 'error');
  }
  }
 
  async function downloadText(note: NoteItem) {
- const res = await fetch('/api/notes/' + encodeURIComponent(note.id) + '/export?format=txt&locale=' + encodeURIComponent(isTh ? 'th-TH' : 'en-US'));
- if (!res.ok) {
- showToast(isTh ? 'ดาวน์โหลดไฟล์ไม่สำเร็จ' : 'Failed to download file', 'error');
- return;
- }
- const blob = await res.blob();
+ try {
+ const blob = new Blob([buildShareableText(note)], { type: 'text/plain;charset=utf-8' });
  const url = URL.createObjectURL(blob);
  const a = document.createElement('a');
  a.href = url;
  a.download = safeFilename(note.title) + '.txt';
+ document.body.appendChild(a);
  a.click();
- URL.revokeObjectURL(url);
+ a.remove();
+ window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+ } catch {
+ showToast(isTh ? 'ดาวน์โหลดไฟล์ไม่สำเร็จ' : 'Failed to download file', 'error');
+ }
  }
 
  function exportPdf(note: NoteItem) {
  const url = '/api/notes/' + encodeURIComponent(note.id) + '/export?format=pdf&print=1&locale=' + encodeURIComponent(isTh ? 'th-TH' : 'en-US');
- window.open(url, '_blank', 'noopener,noreferrer');
+ const popup = window.open(url, '_blank', 'noopener,noreferrer');
+ if (!popup) {
+ window.location.href = url;
+ }
  }
 
  const weekLabels = isTh ? ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -310,13 +345,27 @@ export default function NotesPage() {
  <section className='space-y-4 pb-24 pt-2'>
  <header className='space-y-1'>
  <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{isTh ? 'โน้ต' : 'Notes'}</h1>
- <p className='text-sm leading-6 text-slate-500'>{isTh ? 'จดบันทึกงาน นัดหมาย และเตือนความจำได้ในหน้าเดียว' : 'Capture work notes, schedules, and reminders in one place'}</p>
+ <p className='text-sm leading-6 text-slate-500'>
+ {isTh ? 'จดบันทึกงาน นัดหมาย และเตือนความจำได้ในหน้าเดียว' : 'Capture work notes, schedules, and reminders in one place'}
+ </p>
  </header>
 
  <div className='grid grid-cols-3 gap-2'>
- <Button type='button' variant={viewMode === 'paper' ? 'default' : 'secondary'} className='h-10 rounded-xl text-xs' onClick={() => setViewMode('paper')}><span className='inline-flex items-center gap-1'><FileText className='h-4 w-4' /> {isTh ? 'กระดาษ' : 'Paper'}</span></Button>
- <Button type='button' variant={viewMode === 'calendar' ? 'default' : 'secondary'} className='h-10 rounded-xl text-xs' onClick={() => setViewMode('calendar')}><span className='inline-flex items-center gap-1'><Calendar className='h-4 w-4' /> {isTh ? 'ปฏิทิน' : 'Calendar'}</span></Button>
- <Button type='button' className='h-10 rounded-xl text-xs' onClick={openCreate}><span className='inline-flex items-center gap-1'><Plus className='h-4 w-4' /> {isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</span></Button>
+ <Button type='button' variant={viewMode === 'paper' ? 'default' : 'secondary'} className='h-10 rounded-xl text-xs' onClick={() => setViewMode('paper')}>
+ <span className='inline-flex items-center gap-1'>
+ <FileText className='h-4 w-4' /> {isTh ? 'กระดาษ' : 'Paper'}
+ </span>
+ </Button>
+ <Button type='button' variant={viewMode === 'calendar' ? 'default' : 'secondary'} className='h-10 rounded-xl text-xs' onClick={() => setViewMode('calendar')}>
+ <span className='inline-flex items-center gap-1'>
+ <Calendar className='h-4 w-4' /> {isTh ? 'ปฏิทิน' : 'Calendar'}
+ </span>
+ </Button>
+ <Button type='button' className='h-10 rounded-xl text-xs' onClick={openCreate}>
+ <span className='inline-flex items-center gap-1'>
+ <Plus className='h-4 w-4' /> {isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}
+ </span>
+ </Button>
  </div>
 
  <div className='relative'>
@@ -327,10 +376,17 @@ export default function NotesPage() {
  {viewMode === 'paper' ? (
  <div className='space-y-2.5'>
  {loading && notes.length === 0 ? <p className='text-center text-sm text-slate-500'>{isTh ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
- {!loading && notes.length === 0 ? <Card className='space-y-1 text-center'><p className='text-sm font-semibold text-slate-700'>{isTh ? 'ยังไม่มีโน้ต' : 'No notes yet'}</p></Card> : null}
+ {!loading && notes.length === 0 ? (
+ <Card className='space-y-1 text-center'>
+ <p className='text-sm font-semibold text-slate-700'>{isTh ? 'ยังไม่มีโน้ต' : 'No notes yet'}</p>
+ </Card>
+ ) : null}
  {notes.map((note) => (
  <Card key={note.id} className='space-y-3 rounded-[20px]'>
- <div className='min-w-0'><p className='line-clamp-1 text-base font-semibold text-slate-900'>{note.title}</p><p className='line-clamp-3 text-sm text-slate-600'>{note.content}</p></div>
+ <div className='min-w-0'>
+ <p className='line-clamp-1 text-base font-semibold text-slate-900'>{note.title}</p>
+ <p className='line-clamp-3 text-sm text-slate-600'>{note.content}</p>
+ </div>
  <div className='grid grid-cols-1 gap-1 text-xs text-slate-500'>
  <p>{isTh ? 'อัปเดตล่าสุด' : 'Updated'}: {new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US')}</p>
  <p>{isTh ? 'เตือน' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
@@ -338,7 +394,7 @@ export default function NotesPage() {
  </div>
  <div className='grid grid-cols-6 gap-1.5'>
  <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => openEdit(note)}><Edit3 className='h-4 w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0 text-rose-600' onClick={() => void deleteNote(note)}><Trash2 className='h-4 w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0 text-rose-600' onClick={() => setDeleteTarget(note)}><Trash2 className='h-4 w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => void shareNote(note)}><Share2 className='h-4 w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => exportPdf(note)}><FileDown className='h-4 w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='col-span-2 h-9 rounded-xl text-[11px]' onClick={() => void downloadText(note)}>{isTh ? 'ไฟล์ .txt' : '.txt file'}</Button>
@@ -365,7 +421,17 @@ export default function NotesPage() {
  const key = dateKeyFromIso(date.toISOString()) ?? '';
  const count = dateCountMap.get(key) ?? 0;
  const active = key === selectedDateKey;
- return <button key={key} type='button' onClick={() => setSelectedDateKey(key)} className={'relative h-12 rounded-xl border text-xs transition ' + (active ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200')}>{date.getDate()}{count > 0 ? <span className='absolute right-1 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-semibold text-white'>{count}</span> : null}</button>;
+ return (
+ <button
+ key={key}
+ type='button'
+ onClick={() => setSelectedDateKey(key)}
+ className={'relative h-12 rounded-xl border text-xs transition ' + (active ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200')}
+ >
+ {date.getDate()}
+ {count > 0 ? <span className='absolute right-1 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-semibold text-white'>{count}</span> : null}
+ </button>
+ );
  })}
  </div>
  <div className='space-y-2 border-t border-slate-200 pt-2'>
@@ -382,6 +448,24 @@ export default function NotesPage() {
  </div>
  </Card>
  )}
+
+ {deleteTarget ? (
+ <div className='fixed inset-0 z-[85] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[2px]'>
+ <div className='w-full max-w-[460px] animate-slide-up rounded-[24px] border border-rose-100 bg-white p-4 shadow-2xl'>
+ <h2 className='text-base font-semibold text-slate-900'>{isTh ? 'ยืนยันการลบโน้ต' : 'Confirm Note Deletion'}</h2>
+ <p className='mt-2 text-sm text-slate-600'>
+ {isTh ? 'ต้องการลบโน้ตนี้ใช่หรือไม่' : 'Do you want to delete this note?'}
+ <span className='mt-1 block truncate font-semibold text-slate-800'>{deleteTarget.title}</span>
+ </p>
+ <div className='mt-4 grid grid-cols-2 gap-2'>
+ <Button type='button' variant='secondary' className='w-full' onClick={() => setDeleteTarget(null)} disabled={deleting}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
+ <Button type='button' className='w-full bg-rose-600 hover:bg-rose-700' onClick={() => void confirmDeleteNote()} disabled={deleting}>
+ {deleting ? (isTh ? 'กำลังลบ...' : 'Deleting...') : isTh ? 'ลบโน้ต' : 'Delete Note'}
+ </Button>
+ </div>
+ </div>
+ </div>
+ ) : null}
 
  {editorOpen ? (
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
