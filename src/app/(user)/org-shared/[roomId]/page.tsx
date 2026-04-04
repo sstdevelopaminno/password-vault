@@ -1,8 +1,8 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Search } from 'lucide-react';
+import { ArrowLeft, MessageSquare, MessageSquareOff, Search, Send } from 'lucide-react';
 import { VaultCard } from '@/components/vault/vault-card';
 import { AddVaultItemSheet } from '@/components/vault/add-item-sheet';
 import { VaultItemModal } from '@/components/vault/vault-item-modal';
@@ -42,6 +42,7 @@ export default function TeamRoomPage() {
  const [loading, setLoading] = useState(false);
  const [sending, setSending] = useState(false);
  const [chatInput, setChatInput] = useState('');
+ const [chatHidden, setChatHidden] = useState(true);
 
  const [editingItem, setEditingItem] = useState<TeamItem | null>(null);
  const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
@@ -50,9 +51,9 @@ export default function TeamRoomPage() {
  const [assertions, setAssertions] = useState<Partial<Record<SecureAction, AssertionCacheEntry>>>({});
 
  const toDisplayDate = useCallback((raw?: string) => {
- if (!raw) return locale === 'th' ? 'เมื่อสักครู่' : 'Just now';
+ if (!raw) return locale === 'th' ? 'เน€เธกเธทเนเธญเธชเธฑเธเธเธฃเธนเน' : 'Just now';
  const parsed = new Date(raw);
- if (Number.isNaN(parsed.getTime())) return locale === 'th' ? 'เมื่อสักครู่' : 'Just now';
+ if (Number.isNaN(parsed.getTime())) return locale === 'th' ? 'เน€เธกเธทเนเธญเธชเธฑเธเธเธฃเธนเน' : 'Just now';
  return parsed.toLocaleString(locale === 'th' ? 'th-TH' : 'en-US');
  }, [locale]);
 
@@ -92,7 +93,7 @@ export default function TeamRoomPage() {
  title: item.title,
  username: item.username ?? '',
  updatedAt: toDisplayDate(item.updated_at),
- category: item.category ?? (locale === 'th' ? 'ทั่วไป' : 'General'),
+ category: item.category ?? (locale === 'th' ? 'เธ—เธฑเนเธงเนเธ' : 'General'),
  url: item.url ?? undefined,
  })));
 
@@ -120,7 +121,7 @@ export default function TeamRoomPage() {
  showToast(body.error ?? 'Delete failed', 'error');
  return;
  }
- showToast(locale === 'th' ? 'ลบรายการแล้ว' : 'Deleted', 'success');
+ showToast(locale === 'th' ? 'เธฅเธเธฃเธฒเธขเธเธฒเธฃเนเธฅเนเธง' : 'Deleted', 'success');
  await loadAll();
  }
 
@@ -137,7 +138,7 @@ export default function TeamRoomPage() {
  showToast(body.error ?? 'Update failed', 'error');
  return;
  }
- showToast(locale === 'th' ? 'อัปเดตรายการแล้ว' : 'Updated', 'success');
+ showToast(locale === 'th' ? 'เธญเธฑเธเน€เธ”เธ•เธฃเธฒเธขเธเธฒเธฃเนเธฅเนเธง' : 'Updated', 'success');
  await loadAll();
  }
 
@@ -168,20 +169,33 @@ export default function TeamRoomPage() {
 
  return (
  <section className='space-y-4 pb-24 pt-2'>
- <header className='space-y-1'>
- <button type='button' className='inline-flex items-center gap-1 text-sm text-blue-700' onClick={() => router.push('/org-shared')}>
- <ArrowLeft className='h-4 w-4' /> {locale === 'th' ? 'กลับรายการห้องทีม' : 'Back to rooms'}
+ <header className='space-y-1.5'>
+ <div className='flex items-start justify-between gap-2'>
+ <div className='min-w-0'>
+ <div className='flex items-center gap-2'>
+ <button type='button' className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50' onClick={() => router.push('/org-shared')} aria-label={locale === 'th' ? 'เธขเนเธญเธเธเธฅเธฑเธเธฃเธฒเธขเธเธฒเธฃเธซเนเธญเธเธ—เธตเธก' : 'Back to rooms'}>
+ <ArrowLeft className='h-4 w-4' />
  </button>
- <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{room?.name ?? (locale === 'th' ? 'ห้องทีม' : 'Team Room')}</h1>
- <p className='text-sm leading-6 text-slate-500'>{room?.description || (locale === 'th' ? 'จัดการรหัสทีมและแชทภายในห้องนี้' : 'Manage team items and room chat')}</p>
+ <h1 className='truncate text-3xl font-semibold leading-tight text-slate-900'>{room?.name ?? (locale === 'th' ? 'เธซเนเธญเธเธ—เธตเธก' : 'Team Room')}</h1>
+ </div>
+ <p className='pl-10 text-sm leading-6 text-slate-500'>{room?.description || (locale === 'th' ? 'เธเธฑเธ”เธเธฒเธฃเธฃเธซเธฑเธชเธ—เธตเธกเนเธฅเธฐเนเธเธ—เธ เธฒเธขเนเธเธซเนเธญเธเธเธตเน' : 'Manage team items and room chat')}</p>
+ </div>
+
+ <Button type='button' variant='secondary' size='sm' className='h-9 shrink-0 rounded-xl px-2.5' onClick={() => setChatHidden((value) => !value)}>
+ <span className='inline-flex items-center gap-1 text-xs font-semibold'>
+ {chatHidden ? <MessageSquare className='h-3.5 w-3.5' /> : <MessageSquareOff className='h-3.5 w-3.5' />}
+ {chatHidden ? (locale === 'th' ? 'เนเธชเธ”เธเนเธเธ—' : 'Show chat') : locale === 'th' ? 'เธเนเธญเธเนเธเธ—' : 'Hide chat'}
+ </span>
+ </Button>
+ </div>
  </header>
 
  <div className='relative'>
  <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400' />
- <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={locale === 'th' ? 'ค้นหารายการในห้อง' : 'Search items in room'} className='h-11 rounded-[14px] pl-11 text-[15px]' />
+ <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={locale === 'th' ? 'เธเนเธเธซเธฒเธฃเธฒเธขเธเธฒเธฃเนเธเธซเนเธญเธ' : 'Search items in room'} className='h-11 rounded-[14px] pl-11 text-[15px]' />
  </div>
 
- {loading && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
+ {loading && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'เธเธณเธฅเธฑเธเนเธซเธฅเธ”...' : 'Loading...'}</p> : null}
 
  <div className='grid gap-2.5'>
  {filteredItems.map((item) => (
@@ -211,17 +225,18 @@ export default function TeamRoomPage() {
  ))}
  </div>
 
- {!loading && filteredItems.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'ยังไม่มีรายการในห้องนี้' : 'No items in this room yet'}</p> : null}
+ {!loading && filteredItems.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'เธขเธฑเธเนเธกเนเธกเธตเธฃเธฒเธขเธเธฒเธฃเนเธเธซเนเธญเธเธเธตเน' : 'No items in this room yet'}</p> : null}
 
+ {chatHidden ? null : (
  <Card className='space-y-3 rounded-[20px]'>
  <div className='flex items-center justify-between'>
- <h2 className='text-sm font-semibold text-slate-900'>{locale === 'th' ? 'แชทห้องทีม' : 'Team Room Chat'}</h2>
- <span className='text-xs text-slate-500'>{messages.length} {locale === 'th' ? 'ข้อความ' : 'messages'}</span>
+ <h2 className='text-sm font-semibold text-slate-900'>{locale === 'th' ? 'เนเธเธ—เธซเนเธญเธเธ—เธตเธก' : 'Team Room Chat'}</h2>
+ <span className='text-xs text-slate-500'>{messages.length} {locale === 'th' ? 'เธเนเธญเธเธงเธฒเธก' : 'messages'}</span>
  </div>
 
 
  <div className='max-h-56 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2.5'>
- {messages.length === 0 ? <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'ยังไม่มีข้อความในห้อง' : 'No messages yet'}</p> : null}
+ {messages.length === 0 ? <p className='text-center text-xs text-slate-500'>{locale === 'th' ? 'เธขเธฑเธเนเธกเนเธกเธตเธเนเธญเธเธงเธฒเธกเนเธเธซเนเธญเธ' : 'No messages yet'}</p> : null}
  {messages.map((msg) => (
  <div key={msg.id} className='rounded-xl border border-slate-200 bg-white px-3 py-2'>
  <div className='mb-1 flex items-center justify-between text-[11px] text-slate-500'>
@@ -230,7 +245,7 @@ export default function TeamRoomPage() {
  </div>
  {msg.messageType === 'shared_item' ? (
  <div className='space-y-1'>
- <p className='text-xs font-semibold text-blue-700'>{locale === 'th' ? 'แชร์รายการเข้าห้อง' : 'Shared item to room'}</p>
+ <p className='text-xs font-semibold text-blue-700'>{locale === 'th' ? 'เนเธเธฃเนเธฃเธฒเธขเธเธฒเธฃเน€เธเนเธฒเธซเนเธญเธ' : 'Shared item to room'}</p>
  <p className='text-sm text-slate-700'>{msg.metadata?.title ?? msg.body}</p>
  {msg.body ? <p className='text-xs text-slate-500'>{msg.body}</p> : null}
  </div>
@@ -242,12 +257,13 @@ export default function TeamRoomPage() {
  </div>
 
  <div className='flex items-center gap-2'>
- <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder={locale === 'th' ? 'พิมพ์ข้อความถึงทีม...' : 'Type a message...'} />
+ <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder={locale === 'th' ? 'เธเธดเธกเธเนเธเนเธญเธเธงเธฒเธกเธ–เธถเธเธ—เธตเธก...' : 'Type a message...'} />
  <Button type='button' size='sm' className='h-12 rounded-xl px-3' onClick={() => void sendMessage()} disabled={sending || !chatInput.trim()}>
  <Send className='h-4 w-4' />
  </Button>
  </div>
  </Card>
+ )}
 
  <AddVaultItemSheet
  endpoint={'/api/team-rooms/' + encodeURIComponent(roomId) + '/items'}
@@ -278,7 +294,7 @@ export default function TeamRoomPage() {
  {pendingDeleteId ? (
  <PinModal
  action='delete_secret'
- actionLabel={locale === 'th' ? 'ลบรายการนี้' : 'Delete this item'}
+ actionLabel={locale === 'th' ? 'เธฅเธเธฃเธฒเธขเธเธฒเธฃเธเธตเน' : 'Delete this item'}
  targetItemId={pendingDeleteId}
  onVerified={(assertionToken) => {
  const id = pendingDeleteId;
@@ -293,7 +309,7 @@ export default function TeamRoomPage() {
  {pendingEdit ? (
  <PinModal
  action='edit_secret'
- actionLabel={locale === 'th' ? 'แก้ไขรายการนี้' : 'Edit this item'}
+ actionLabel={locale === 'th' ? 'เนเธเนเนเธเธฃเธฒเธขเธเธฒเธฃเธเธตเน' : 'Edit this item'}
  targetItemId={pendingEdit.id}
  onVerified={(assertionToken) => {
  const target = pendingEdit;
@@ -307,4 +323,3 @@ export default function TeamRoomPage() {
  </section>
  );
 }
-
