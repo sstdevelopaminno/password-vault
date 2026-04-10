@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Clock3, Edit3, FileDown, FileText, Plus, Search, Share2, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BellRing, Calendar, ChevronLeft, ChevronRight, Clock3, Edit3, Eye, EyeOff, FileDown, FileText, Plus, Search, Share2, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,13 @@ type Pagination = {
  totalPages: number;
  hasPrev: boolean;
  hasNext: boolean;
+};
+
+type DueNoticeItem = {
+ noteId: string;
+ kind: 'reminder' | 'meeting';
+ at: string;
+ title: string;
 };
 
 function toLocalDateTimeInputValue(raw: string | null) {
@@ -93,6 +100,18 @@ export default function NotesPage() {
 
  const [deleteTarget, setDeleteTarget] = useState<NoteItem | null>(null);
  const [deleting, setDeleting] = useState(false);
+ const [expandedNoteIds, setExpandedNoteIds] = useState<Record<string, boolean>>({});
+ const [dueQueue, setDueQueue] = useState<DueNoticeItem[]>([]);
+ const [activeDueNotice, setActiveDueNotice] = useState<DueNoticeItem | null>(null);
+ const paperSectionRef = useRef<HTMLDivElement | null>(null);
+ const calendarSectionRef = useRef<HTMLDivElement | null>(null);
+
+ const allKnownNotes = useMemo(() => {
+ const map = new Map<string, NoteItem>();
+ for (const note of calendarNotes) map.set(note.id, note);
+ for (const note of notes) map.set(note.id, note);
+ return map;
+ }, [calendarNotes, notes]);
 
  useEffect(() => {
  const timer = window.setTimeout(() => setSearchDebounced(search.trim()), 260);
@@ -136,19 +155,104 @@ export default function NotesPage() {
  }, [loadNotes, searchDebounced]);
 
  useEffect(() => {
- if (viewMode === 'calendar') void loadCalendarNotes(searchDebounced);
- }, [loadCalendarNotes, searchDebounced, viewMode]);
+ void loadCalendarNotes(searchDebounced);
+ }, [loadCalendarNotes, searchDebounced]);
 
  useEffect(() => {
  const timer = window.setInterval(() => {
- if (viewMode === 'calendar') {
- void loadCalendarNotes(searchDebounced);
- } else {
+ if (viewMode !== 'calendar') {
  void loadNotes(pagination.page, searchDebounced);
  }
+ void loadCalendarNotes(searchDebounced);
  }, 30000);
  return () => window.clearInterval(timer);
  }, [loadCalendarNotes, loadNotes, pagination.page, searchDebounced, viewMode]);
+
+ useEffect(() => {
+ if (typeof window === 'undefined') return;
+ const existing = new Set(notes.map((note) => note.id));
+ setExpandedNoteIds((prev) => {
+ const next: Record<string, boolean> = {};
+ for (const noteId of Object.keys(prev)) {
+ if (existing.has(noteId) && prev[noteId]) next[noteId] = true;
+ }
+ return next;
+ });
+ }, [notes]);
+
+ useEffect(() => {
+ if (typeof window === 'undefined' || calendarNotes.length === 0) return;
+
+ const scanDueNotices = () => {
+ const now = Date.now();
+ const lowerBound = now - 5 * 60 * 1000;
+ const upperBound = now + 15 * 1000;
+ const discovered: DueNoticeItem[] = [];
+
+ for (const note of calendarNotes) {
+ const candidates: Array<{ kind: 'reminder' | 'meeting'; at: string | null }> = [
+ { kind: 'reminder', at: note.reminderAt },
+ { kind: 'meeting', at: note.meetingAt },
+ ];
+
+ for (const candidate of candidates) {
+ if (!candidate.at) continue;
+ const when = new Date(candidate.at).getTime();
+ if (Number.isNaN(when) || when < lowerBound || when > upperBound) continue;
+ const seenKey = 'pv_note_due_seen_v1:' + note.id + ':' + candidate.kind + ':' + candidate.at;
+ if (window.localStorage.getItem(seenKey) === '1') continue;
+
+ window.localStorage.setItem(seenKey, '1');
+ discovered.push({
+ noteId: note.id,
+ kind: candidate.kind,
+ at: candidate.at,
+ title: note.title,
+ });
+ }
+ }
+
+ if (discovered.length === 0) return;
+ setDueQueue((prev) => {
+ const next = [...prev];
+ for (const item of discovered) {
+ const exists = next.some(
+ (entry) => entry.noteId === item.noteId && entry.kind === item.kind && entry.at === item.at,
+ );
+ if (!exists) next.push(item);
+ }
+ return next;
+ });
+ };
+
+ scanDueNotices();
+ const timer = window.setInterval(scanDueNotices, 20000);
+ return () => window.clearInterval(timer);
+ }, [calendarNotes]);
+
+ useEffect(() => {
+ if (activeDueNotice || dueQueue.length === 0) return;
+ setActiveDueNotice(dueQueue[0]);
+ setDueQueue((prev) => prev.slice(1));
+ }, [activeDueNotice, dueQueue]);
+
+ useEffect(() => {
+ if (typeof window === 'undefined' || !activeDueNotice) return;
+ if (!('Notification' in window)) return;
+ if (Notification.permission !== 'granted') return;
+ try {
+ const noticeTitle = activeDueNotice.kind === 'meeting'
+ ? (isTh ? 'ถึงเวลานัดหมาย' : 'Meeting due')
+ : (isTh ? 'ถึงเวลาแจ้งเตือน' : 'Reminder due');
+ const scheduledAt = new Date(activeDueNotice.at).toLocaleString(isTh ? 'th-TH' : 'en-US');
+ new Notification(noticeTitle, {
+ body: activeDueNotice.title + ' • ' + scheduledAt,
+ tag: 'note-due:' + activeDueNotice.noteId + ':' + activeDueNotice.kind + ':' + activeDueNotice.at,
+ });
+ } catch {
+ // ignore notification failures
+ }
+ }, [activeDueNotice, isTh]);
 
  const monthLabel = useMemo(
  () =>
@@ -209,6 +313,27 @@ export default function NotesPage() {
  setDraftReminder(toLocalDateTimeInputValue(note.reminderAt));
  setDraftMeeting(toLocalDateTimeInputValue(note.meetingAt));
  setEditorOpen(true);
+ }
+
+ function goToNotesMenu(target: 'paper' | 'calendar' | 'create') {
+ if (target === 'create') {
+ openCreate();
+ return;
+ }
+
+ setViewMode(target);
+ window.setTimeout(() => {
+ const section = target === 'paper' ? paperSectionRef.current : calendarSectionRef.current;
+ section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+ }, 90);
+ }
+
+ function toggleContent(noteId: string) {
+ setExpandedNoteIds((prev) => ({ ...prev, [noteId]: !prev[noteId] }));
+ }
+
+ function closeDuePopup() {
+ setActiveDueNotice(null);
  }
 
  function buildShareableText(note: NoteItem) {
@@ -340,6 +465,7 @@ export default function NotesPage() {
  }
 
  const weekLabels = isTh ? ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+ const activeDueNote = activeDueNotice ? allKnownNotes.get(activeDueNotice.noteId) ?? null : null;
 
  return (
  <section className='space-y-4 pb-24 pt-2'>
@@ -351,21 +477,48 @@ export default function NotesPage() {
  </header>
 
  <div className='grid grid-cols-3 gap-2'>
- <Button type='button' variant={viewMode === 'paper' ? 'default' : 'secondary'} className='h-10 rounded-xl text-xs' onClick={() => setViewMode('paper')}>
- <span className='inline-flex items-center gap-1'>
- <FileText className='h-4 w-4' /> {isTh ? 'กระดาษ' : 'Paper'}
+ <button
+ type='button'
+ onClick={() => goToNotesMenu('paper')}
+ aria-pressed={viewMode === 'paper'}
+ className={
+ 'group flex h-[92px] flex-col items-center justify-center rounded-[18px] border transition active:scale-[0.98] ' +
+ (viewMode === 'paper'
+ ? 'border-sky-300 bg-sky-50 text-sky-700 shadow-[0_10px_24px_rgba(14,165,233,0.2)]'
+ : 'border-slate-200 bg-white/90 text-slate-600 hover:border-sky-200 hover:bg-sky-50/60')
+ }
+ >
+ <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 shadow-[0_6px_16px_rgba(15,23,42,0.12)]'>
+ <FileText className='h-4 w-4' />
  </span>
- </Button>
- <Button type='button' variant={viewMode === 'calendar' ? 'default' : 'secondary'} className='h-10 rounded-xl text-xs' onClick={() => setViewMode('calendar')}>
- <span className='inline-flex items-center gap-1'>
- <Calendar className='h-4 w-4' /> {isTh ? 'ปฏิทิน' : 'Calendar'}
+ <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'กระดาษ' : 'Paper'}</span>
+ </button>
+ <button
+ type='button'
+ onClick={() => goToNotesMenu('calendar')}
+ aria-pressed={viewMode === 'calendar'}
+ className={
+ 'group flex h-[92px] flex-col items-center justify-center rounded-[18px] border transition active:scale-[0.98] ' +
+ (viewMode === 'calendar'
+ ? 'border-violet-300 bg-violet-50 text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.2)]'
+ : 'border-slate-200 bg-white/90 text-slate-600 hover:border-violet-200 hover:bg-violet-50/60')
+ }
+ >
+ <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 shadow-[0_6px_16px_rgba(15,23,42,0.12)]'>
+ <Calendar className='h-4 w-4' />
  </span>
- </Button>
- <Button type='button' className='h-10 rounded-xl text-xs' onClick={openCreate}>
- <span className='inline-flex items-center gap-1'>
- <Plus className='h-4 w-4' /> {isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}
+ <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'ปฏิทิน' : 'Calendar'}</span>
+ </button>
+ <button
+ type='button'
+ onClick={() => goToNotesMenu('create')}
+ className='group flex h-[92px] flex-col items-center justify-center rounded-[18px] border border-fuchsia-200 bg-gradient-to-br from-sky-500 via-indigo-500 to-fuchsia-500 text-white shadow-[0_12px_24px_rgba(79,70,229,0.35)] transition active:scale-[0.98]'
+ >
+ <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-[0_6px_16px_rgba(15,23,42,0.2)] backdrop-blur-[1px]'>
+ <Plus className='h-4 w-4' />
  </span>
- </Button>
+ <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</span>
+ </button>
  </div>
 
  <div className='relative'>
@@ -374,7 +527,7 @@ export default function NotesPage() {
  </div>
 
  {viewMode === 'paper' ? (
- <div className='space-y-2.5'>
+ <div ref={paperSectionRef} id='notes-paper-section' className='space-y-2.5'>
  {loading && notes.length === 0 ? <p className='text-center text-sm text-slate-500'>{isTh ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
  {!loading && notes.length === 0 ? (
  <Card className='space-y-1 text-center'>
@@ -382,11 +535,41 @@ export default function NotesPage() {
  </Card>
  ) : null}
  {notes.map((note) => (
- <Card key={note.id} className='space-y-3 rounded-[20px]'>
+ <Card key={note.id} className='space-y-3 rounded-[20px] border border-slate-200/80 bg-white/90 p-3 shadow-[0_10px_24px_rgba(15,23,42,0.08)]'>
+ <div className='flex items-start justify-between gap-2'>
  <div className='min-w-0'>
- <p className='line-clamp-1 text-base font-semibold text-slate-900'>{note.title}</p>
- <p className='line-clamp-3 text-sm text-slate-600'>{note.content}</p>
+ <p className='line-clamp-1 text-[18px] font-semibold text-slate-900'>{note.title}</p>
+ <p className='text-[11px] font-medium text-slate-400'>
+ {isTh ? 'โหมดกระดาษ' : 'Paper view'}
+ </p>
  </div>
+ <button
+ type='button'
+ onClick={() => toggleContent(note.id)}
+ className='inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700'
+ >
+ {expandedNoteIds[note.id] ? (
+ <>
+ <EyeOff className='h-3.5 w-3.5' />
+ {isTh ? 'ซ่อนเนื้อหา' : 'Hide'}
+ </>
+ ) : (
+ <>
+ <Eye className='h-3.5 w-3.5' />
+ {isTh ? 'ดูเนื้อหา' : 'View'}
+ </>
+ )}
+ </button>
+ </div>
+ {expandedNoteIds[note.id] ? (
+ <div className='rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50 to-slate-100 px-3 py-2.5'>
+ <p className='whitespace-pre-wrap break-words text-sm leading-6 text-slate-700'>{note.content}</p>
+ </div>
+ ) : (
+ <div className='rounded-xl border border-dashed border-slate-200 bg-white/75 px-3 py-2 text-xs text-slate-500'>
+ {isTh ? 'เนื้อหาถูกซ่อนอยู่ กด "ดูเนื้อหา" เพื่อเปิดอ่าน' : 'Content is hidden. Tap "View" to read.'}
+ </div>
+ )}
  <div className='grid grid-cols-1 gap-1 text-xs text-slate-500'>
  <p>{isTh ? 'อัปเดตล่าสุด' : 'Updated'}: {new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US')}</p>
  <p>{isTh ? 'เตือน' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
@@ -408,6 +591,7 @@ export default function NotesPage() {
  </div>
  </div>
  ) : (
+ <div ref={calendarSectionRef} id='notes-calendar-section'>
  <Card className='space-y-3 rounded-[20px]'>
  <div className='flex items-center justify-between gap-2'>
  <Button type='button' variant='secondary' size='sm' className='h-9 rounded-xl px-2.5' onClick={() => setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}><ChevronLeft className='h-4 w-4' /></Button>
@@ -443,11 +627,78 @@ export default function NotesPage() {
  <p className='inline-flex items-center gap-1'><Clock3 className='h-3 w-3' /> {isTh ? 'เตือน' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
  <p className='inline-flex items-center gap-1'><Calendar className='h-3 w-3' /> {isTh ? 'นัดหมาย' : 'Meeting'}: {note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
  </div>
+ <div className='mt-2'>
+ <Button
+ type='button'
+ size='sm'
+ variant='secondary'
+ className='h-8 rounded-lg px-2.5 text-[11px]'
+ onClick={() => openEdit(note)}
+ >
+ {isTh ? 'เปิดโน้ต' : 'Open note'}
+ </Button>
+ </div>
  </div>
  ))}
  </div>
  </Card>
- )}
+ </div>
+)}
+
+ {activeDueNotice ? (
+ <div className='fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[3px]'>
+ <div className='w-full max-w-[460px] animate-slide-up rounded-[26px] border border-sky-200/80 bg-white p-4 shadow-[0_24px_60px_rgba(15,23,42,0.32)]'>
+ <div className='flex items-start justify-between gap-3'>
+ <div className='flex items-center gap-3'>
+ <span className='inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white shadow-[0_10px_20px_rgba(59,130,246,0.35)]'>
+ <BellRing className='h-5 w-5 animate-pulse' />
+ </span>
+ <div>
+ <p className='text-base font-semibold text-slate-900'>
+ {activeDueNotice.kind === 'meeting'
+ ? (isTh ? 'แจ้งเตือนนัดหมาย' : 'Meeting reminder')
+ : (isTh ? 'แจ้งเตือนรายการโน้ต' : 'Note reminder')}
+ </p>
+ <p className='text-xs text-slate-500'>
+ {new Date(activeDueNotice.at).toLocaleString(isTh ? 'th-TH' : 'en-US')}
+ </p>
+ </div>
+ </div>
+ <button type='button' onClick={closeDuePopup} className='rounded-lg p-1 text-slate-500 transition hover:bg-slate-100'>
+ <X className='h-4 w-4' />
+ </button>
+ </div>
+
+ <div className='mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5'>
+ <p className='line-clamp-1 text-sm font-semibold text-slate-900'>{activeDueNotice.title}</p>
+ <p className='mt-1 text-xs leading-5 text-slate-600'>
+ {activeDueNote?.content
+ ? activeDueNote.content.slice(0, 120) + (activeDueNote.content.length > 120 ? '...' : '')
+ : (isTh ? 'รายการนี้พร้อมให้เปิดดูรายละเอียด' : 'This note is ready to open.')}
+ </p>
+ </div>
+
+ <div className='mt-4 grid grid-cols-2 gap-2'>
+ <Button type='button' variant='secondary' className='w-full' onClick={closeDuePopup}>
+ {isTh ? 'ปิด' : 'Dismiss'}
+ </Button>
+ <Button
+ type='button'
+ className='w-full'
+ onClick={() => {
+ if (activeDueNote) {
+ setViewMode('paper');
+ openEdit(activeDueNote);
+ }
+ closeDuePopup();
+ }}
+ >
+ {isTh ? 'เปิดโน้ต' : 'Open note'}
+ </Button>
+ </div>
+ </div>
+ </div>
+ ) : null}
 
  {deleteTarget ? (
  <div className='fixed inset-0 z-[85] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[2px]'>

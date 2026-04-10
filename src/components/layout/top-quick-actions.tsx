@@ -35,6 +35,7 @@ type VersionPayload = {
 type TopQuickActionsProps = {
   variant?: "toolbar" | "settings-menu";
   showSecondaryActions?: boolean;
+  showRuntimeWhenNoUpdate?: boolean;
 };
 
 function defaultVersionPayload(): VersionPayload {
@@ -153,6 +154,7 @@ async function clearUpdateData(nextVersion: VersionPayload) {
 export function TopQuickActions({
   variant = "toolbar",
   showSecondaryActions = true,
+  showRuntimeWhenNoUpdate = true,
 }: TopQuickActionsProps) {
   const { locale } = useI18n();
   const toast = useToast();
@@ -246,6 +248,7 @@ export function TopQuickActions({
   const showInstallButton = showSecondaryActions && showInstallAction;
   const showUpdateButton = showSecondaryActions && hasUpdate;
   const isSettingsMenu = variant === "settings-menu";
+  const showRuntimeButton = isSettingsMenu || hasUpdate || showRuntimeWhenNoUpdate;
   const actionRowClass = isSettingsMenu
     ? (showSecondaryActions
       ? "flex w-full flex-wrap items-center gap-2"
@@ -557,41 +560,43 @@ export function TopQuickActions({
   return (
     <>
       <div className={actionRowClass}>
-        <button
-          type="button"
-          onClick={() => setShowRuntimeCard(true)}
-          className={runtimeButtonClass + (isSettingsMenu ? "" : getModeTone(capabilities.mode))}
-        >
-          {isSettingsMenu ? (
-            <>
-              <span className="inline-flex items-center gap-3">
-                <span className="rounded-xl bg-slate-100 p-2.5 text-slate-600 transition group-hover:bg-blue-100 group-hover:text-blue-700">
-                  <Smartphone className="h-4 w-4" />
-                </span>
-                <span className="flex flex-col">
-                  <span className="text-base font-semibold leading-6 text-slate-800">
-                    {runtimeModeLabel}
+        {showRuntimeButton ? (
+          <button
+            type="button"
+            onClick={() => setShowRuntimeCard(true)}
+            className={runtimeButtonClass + (isSettingsMenu ? "" : getModeTone(capabilities.mode))}
+          >
+            {isSettingsMenu ? (
+              <>
+                <span className="inline-flex items-center gap-3">
+                  <span className="rounded-xl bg-slate-100 p-2.5 text-slate-600 transition group-hover:bg-blue-100 group-hover:text-blue-700">
+                    <Smartphone className="h-4 w-4" />
                   </span>
-                  <span className="text-xs leading-5 text-slate-500">{text.viewRuntime}</span>
+                  <span className="flex flex-col">
+                    <span className="text-base font-semibold leading-6 text-slate-800">
+                      {runtimeModeLabel}
+                    </span>
+                    <span className="text-xs leading-5 text-slate-500">{text.viewRuntime}</span>
+                  </span>
                 </span>
-              </span>
-              <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center gap-2">
+                  <span className={runtimeStatusBadgeClass}>
+                    {hasUpdate ? text.updateReadyLabel : text.liveLabel}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:text-blue-500" />
+                </span>
+              </>
+            ) : (
+              <>
+                <Smartphone className="h-3.5 w-3.5" />
+                <span>{runtimeModeLabel}</span>
                 <span className={runtimeStatusBadgeClass}>
                   {hasUpdate ? text.updateReadyLabel : text.liveLabel}
                 </span>
-                <ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:text-blue-500" />
-              </span>
-            </>
-          ) : (
-            <>
-              <Smartphone className="h-3.5 w-3.5" />
-              <span>{runtimeModeLabel}</span>
-              <span className={runtimeStatusBadgeClass}>
-                {hasUpdate ? text.updateReadyLabel : text.liveLabel}
-              </span>
-            </>
-          )}
-        </button>
+              </>
+            )}
+          </button>
+        ) : null}
 
         {showInstallButton ? (
           <button

@@ -221,7 +221,7 @@ export default function HomePage() {
  </div>
 
  <div className='mt-2 flex justify-end'>
- <TopQuickActions />
+ <TopQuickActions showRuntimeWhenNoUpdate={false} />
  </div>
  </div>
 
