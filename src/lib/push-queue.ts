@@ -91,19 +91,19 @@ function normalizeError(error: unknown) {
 }
 
 function getVapidPublicKey() {
-  return (
+  return String(
     process.env.PUSH_VAPID_PUBLIC_KEY ||
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
     ""
-  );
+  ).trim();
 }
 
 function getVapidPrivateKey() {
-  return process.env.PUSH_VAPID_PRIVATE_KEY || "";
+  return String(process.env.PUSH_VAPID_PRIVATE_KEY || "").trim();
 }
 
 function getVapidSubject() {
-  return process.env.PUSH_VAPID_SUBJECT || "mailto:security@password-vault.local";
+  return String(process.env.PUSH_VAPID_SUBJECT || "mailto:security@password-vault.local").trim();
 }
 
 function ensureWebPushConfigured() {

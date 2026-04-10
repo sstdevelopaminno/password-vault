@@ -50,7 +50,7 @@ const SETTINGS_STORAGE_KEY = "pv_notification_settings_v1";
 const VERSION_SEEN_KEY = "pv_seen_app_version";
 const AUTO_PERMISSION_PROMPT_KEY = "pv_auto_permission_prompted_v1";
 const APP_NAME = "Password Vault";
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "").trim();
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   enabled: true,

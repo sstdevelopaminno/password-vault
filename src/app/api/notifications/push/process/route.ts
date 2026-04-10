@@ -11,10 +11,10 @@ function parseBatch(value: string | null | undefined) {
 }
 
 function hasValidSecret(req: Request) {
-  const expected = process.env.PUSH_CRON_SECRET || process.env.CRON_SECRET || "";
+  const expected = String(process.env.PUSH_CRON_SECRET || process.env.CRON_SECRET || "").trim();
   if (!expected) return process.env.NODE_ENV !== "production";
 
-  const viaHeader = req.headers.get("x-push-cron-secret") ?? "";
+  const viaHeader = String(req.headers.get("x-push-cron-secret") ?? "").trim();
   const authorization = req.headers.get("authorization") ?? "";
   const bearer = authorization.toLowerCase().startsWith("bearer ")
     ? authorization.slice(7).trim()
