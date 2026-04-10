@@ -84,6 +84,13 @@ export const noteUpdateSchema = z.object({
  meetingAt: isoDateTimeNullable,
 });
 
+export const supportTicketCreateSchema = z.object({
+ category: z.enum(['general', 'account', 'security', 'team']).default('general'),
+ priority: z.enum(['low', 'normal', 'high']).default('normal'),
+ subject: z.string().trim().min(3).max(140),
+ message: z.string().trim().min(10).max(4000),
+});
+
 export const pinSchema = z.object({
  pin: z.string().regex(/^\d{6}$/),
 });

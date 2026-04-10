@@ -6,7 +6,7 @@ import {
 } from "@/lib/session-security";
 
 const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
-const userPaths = ["/home", "/vault", "/org-shared", "/settings", "/requests"];
+const userPaths = ["/home", "/vault", "/org-shared", "/settings", "/requests", "/help-center"];
 const ACTIVE_SESSION_SYNC_GRACE_MS = 300_000;
 
 const publicApiPaths = new Set([
@@ -186,6 +186,7 @@ export const config = {
  "/org-shared/:path*",
     "/settings/:path*",
     "/requests/:path*",
+    "/help-center/:path*",
     "/dashboard/:path*",
     "/users/:path*",
     "/approvals/:path*",

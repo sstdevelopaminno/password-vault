@@ -247,7 +247,9 @@ export function TopQuickActions({
   const showUpdateButton = showSecondaryActions && hasUpdate;
   const isSettingsMenu = variant === "settings-menu";
   const actionRowClass = isSettingsMenu
-    ? "w-full"
+    ? (showSecondaryActions
+      ? "flex w-full flex-wrap items-center gap-2"
+      : "w-full")
     : "flex flex-wrap items-center justify-end gap-2";
   const runtimeButtonClass = isSettingsMenu
     ? "group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]"

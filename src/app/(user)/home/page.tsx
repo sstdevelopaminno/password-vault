@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, BookText, KeyRound, Laptop2, ShieldCheck, Smartphone, UsersRound, Wifi, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { BellRing, BookText, KeyRound, Laptop2, LifeBuoy, Megaphone, ShieldCheck, Smartphone, UsersRound, Wifi, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useI18n } from '@/i18n/provider';
 import { versionLabel } from '@/lib/app-version';
@@ -22,26 +23,8 @@ function formatStorage(bytes: number) {
  return String(Math.max(0, Math.floor(bytes))) + ' B';
 }
 
-function buildTrendPath(values: number[]) {
- const width = 320;
- const height = 92;
- const left = 10;
- const right = 10;
- const top = 12;
- const bottom = 10;
- const usableWidth = width - left - right;
- const usableHeight = height - top - bottom;
-
- return values
- .map((value, index) => {
- const x = left + (index / Math.max(values.length - 1, 1)) * usableWidth;
- const y = top + (1 - value / 100) * usableHeight;
- return `${x.toFixed(2)},${y.toFixed(2)}`;
- })
- .join(' ');
-}
-
 export default function HomePage() {
+ const router = useRouter();
  const { locale } = useI18n();
  const [itemCount, setItemCount] = useState(0);
  const [noteCount, setNoteCount] = useState(0);
@@ -49,6 +32,7 @@ export default function HomePage() {
  const [storageUsedBytes, setStorageUsedBytes] = useState(0);
  const [securityScore, setSecurityScore] = useState(66);
  const [stabilityScore, setStabilityScore] = useState(84);
+ const [showNoticePanel, setShowNoticePanel] = useState(false);
  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
 
  useEffect(() => {
@@ -112,13 +96,29 @@ export default function HomePage() {
  const versionText = versionLabel(locale);
  const storageSoftLimitBytes = 50 * 1024 * 1024;
  const storagePercent = clamp(Math.round((storageUsedBytes / storageSoftLimitBytes) * 100), 0, 100);
- const overallHealth = clamp(Math.round((securityScore * 0.55) + (stabilityScore * 0.45)), 0, 100);
- const trendValues = useMemo(() => {
- const base = [36, 52, 60, 57, 69, 74, 66];
- const growth = Math.round((overallHealth - 70) * 0.45);
- return base.map((value) => clamp(value + growth, 18, 92));
- }, [overallHealth]);
- const trendPath = useMemo(() => buildTrendPath(trendValues), [trendValues]);
+ const noticeItems = useMemo(() => {
+ return [
+ {
+ id: 'system-update',
+ title: locale === 'th' ? 'อัปเดตระบบพร้อมใช้งาน' : 'System update available',
+ detail: locale === 'th' ? `ระบบกำลังทำงานบน ${versionText} และตรวจสอบอัปเดตอัตโนมัติ` : `Running on ${versionText} with automatic update checks`,
+ },
+ {
+ id: 'security-news',
+ title: locale === 'th' ? 'ข่าวสารความปลอดภัย' : 'Security news',
+ detail: locale === 'th'
+ ? `คะแนนความปลอดภัยล่าสุด ${securityScore} (${securityLabel})`
+ : `Latest security score: ${securityScore} (${securityLabel})`,
+ },
+ {
+ id: 'storage-news',
+ title: locale === 'th' ? 'สถานะพื้นที่จัดเก็บ' : 'Storage status',
+ detail: locale === 'th'
+ ? `ใช้งานพื้นที่ไปแล้ว ${storagePercent}% ของโควต้าที่แนะนำ`
+ : `You have used ${storagePercent}% of the recommended quota`,
+ },
+ ];
+ }, [locale, securityLabel, securityScore, storagePercent, versionText]);
 
  const connectedItems = useMemo(() => {
  return [
@@ -162,8 +162,7 @@ export default function HomePage() {
 
  return (
  <section className='space-y-4 pb-24 pt-2'>
- <Card className='overflow-hidden rounded-[26px] border-[var(--border-strong)] bg-[linear-gradient(160deg,rgba(255,255,255,0.95)_0%,rgba(245,249,255,0.9)_55%,rgba(244,239,255,0.82)_100%)] p-0 shadow-[0_16px_36px_rgba(35,81,156,0.16)]'>
- <div className='space-y-3 p-4'>
+ <div className='px-2 py-2'>
  <div className='flex items-center gap-3'>
  <img src={LOGO_URL} alt='Master Password Logo' loading='lazy' className='h-14 w-14 rounded-2xl object-cover shadow-[0_8px_18px_rgba(79,123,255,0.22)]' />
  <div className='min-w-0'>
@@ -172,37 +171,54 @@ export default function HomePage() {
  <p className='text-[13px] leading-5 text-slate-500'>{roleLabel + roleText}</p>
  </div>
  </div>
+ </div>
 
- <div className='rounded-[20px] border border-[var(--border-soft)] bg-white/74 p-3 backdrop-blur-[1px]'>
- <div className='flex items-center justify-between'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21\u0e2a\u0e38\u0e02\u0e20\u0e32\u0e1e\u0e23\u0e30\u0e1a\u0e1a' : 'System health overview'}</p>
- <span className='inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700'>
- <Activity className='h-3 w-3' />
- {overallHealth}%
+ <Card className='rounded-[22px] border-[var(--border-soft)] bg-white/92 px-3.5 py-3'>
+  <div className='grid grid-cols-2 gap-2'>
+ <button
+ type='button'
+ onClick={() => setShowNoticePanel(true)}
+ className='flex items-center justify-between gap-2 rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-2.5 text-left transition hover:border-sky-200 hover:bg-sky-50'
+ >
+ <span className='inline-flex items-center gap-2'>
+ <span className='rounded-xl bg-white p-2 text-sky-700 shadow-[0_4px_12px_rgba(59,130,246,0.18)]'>
+ <BellRing className='h-4 w-4 animate-pulse' />
  </span>
- </div>
- <svg viewBox='0 0 320 92' className='mt-2 h-[88px] w-full'>
- <defs>
- <linearGradient id='homeTrendStroke' x1='0' y1='0' x2='1' y2='0'>
- <stop offset='0%' stopColor='#d946ef' />
- <stop offset='50%' stopColor='#6366f1' />
- <stop offset='100%' stopColor='#38bdf8' />
- </linearGradient>
- </defs>
- <polyline points={trendPath} fill='none' stroke='url(#homeTrendStroke)' strokeWidth='4' strokeLinecap='round' strokeLinejoin='round' />
- </svg>
+ <span>
+ <p className='text-sm font-semibold text-slate-800'>{locale === 'th' ? '\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19' : 'Notifications'}</p>
+ <p className='text-[11px] text-slate-500'>{locale === 'th' ? '\u0e2d\u0e31\u0e1b\u0e40\u0e14\u0e15\u0e23\u0e30\u0e1a\u0e1a' : 'System updates'}</p>
+ </span>
+ </span>
+ <span className='rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white'>{noticeItems.length}</span>
+ </button>
 
- <div className='grid grid-cols-2 gap-2'>
- <div className='rounded-2xl border border-rose-100 bg-rose-50/85 p-2.5'>
- <p className='text-[11px] font-medium text-rose-700'>{locale === 'th' ? '\u0e04\u0e30\u0e41\u0e19\u0e19\u0e04\u0e27\u0e32\u0e21\u0e1b\u0e25\u0e2d\u0e14\u0e20\u0e31\u0e22' : 'Security score'}</p>
- <p className='mt-1 text-[24px] font-semibold leading-none text-rose-900'>{securityScore}</p>
+ <button
+ type='button'
+ onClick={() => router.push('/help-center')}
+ className='flex items-center justify-between gap-2 rounded-2xl border border-violet-100 bg-violet-50/70 px-3 py-2.5 text-left transition hover:border-violet-200 hover:bg-violet-50'
+ >
+ <span className='inline-flex items-center gap-2'>
+ <span className='rounded-xl bg-white p-2 text-violet-700 shadow-[0_4px_12px_rgba(124,58,237,0.16)]'>
+ <LifeBuoy className='h-4 w-4' />
+ </span>
+ <span>
+ <p className='text-sm font-semibold text-slate-800'>{locale === 'th' ? '\u0e28\u0e39\u0e19\u0e22\u0e4c\u0e0a\u0e48\u0e27\u0e22\u0e40\u0e2b\u0e25\u0e37\u0e2d' : 'Help center'}</p>
+ <p className='text-[11px] text-slate-500'>{locale === 'th' ? 'FAQ • Ticket • ติดต่อแอดมิน' : 'FAQ • Ticket • Contact admin'}</p>
+ </span>
+ </span>
+ <span className='rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white'>
+ {locale === 'th' ? '\u0e40\u0e02\u0e49\u0e32' : 'Open'}
+ </span>
+ </button>
  </div>
- <div className='rounded-2xl border border-cyan-100 bg-cyan-50/90 p-2.5'>
- <p className='text-[11px] font-medium text-cyan-700'>{locale === 'th' ? '\u0e02\u0e19\u0e32\u0e14\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25' : 'Data usage'}</p>
- <p className='mt-1 text-[24px] font-semibold leading-none text-cyan-900'>{formatStorage(storageUsedBytes)}</p>
+
+ <div className='mt-2 space-y-1.5'>
+ {noticeItems.slice(0, 2).map((item) => (
+ <div key={item.id} className='rounded-xl border border-[var(--border-soft)] bg-white/80 px-3 py-2'>
+ <p className='text-xs font-semibold text-slate-700'>{item.title}</p>
+ <p className='mt-0.5 text-[11px] leading-4 text-slate-500'>{item.detail}</p>
  </div>
- </div>
- </div>
+ ))}
  </div>
  </Card>
 
@@ -328,6 +344,46 @@ export default function HomePage() {
  </div>
  </div>
  ) : null}
+
+ {showNoticePanel ? (
+ <div className='fixed inset-0 z-[111] flex items-center justify-center px-4' role='dialog' aria-modal='true'>
+ <button
+ type='button'
+ className='absolute inset-0 bg-slate-900/35 backdrop-blur-[1px]'
+ aria-label={locale === 'th' ? '\u0e1b\u0e34\u0e14' : 'Close'}
+ onClick={() => setShowNoticePanel(false)}
+ />
+ <div className='relative z-10 w-[min(92vw,420px)] rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]'>
+ <div className='flex items-start justify-between gap-3'>
+ <div className='inline-flex items-center gap-2'>
+ <span className='rounded-xl bg-sky-100 p-2 text-sky-700'>
+ <Megaphone className='h-4 w-4' />
+ </span>
+ <p className='text-base font-semibold text-slate-900'>{locale === 'th' ? 'รายการแจ้งเตือนทั้งหมด' : 'All notifications'}</p>
+ </div>
+ <button
+ type='button'
+ className='rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700'
+ onClick={() => setShowNoticePanel(false)}
+ aria-label={locale === 'th' ? '\u0e1b\u0e34\u0e14' : 'Close'}
+ >
+ <X className='h-4 w-4' />
+ </button>
+ </div>
+
+ <div className='mt-3 space-y-2'>
+ {noticeItems.map((item) => (
+ <div key={item.id} className='rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-2.5'>
+ <p className='text-sm font-semibold text-slate-800'>{item.title}</p>
+ <p className='mt-1 text-xs leading-5 text-slate-600'>{item.detail}</p>
+ </div>
+ ))}
+ </div>
+ </div>
+ </div>
+ ) : null}
+
  </section>
  );
 }
+
