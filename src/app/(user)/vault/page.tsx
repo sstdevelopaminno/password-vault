@@ -171,7 +171,7 @@ export default function VaultPage() {
  }, []);
 
  const handleUnauthorized = useCallback(() => {
- showToast(locale === 'th' ? 'เน€เธเธชเธเธฑเธเธซเธกเธ”เธญเธฒเธขเธธ เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธซเธกเน' : 'Session expired. Please sign in again.', 'error');
+ showToast(locale === 'th' ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่' : 'Session expired. Please sign in again.', 'error');
  router.replace('/login');
  }, [locale, router, showToast]);
 
@@ -425,7 +425,7 @@ export default function VaultPage() {
  const unshareItemFromTeams = useCallback(
  async (itemId: string) => {
  if (mutating) return;
- const ok = window.confirm(locale === 'th' ? 'เธ•เนเธญเธเธเธฒเธฃเธขเธเน€เธฅเธดเธเนเธเธฃเนเธฃเธฒเธขเธเธฒเธฃเธเธตเนเธญเธญเธเธเธฒเธเธ—เธธเธเธซเนเธญเธเธ—เธตเธกเนเธเนเธซเธฃเธทเธญเนเธกเน' : 'Cancel sharing this item from all team rooms?');
+ const ok = window.confirm(locale === 'th' ? 'ต้องการยกเลิกแชร์รายการนี้ออกจากทุกห้องทีมหรือไม่' : 'Cancel sharing this item from all team rooms?');
  if (!ok) return;
 
  setMutating(true);
@@ -440,14 +440,14 @@ export default function VaultPage() {
  handleUnauthorized();
  return;
  }
- showToast(body.error ?? (locale === 'th' ? 'เธขเธเน€เธฅเธดเธเนเธเธฃเนเนเธกเนเธชเธณเน€เธฃเนเธ' : 'Failed to cancel sharing'), 'error');
+ showToast(body.error ?? (locale === 'th' ? 'ยกเลิกแชร์ไม่สำเร็จ' : 'Failed to cancel sharing'), 'error');
  return;
  }
 
  const removedCount = Number(body.removedCount ?? 0);
  showToast(
  locale === 'th'
- ? 'เธขเธเน€เธฅเธดเธเนเธเธฃเนเนเธฅเนเธง ' + removedCount + ' เธฃเธฒเธขเธเธฒเธฃ'
+ ? 'ยกเลิกแชร์แล้ว ' + removedCount + ' รายการ'
  : 'Removed team shares: ' + removedCount,
  'success',
  );
@@ -513,14 +513,14 @@ export default function VaultPage() {
  </div>
 
  {loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{t('common.loading')}</p> : null}
- {!loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'เธขเธฑเธเนเธกเนเธกเธตเธฃเธฒเธขเธเธฒเธฃเนเธเธเธฅเธฑเธเธฃเธซเธฑเธช' : 'No vault items yet'}</p> : null}
+ {!loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'ยังไม่มีรายการในคลังรหัส' : 'No vault items yet'}</p> : null}
 
  {items.length > 0 ? (
  <div className='space-y-2 pt-1'>
  <p className='text-center text-xs text-slate-500'>
  {locale === 'th'
- ? `เธซเธเนเธฒ ${page}/${totalPages} โ€ข เธ—เธฑเนเธเธซเธกเธ” ${totalItems} เธฃเธฒเธขเธเธฒเธฃ`
- : `Page ${page}/${totalPages} โ€ข ${totalItems} total items`}
+ ? `หน้า ${page}/${totalPages} • ทั้งหมด ${totalItems} รายการ`
+ : `Page ${page}/${totalPages} • ${totalItems} total items`}
  </p>
  <div className='flex items-center justify-center gap-1.5'>
  <Button
@@ -531,7 +531,7 @@ export default function VaultPage() {
  disabled={page <= 1 || loadingPage}
  >
  <ChevronLeft className='mr-1 h-3.5 w-3.5' />
- {locale === 'th' ? 'เธเนเธญเธเธซเธเนเธฒ' : 'Prev'}
+ {locale === 'th' ? 'ก่อนหน้า' : 'Prev'}
  </Button>
 
  {pageNumbers[0] > 1 ? (
@@ -568,7 +568,7 @@ export default function VaultPage() {
  onClick={() => setPage((v) => Math.min(totalPages, v + 1))}
  disabled={page >= totalPages || loadingPage}
  >
- {locale === 'th' ? 'เธ–เธฑเธ”เนเธ' : 'Next'}
+ {locale === 'th' ? 'ถัดไป' : 'Next'}
  <ChevronRight className='ml-1 h-3.5 w-3.5' />
  </Button>
  </div>

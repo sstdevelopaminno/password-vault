@@ -302,11 +302,11 @@ export default function NotesPage() {
  if (Notification.permission !== 'granted') return;
  try {
  const noticeTitle = activeDueNotice.kind === 'meeting'
- ? (isTh ? 'เธ–เธถเธเน€เธงเธฅเธฒเธเธฑเธ”เธซเธกเธฒเธข' : 'Meeting due')
- : (isTh ? 'เธ–เธถเธเน€เธงเธฅเธฒเนเธเนเธเน€เธ•เธทเธญเธ' : 'Reminder due');
+ ? (isTh ? 'ถึงเวลานัดหมาย' : 'Meeting due')
+ : (isTh ? 'ถึงเวลาแจ้งเตือน' : 'Reminder due');
  const scheduledAt = new Date(activeDueNotice.at).toLocaleString(isTh ? 'th-TH' : 'en-US');
  new Notification(noticeTitle, {
- body: activeDueNotice.title + ' โ€ข ' + scheduledAt,
+ body: activeDueNotice.title + ' • ' + scheduledAt,
  tag: 'note-due:' + activeDueNotice.noteId + ':' + activeDueNotice.kind + ':' + activeDueNotice.at,
  });
  } catch {
@@ -402,9 +402,9 @@ export default function NotesPage() {
  '',
  note.content,
  '',
- (isTh ? 'เธญเธฑเธเน€เธ”เธ•เธฅเนเธฒเธชเธธเธ”' : 'Updated') + ': ' + new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US'),
- (isTh ? 'เน€เธ•เธทเธญเธ' : 'Reminder') + ': ' + (note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'),
- (isTh ? 'เธเธฑเธ”เธซเธกเธฒเธข' : 'Meeting') + ': ' + (note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'),
+ (isTh ? 'อัปเดตล่าสุด' : 'Updated') + ': ' + new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US'),
+ (isTh ? 'เตือน' : 'Reminder') + ': ' + (note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'),
+ (isTh ? 'นัดหมาย' : 'Meeting') + ': ' + (note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'),
  ].join('\n');
  }
 
@@ -412,11 +412,11 @@ async function saveNote() {
  const title = draftTitle.trim();
  const content = draftContent.trim();
  if (!title) {
- showToast(isTh ? 'เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธเธทเนเธญเนเธเนเธ•' : 'Please enter note title', 'error');
+ showToast(isTh ? 'กรุณากรอกชื่อโน้ต' : 'Please enter note title', 'error');
  return;
  }
  if (!content) {
- showToast(isTh ? 'เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธเนเธญเธเธงเธฒเธกเนเธเนเธ•' : 'Please enter note content', 'error');
+ showToast(isTh ? 'กรุณากรอกข้อความโน้ต' : 'Please enter note content', 'error');
  return;
  }
 
@@ -474,11 +474,11 @@ const res = await fetch(endpoint, {
  const body = (await res.json().catch(() => ({}))) as { error?: string };
  setSaving(false);
  if (!res.ok) {
- showToast(body.error ?? (isTh ? 'เธเธฑเธเธ—เธถเธเนเธเนเธ•เนเธกเนเธชเธณเน€เธฃเนเธ' : 'Failed to save note'), 'error');
+ showToast(body.error ?? (isTh ? 'บันทึกโน้ตไม่สำเร็จ' : 'Failed to save note'), 'error');
  return;
  }
 
- showToast(isTh ? 'เธเธฑเธเธ—เธถเธเนเธเนเธ•เนเธฅเนเธง' : 'Note saved', 'success');
+ showToast(isTh ? 'บันทึกโน้ตแล้ว' : 'Note saved', 'success');
  setEditorOpen(false);
  setEditingId(null);
  await loadNotes(pagination.page, searchDebounced);
@@ -506,10 +506,10 @@ setDeleting(true);
  const body = (await res.json().catch(() => ({}))) as { error?: string };
  setDeleting(false);
  if (!res.ok) {
- showToast(body.error ?? (isTh ? 'เธฅเธเนเธเนเธ•เนเธกเนเธชเธณเน€เธฃเนเธ' : 'Failed to delete note'), 'error');
+ showToast(body.error ?? (isTh ? 'ลบโน้ตไม่สำเร็จ' : 'Failed to delete note'), 'error');
  return;
  }
- showToast(isTh ? 'เธฅเธเนเธเนเธ•เนเธฅเนเธง' : 'Note deleted', 'success');
+ showToast(isTh ? 'ลบโน้ตแล้ว' : 'Note deleted', 'success');
  setDeleteTarget(null);
  const targetPage = pagination.page > 1 && notes.length === 1 ? pagination.page - 1 : pagination.page;
  await loadNotes(targetPage, searchDebounced);
@@ -522,7 +522,7 @@ setDeleting(true);
  if (navigator.share) {
  try {
  await navigator.share({ title: note.title, text });
- showToast(isTh ? 'เนเธเธฃเนเนเธเนเธ•เนเธฅเนเธง' : 'Note shared', 'success');
+ showToast(isTh ? 'แชร์โน้ตแล้ว' : 'Note shared', 'success');
  return;
  } catch (error) {
  if ((error as Error).name === 'AbortError') return;
@@ -531,7 +531,7 @@ setDeleting(true);
 
  if (navigator.clipboard?.writeText) {
  await navigator.clipboard.writeText(text);
- showToast(isTh ? 'เธเธฑเธ”เธฅเธญเธเธเนเธญเธเธงเธฒเธกเนเธเนเธ•เนเธงเนเนเธฅเนเธง' : 'Note text copied', 'success');
+ showToast(isTh ? 'คัดลอกข้อความโน้ตแล้ว' : 'Note text copied', 'success');
  return;
  }
 
@@ -544,9 +544,9 @@ setDeleting(true);
  textarea.select();
  document.execCommand('copy');
  document.body.removeChild(textarea);
- showToast(isTh ? 'เธเธฑเธ”เธฅเธญเธเธเนเธญเธเธงเธฒเธกเนเธเนเธ•เนเธงเนเนเธฅเนเธง' : 'Note text copied', 'success');
+ showToast(isTh ? 'คัดลอกข้อความโน้ตแล้ว' : 'Note text copied', 'success');
  } catch {
- showToast(isTh ? 'เนเธเธฃเนเนเธเธฅเนเนเธกเนเธชเธณเน€เธฃเนเธ' : 'Failed to share file', 'error');
+ showToast(isTh ? 'แชร์ไฟล์ไม่สำเร็จ' : 'Failed to share file', 'error');
  }
  }
 
@@ -562,7 +562,7 @@ setDeleting(true);
  a.remove();
  window.setTimeout(() => URL.revokeObjectURL(url), 1200);
  } catch {
- showToast(isTh ? 'เธ”เธฒเธงเธเนเนเธซเธฅเธ”เนเธเธฅเนเนเธกเนเธชเธณเน€เธฃเนเธ' : 'Failed to download file', 'error');
+ showToast(isTh ? 'ดาวน์โหลดไฟล์ไม่สำเร็จ' : 'Failed to download file', 'error');
  }
  }
 
@@ -574,15 +574,15 @@ setDeleting(true);
  }
  }
 
- const weekLabels = isTh ? ['เธ', 'เธญ', 'เธ', 'เธเธค', 'เธจ', 'เธช', 'เธญเธฒ'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+ const weekLabels = isTh ? ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
  const activeDueNote = activeDueNotice ? allKnownNotes.get(activeDueNotice.noteId) ?? null : null;
 
  return (
  <section className='space-y-4 pb-24 pt-2'>
  <header className='space-y-1'>
- <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{isTh ? 'เนเธเนเธ•' : 'Notes'}</h1>
+ <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{isTh ? 'โน้ต' : 'Notes'}</h1>
  <p className='text-sm leading-6 text-slate-500'>
- {isTh ? 'เธเธ”เธเธฑเธเธ—เธถเธเธเธฒเธ เธเธฑเธ”เธซเธกเธฒเธข เนเธฅเธฐเน€เธ•เธทเธญเธเธเธงเธฒเธกเธเธณเนเธ”เนเนเธเธซเธเนเธฒเน€เธ”เธตเธขเธง' : 'Capture work notes, schedules, and reminders in one place'}
+ {isTh ? 'จดบันทึกงาน นัดหมาย และเตือนความจำได้ในหน้าเดียว' : 'Capture work notes, schedules, and reminders in one place'}
  </p>
  </header>
 
@@ -601,7 +601,7 @@ setDeleting(true);
  <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 shadow-[0_6px_16px_rgba(15,23,42,0.12)]'>
  <FileText className='h-4 w-4' />
  </span>
- <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'เธเธฃเธฐเธ”เธฒเธฉ' : 'Paper'}</span>
+ <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'กระดาษ' : 'Paper'}</span>
  </button>
  <button
  type='button'
@@ -617,7 +617,7 @@ setDeleting(true);
  <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 shadow-[0_6px_16px_rgba(15,23,42,0.12)]'>
  <Calendar className='h-4 w-4' />
  </span>
- <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'เธเธเธดเธ—เธดเธ' : 'Calendar'}</span>
+ <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'ปฏิทิน' : 'Calendar'}</span>
  </button>
  <button
  type='button'
@@ -627,21 +627,21 @@ setDeleting(true);
  <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-[0_6px_16px_rgba(15,23,42,0.2)] backdrop-blur-[1px]'>
  <Plus className='h-4 w-4' />
  </span>
- <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'เธชเธฃเนเธฒเธเนเธเนเธ•เนเธซเธกเน' : 'Create Note'}</span>
+ <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</span>
  </button>
  </div>
 
  <div className='relative'>
  <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400' />
- <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={isTh ? 'เธเนเธเธซเธฒเนเธเนเธ•' : 'Search notes'} className='h-11 rounded-[14px] pl-11 text-[15px]' />
+ <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={isTh ? 'ค้นหาโน้ต' : 'Search notes'} className='h-11 rounded-[14px] pl-11 text-[15px]' />
  </div>
 
  {viewMode === 'paper' ? (
  <div ref={paperSectionRef} id='notes-paper-section' className='space-y-2.5'>
- {loading && notes.length === 0 ? <p className='text-center text-sm text-slate-500'>{isTh ? 'เธเธณเธฅเธฑเธเนเธซเธฅเธ”...' : 'Loading...'}</p> : null}
+ {loading && notes.length === 0 ? <p className='text-center text-sm text-slate-500'>{isTh ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
  {!loading && notes.length === 0 ? (
  <Card className='space-y-1 text-center'>
- <p className='text-sm font-semibold text-slate-700'>{isTh ? 'เธขเธฑเธเนเธกเนเธกเธตเนเธเนเธ•' : 'No notes yet'}</p>
+ <p className='text-sm font-semibold text-slate-700'>{isTh ? 'ยังไม่มีโน้ต' : 'No notes yet'}</p>
  </Card>
  ) : null}
  {notes.map((note) => (
@@ -651,7 +651,7 @@ setDeleting(true);
 <p className='line-clamp-1 text-[18px] font-semibold text-slate-900'>{note.title}</p>
  {note.pending ? <p className='text-[11px] font-semibold text-amber-600'>{isTh ? 'รอซิงก์' : 'Pending sync'}</p> : null}
 <p className='text-[11px] font-medium text-slate-400'>
- {isTh ? 'เนเธซเธกเธ”เธเธฃเธฐเธ”เธฒเธฉ' : 'Paper view'}
+ {isTh ? 'โหมดกระดาษ' : 'Paper view'}
  </p>
  </div>
  <button
@@ -662,12 +662,12 @@ setDeleting(true);
  {expandedNoteIds[note.id] ? (
  <>
  <EyeOff className='h-3.5 w-3.5' />
- {isTh ? 'เธเนเธญเธเน€เธเธทเนเธญเธซเธฒ' : 'Hide'}
+ {isTh ? 'ซ่อนเนื้อหา' : 'Hide'}
  </>
  ) : (
  <>
  <Eye className='h-3.5 w-3.5' />
- {isTh ? 'เธ”เธนเน€เธเธทเนเธญเธซเธฒ' : 'View'}
+ {isTh ? 'ดูเนื้อหา' : 'View'}
  </>
  )}
  </button>
@@ -678,27 +678,27 @@ setDeleting(true);
  </div>
  ) : (
  <div className='rounded-xl border border-dashed border-slate-200 bg-white/75 px-3 py-2 text-xs text-slate-500'>
- {isTh ? 'เน€เธเธทเนเธญเธซเธฒเธ–เธนเธเธเนเธญเธเธญเธขเธนเน เธเธ” "เธ”เธนเน€เธเธทเนเธญเธซเธฒ" เน€เธเธทเนเธญเน€เธเธดเธ”เธญเนเธฒเธ' : 'Content is hidden. Tap "View" to read.'}
+ {isTh ? 'เนื้อหาถูกซ่อนอยู่ กด "ดูเนื้อหา" เพื่อเปิดอ่าน' : 'Content is hidden. Tap "View" to read.'}
  </div>
  )}
  <div className='grid grid-cols-1 gap-1 text-xs text-slate-500'>
- <p>{isTh ? 'เธญเธฑเธเน€เธ”เธ•เธฅเนเธฒเธชเธธเธ”' : 'Updated'}: {new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US')}</p>
- <p>{isTh ? 'เน€เธ•เธทเธญเธ' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
- <p>{isTh ? 'เธเธฑเธ”เธซเธกเธฒเธข' : 'Meeting'}: {note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
+ <p>{isTh ? 'อัปเดตล่าสุด' : 'Updated'}: {new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US')}</p>
+ <p>{isTh ? 'เตือน' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
+ <p>{isTh ? 'นัดหมาย' : 'Meeting'}: {note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
  </div>
  <div className='grid grid-cols-6 gap-1.5'>
  <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => openEdit(note)}><Edit3 className='h-4 w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0 text-rose-600' onClick={() => setDeleteTarget(note)}><Trash2 className='h-4 w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => void shareNote(note)}><Share2 className='h-4 w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => exportPdf(note)}><FileDown className='h-4 w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='col-span-2 h-9 rounded-xl text-[11px]' onClick={() => void downloadText(note)}>{isTh ? 'เนเธเธฅเน .txt' : '.txt file'}</Button>
+ <Button type='button' size='sm' variant='secondary' className='col-span-2 h-9 rounded-xl text-[11px]' onClick={() => void downloadText(note)}>{isTh ? 'ไฟล์ .txt' : '.txt file'}</Button>
  </div>
  </Card>
  ))}
  <div className='flex items-center justify-between gap-2'>
- <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page - 1, searchDebounced)} disabled={!pagination.hasPrev || loading}>{isTh ? 'เธเนเธญเธเธซเธเนเธฒ' : 'Prev'}</Button>
- <p className='text-xs font-semibold text-slate-500'>{isTh ? 'เธซเธเนเธฒ' : 'Page'} {pagination.page} / {pagination.totalPages}</p>
- <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page + 1, searchDebounced)} disabled={!pagination.hasNext || loading}>{isTh ? 'เธ–เธฑเธ”เนเธ' : 'Next'}</Button>
+ <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page - 1, searchDebounced)} disabled={!pagination.hasPrev || loading}>{isTh ? 'ก่อนหน้า' : 'Prev'}</Button>
+ <p className='text-xs font-semibold text-slate-500'>{isTh ? 'หน้า' : 'Page'} {pagination.page} / {pagination.totalPages}</p>
+ <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page + 1, searchDebounced)} disabled={!pagination.hasNext || loading}>{isTh ? 'ถัดไป' : 'Next'}</Button>
  </div>
  </div>
  ) : (
@@ -730,14 +730,14 @@ setDeleting(true);
  })}
  </div>
  <div className='space-y-2 border-t border-slate-200 pt-2'>
- <p className='text-xs font-semibold text-slate-600'>{isTh ? 'เธฃเธฒเธขเธเธฒเธฃเธงเธฑเธเธ—เธตเนเน€เธฅเธทเธญเธ' : 'Items on selected date'}: {selectedDateKey || '-'}</p>
- {selectedDateNotes.length === 0 ? <p className='text-xs text-slate-500'>{isTh ? 'เนเธกเนเธกเธตเธฃเธฒเธขเธเธฒเธฃเธเธฑเธ”เธซเธกเธฒเธขเนเธเธงเธฑเธเธเธตเน' : 'No schedule items on this date'}</p> : selectedDateNotes.map((note) => (
+ <p className='text-xs font-semibold text-slate-600'>{isTh ? 'รายการวันที่เลือก' : 'Items on selected date'}: {selectedDateKey || '-'}</p>
+ {selectedDateNotes.length === 0 ? <p className='text-xs text-slate-500'>{isTh ? 'ไม่มีรายการนัดหมายในวันนี้' : 'No schedule items on this date'}</p> : selectedDateNotes.map((note) => (
 <div key={note.id} className='rounded-xl border border-slate-200 bg-white px-3 py-2'>
 <p className='text-sm font-semibold text-slate-800'>{note.title}</p>
  {note.pending ? <p className='text-[11px] font-semibold text-amber-600'>{isTh ? 'รอซิงก์' : 'Pending sync'}</p> : null}
 <div className='mt-1 space-y-1 text-[11px] text-slate-500'>
- <p className='inline-flex items-center gap-1'><Clock3 className='h-3 w-3' /> {isTh ? 'เน€เธ•เธทเธญเธ' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
- <p className='inline-flex items-center gap-1'><Calendar className='h-3 w-3' /> {isTh ? 'เธเธฑเธ”เธซเธกเธฒเธข' : 'Meeting'}: {note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
+ <p className='inline-flex items-center gap-1'><Clock3 className='h-3 w-3' /> {isTh ? 'เตือน' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
+ <p className='inline-flex items-center gap-1'><Calendar className='h-3 w-3' /> {isTh ? 'นัดหมาย' : 'Meeting'}: {note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
  </div>
  <div className='mt-2'>
  <Button
@@ -747,7 +747,7 @@ setDeleting(true);
  className='h-8 rounded-lg px-2.5 text-[11px]'
  onClick={() => openEdit(note)}
  >
- {isTh ? 'เน€เธเธดเธ”เนเธเนเธ•' : 'Open note'}
+ {isTh ? 'เปิดโน้ต' : 'Open note'}
  </Button>
  </div>
  </div>
@@ -768,8 +768,8 @@ setDeleting(true);
  <div>
  <p className='text-base font-semibold text-slate-900'>
  {activeDueNotice.kind === 'meeting'
- ? (isTh ? 'เนเธเนเธเน€เธ•เธทเธญเธเธเธฑเธ”เธซเธกเธฒเธข' : 'Meeting reminder')
- : (isTh ? 'เนเธเนเธเน€เธ•เธทเธญเธเธฃเธฒเธขเธเธฒเธฃเนเธเนเธ•' : 'Note reminder')}
+ ? (isTh ? 'แจ้งเตือนนัดหมาย' : 'Meeting reminder')
+ : (isTh ? 'แจ้งเตือนรายการโน้ต' : 'Note reminder')}
  </p>
  <p className='text-xs text-slate-500'>
  {new Date(activeDueNotice.at).toLocaleString(isTh ? 'th-TH' : 'en-US')}
@@ -786,13 +786,13 @@ setDeleting(true);
  <p className='mt-1 text-xs leading-5 text-slate-600'>
  {activeDueNote?.content
  ? activeDueNote.content.slice(0, 120) + (activeDueNote.content.length > 120 ? '...' : '')
- : (isTh ? 'เธฃเธฒเธขเธเธฒเธฃเธเธตเนเธเธฃเนเธญเธกเนเธซเนเน€เธเธดเธ”เธ”เธนเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”' : 'This note is ready to open.')}
+ : (isTh ? 'รายการนี้พร้อมให้เปิดดูรายละเอียด' : 'This note is ready to open.')}
  </p>
  </div>
 
  <div className='mt-4 grid grid-cols-2 gap-2'>
  <Button type='button' variant='secondary' className='w-full' onClick={closeDuePopup}>
- {isTh ? 'เธเธดเธ”' : 'Dismiss'}
+ {isTh ? 'ปิด' : 'Dismiss'}
  </Button>
  <Button
  type='button'
@@ -805,7 +805,7 @@ setDeleting(true);
  closeDuePopup();
  }}
  >
- {isTh ? 'เน€เธเธดเธ”เนเธเนเธ•' : 'Open note'}
+ {isTh ? 'เปิดโน้ต' : 'Open note'}
  </Button>
  </div>
  </div>
@@ -815,15 +815,15 @@ setDeleting(true);
  {deleteTarget ? (
  <div className='fixed inset-0 z-[85] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='w-full max-w-[460px] animate-slide-up rounded-[24px] border border-rose-100 bg-white p-4 shadow-2xl'>
- <h2 className='text-base font-semibold text-slate-900'>{isTh ? 'เธขเธทเธเธขเธฑเธเธเธฒเธฃเธฅเธเนเธเนเธ•' : 'Confirm Note Deletion'}</h2>
+ <h2 className='text-base font-semibold text-slate-900'>{isTh ? 'ยืนยันการลบโน้ต' : 'Confirm Note Deletion'}</h2>
  <p className='mt-2 text-sm text-slate-600'>
- {isTh ? 'เธ•เนเธญเธเธเธฒเธฃเธฅเธเนเธเนเธ•เธเธตเนเนเธเนเธซเธฃเธทเธญเนเธกเน' : 'Do you want to delete this note?'}
+ {isTh ? 'ต้องการลบโน้ตนี้ใช่หรือไม่' : 'Do you want to delete this note?'}
  <span className='mt-1 block truncate font-semibold text-slate-800'>{deleteTarget.title}</span>
  </p>
  <div className='mt-4 grid grid-cols-2 gap-2'>
- <Button type='button' variant='secondary' className='w-full' onClick={() => setDeleteTarget(null)} disabled={deleting}>{isTh ? 'เธขเธเน€เธฅเธดเธ' : 'Cancel'}</Button>
+ <Button type='button' variant='secondary' className='w-full' onClick={() => setDeleteTarget(null)} disabled={deleting}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
  <Button type='button' className='w-full bg-rose-600 hover:bg-rose-700' onClick={() => void confirmDeleteNote()} disabled={deleting}>
- {deleting ? (isTh ? 'เธเธณเธฅเธฑเธเธฅเธ...' : 'Deleting...') : isTh ? 'เธฅเธเนเธเนเธ•' : 'Delete Note'}
+ {deleting ? (isTh ? 'กำลังลบ...' : 'Deleting...') : isTh ? 'ลบโน้ต' : 'Delete Note'}
  </Button>
  </div>
  </div>
@@ -834,20 +834,20 @@ setDeleting(true);
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='mx-auto mt-6 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
- <h2 className='text-base font-semibold'>{editingId ? (isTh ? 'เนเธเนเนเธเนเธเนเธ•' : 'Edit Note') : isTh ? 'เธชเธฃเนเธฒเธเนเธเนเธ•เนเธซเธกเน' : 'Create Note'}</h2>
+ <h2 className='text-base font-semibold'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
  <button type='button' onClick={() => setEditorOpen(false)} className='rounded-full p-1 text-slate-500 hover:bg-slate-100'><X className='h-5 w-5' /></button>
  </div>
  <div className='space-y-3'>
- <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'เธเธทเนเธญเนเธเนเธ•' : 'Note title'} maxLength={140} />
- <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'เธเนเธญเธเธงเธฒเธกเนเธเนเธ• (เธเธฃเธฐเธ”เธฒเธฉ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-sm text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
- <label className='text-xs font-medium text-slate-600'>{isTh ? 'เน€เธงเธฅเธฒเนเธเนเธเน€เธ•เธทเธญเธ (เนเธกเนเธเธฑเธเธเธฑเธ)' : 'Reminder time (optional)'}</label>
+ <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} />
+ <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-sm text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
+ <label className='text-xs font-medium text-slate-600'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</label>
  <Input type='datetime-local' value={draftReminder} onChange={(e) => setDraftReminder(e.target.value)} />
- <label className='text-xs font-medium text-slate-600'>{isTh ? 'เธงเธฑเธเน€เธงเธฅเธฒเธเธฑเธ”เธซเธกเธฒเธข (เนเธกเนเธเธฑเธเธเธฑเธ)' : 'Meeting date/time (optional)'}</label>
+ <label className='text-xs font-medium text-slate-600'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</label>
  <Input type='datetime-local' value={draftMeeting} onChange={(e) => setDraftMeeting(e.target.value)} />
  </div>
  <div className='mt-4 grid grid-cols-2 gap-2'>
- <Button type='button' variant='secondary' className='w-full' onClick={() => setEditorOpen(false)}>{isTh ? 'เธขเธเน€เธฅเธดเธ' : 'Cancel'}</Button>
- <Button type='button' className='w-full' onClick={() => void saveNote()} disabled={saving}>{saving ? (isTh ? 'เธเธณเธฅเธฑเธเธเธฑเธเธ—เธถเธ...' : 'Saving...') : isTh ? 'เธเธฑเธเธ—เธถเธ' : 'Save'}</Button>
+ <Button type='button' variant='secondary' className='w-full' onClick={() => setEditorOpen(false)}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
+ <Button type='button' className='w-full' onClick={() => void saveNote()} disabled={saving}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
  </div>
  </div>
  </div>
@@ -855,4 +855,5 @@ setDeleting(true);
  </section>
  );
 }
+
 
