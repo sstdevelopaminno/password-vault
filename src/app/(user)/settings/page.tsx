@@ -662,7 +662,7 @@ export default function SettingsPage() {
           </span>
           <ChevronRight className='h-4 w-4 text-slate-400' />
         </button>
-        <TopQuickActions variant='settings-menu' showSecondaryActions={false} />
+        <TopQuickActions variant='settings-menu' />
         {menuBtn('logout', locale === 'th' ? 'ออกจากระบบ' : 'Sign out', LogOut)}
       </div>
 

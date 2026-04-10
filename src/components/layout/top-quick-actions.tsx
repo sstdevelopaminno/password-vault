@@ -244,7 +244,7 @@ export function TopQuickActions({
   const hasInstallPrompt = Boolean(installPrompt);
   const showInstallAction = hasInstallPrompt || capabilities.manualInstallRecommended;
   const showInstallButton = showSecondaryActions && showInstallAction;
-  const showUpdateButton = showSecondaryActions && hasUpdate;
+  const showUpdateButton = showSecondaryActions;
   const isSettingsMenu = variant === "settings-menu";
   const actionRowClass = isSettingsMenu
     ? (showSecondaryActions
@@ -451,33 +451,61 @@ export function TopQuickActions({
     try {
       if (typeof window === "undefined") return;
 
+      let registration: ServiceWorkerRegistration | undefined;
       if ("serviceWorker" in navigator) {
-        const registration = await navigator.serviceWorker.getRegistration();
+        registration = await navigator.serviceWorker.getRegistration();
         if (registration) {
           await registration.update();
-
-          if (registration.waiting) {
-            registration.waiting.postMessage({ type: "SKIP_WAITING" });
-            await new Promise<void>(function (resolve) {
-              let finished = false;
-              const timer = window.setTimeout(function () {
-                if (finished) return;
-                finished = true;
-                resolve();
-              }, 3500);
-
-              navigator.serviceWorker.addEventListener("controllerchange", function () {
-                if (finished) return;
-                finished = true;
-                window.clearTimeout(timer);
-                resolve();
-              }, { once: true });
-            });
-          }
         }
       }
 
-      const nextVersion = pendingVersionRef.current ?? (await fetchRuntimeVersion());
+      const nextVersion = await fetchRuntimeVersion();
+      const nextMarker = nextVersion.marker ?? APP_VERSION;
+      const nextSchemaVersion = nextVersion.schemaVersion ?? RUNTIME_SCHEMA_VERSION;
+      const currentMarker = window.localStorage.getItem(RUNTIME_BUILD_MARKER_STORAGE_KEY);
+      const currentSchemaVersion = window.localStorage.getItem(RUNTIME_SCHEMA_STORAGE_KEY);
+      const markerChanged = Boolean(
+        currentMarker &&
+        (currentMarker !== nextMarker || currentSchemaVersion !== nextSchemaVersion),
+      );
+      const waitingWorker = Boolean(registration?.waiting);
+      const updateReady = hasUpdate || markerChanged || waitingWorker;
+
+      setVersionInfo(nextVersion);
+      if (!currentMarker) {
+        window.localStorage.setItem(RUNTIME_BUILD_MARKER_STORAGE_KEY, nextMarker);
+        window.localStorage.setItem(RUNTIME_SCHEMA_STORAGE_KEY, nextSchemaVersion);
+      }
+
+      if (!updateReady) {
+        pendingVersionRef.current = null;
+        setHasUpdate(false);
+        toast.showToast(locale === "th" ? "ระบบเป็นเวอร์ชันล่าสุดแล้ว" : "Already on the latest version");
+        return;
+      }
+
+      pendingVersionRef.current = nextVersion;
+      setHasUpdate(true);
+
+      if (registration?.waiting) {
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        await new Promise<void>(function (resolve) {
+          let finished = false;
+          const timer = window.setTimeout(function () {
+            if (finished) return;
+            finished = true;
+            resolve();
+          }, 3500);
+
+          navigator.serviceWorker.addEventListener("controllerchange", function () {
+            if (finished) return;
+            finished = true;
+            window.clearTimeout(timer);
+            resolve();
+          }, { once: true });
+        });
+      }
+
       await clearUpdateData(nextVersion);
       setVersionInfo(nextVersion);
       setHasUpdate(false);
@@ -590,7 +618,7 @@ export function TopQuickActions({
             className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-violet-200/70 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition hover:bg-violet-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
           >
             <RefreshCw className={"h-3.5 w-3.5" + (updating ? " animate-spin" : "")} />
-            <span>{updating ? text.updating : text.update}</span>
+            <span>{updating ? text.updating : hasUpdate ? text.update : locale === "th" ? "ตรวจสอบอัปเดต" : "Check update"}</span>
           </button>
         ) : null}
       </div>

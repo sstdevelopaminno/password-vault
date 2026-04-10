@@ -71,7 +71,7 @@ self.addEventListener('fetch', function (event) {
         const response = await fetch(event.request);  
         await cachePageResponse(event.request, response);  
         return response;  
-      } catch (error) {  
+      } catch {  
         return offlineNavigationResponse(event.request);  
       }  
     })());  
@@ -134,18 +134,15 @@ self.addEventListener('push', function (event) {
     renotify: true,  
     requireInteraction: requireInteraction,  
     vibrate: vibrate,  
+    silent: false,  
   };  
   
   event.waitUntil((async function () {  
     const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });  
-    let hasVisibleClient = false;  
     for (const client of list) {  
-      if (client.visibilityState === 'visible') hasVisibleClient = true;  
       client.postMessage({ type: 'PUSH_RECEIVED', payload: payload });  
     }  
-    if (!hasVisibleClient) {  
-      await self.registration.showNotification(title, options);  
-    }  
+    await self.registration.showNotification(title, options);  
   })());  
 }); 
   

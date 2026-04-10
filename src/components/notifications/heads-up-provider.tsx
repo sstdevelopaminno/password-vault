@@ -48,6 +48,7 @@ type HeadsUpContextValue = {
 
 const SETTINGS_STORAGE_KEY = "pv_notification_settings_v1";
 const VERSION_SEEN_KEY = "pv_seen_app_version";
+const AUTO_PERMISSION_PROMPT_KEY = "pv_auto_permission_prompted_v1";
 const APP_NAME = "Password Vault";
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -223,6 +224,20 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     setBrowserPermission(result);
     return result;
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (typeof Notification === "undefined") return;
+    if (browserPermission !== "default") return;
+    if (!settings.enabled || !settings.tray) return;
+    const prompted = window.localStorage.getItem(AUTO_PERMISSION_PROMPT_KEY);
+    if (prompted === "1") return;
+    window.localStorage.setItem(AUTO_PERMISSION_PROMPT_KEY, "1");
+    const timer = window.setTimeout(() => {
+      void requestBrowserPermission();
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [browserPermission, requestBrowserPermission, settings.enabled, settings.tray]);
 
   const syncPushSubscription = useCallback(async () => {
     if (typeof window === "undefined") return;

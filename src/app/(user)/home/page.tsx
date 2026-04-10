@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BellRing, BookText, KeyRound, Laptop2, LifeBuoy, Megaphone, ShieldCheck, Smartphone, UsersRound, Wifi, X } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { TopQuickActions } from '@/components/layout/top-quick-actions';
 import { useI18n } from '@/i18n/provider';
 import { versionLabel } from '@/lib/app-version';
 
 const LOGO_URL = 'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/Imagemaster password.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzL0ltYWdlbWFzdGVyIHBhc3N3b3JkLnBuZyIsImlhdCI6MTc3NDcxOTUzNywiZXhwIjoxODA2MjU1NTM3fQ.k-KJDjjccxBz8odBvF-SKmrHEdKgMQHRSy__nohIeDk';
+const NOTICE_READ_STORAGE_KEY = 'pv_home_notice_read_v1';
 
 function clamp(value: number, min: number, max: number) {
  return Math.max(min, Math.min(max, value));
@@ -34,6 +35,10 @@ export default function HomePage() {
  const [stabilityScore, setStabilityScore] = useState(84);
  const [showNoticePanel, setShowNoticePanel] = useState(false);
  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
+ const [noticeRead, setNoticeRead] = useState(() => {
+ if (typeof window === 'undefined') return false;
+ return window.localStorage.getItem(NOTICE_READ_STORAGE_KEY) === '1';
+ });
 
  useEffect(() => {
  let mounted = true;
@@ -86,6 +91,11 @@ export default function HomePage() {
  };
  }, []);
 
+ useEffect(() => {
+ if (typeof window === 'undefined') return;
+ window.localStorage.setItem(NOTICE_READ_STORAGE_KEY, noticeRead ? '1' : '0');
+ }, [noticeRead]);
+
  const securityLabel = useMemo(() => {
  if (locale === 'th') return securityScore > 79 ? '\u0e14\u0e35' : '\u0e1b\u0e32\u0e19\u0e01\u0e25\u0e32\u0e07';
  return securityScore > 79 ? 'Good' : 'Moderate';
@@ -119,6 +129,7 @@ export default function HomePage() {
  },
  ];
  }, [locale, securityLabel, securityScore, storagePercent, versionText]);
+ const noticeUnreadCount = noticeRead ? 0 : noticeItems.length;
 
  const connectedItems = useMemo(() => {
  return [
@@ -173,56 +184,48 @@ export default function HomePage() {
  </div>
  </div>
 
- <Card className='rounded-[22px] border-[var(--border-soft)] bg-white/92 px-3.5 py-3'>
-  <div className='grid grid-cols-2 gap-2'>
+ <div className='rounded-[24px] bg-white/70 px-2 py-2 backdrop-blur-sm'>
+ <div className='grid grid-cols-2 gap-2'>
  <button
  type='button'
- onClick={() => setShowNoticePanel(true)}
- className='flex items-center justify-between gap-2 rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-2.5 text-left transition hover:border-sky-200 hover:bg-sky-50'
+ onClick={() => {
+ setNoticeRead(true);
+ setShowNoticePanel(true);
+ }}
+ className='group relative flex min-h-[108px] flex-col items-center justify-center rounded-2xl border border-sky-100 bg-sky-50/70 px-2 py-2.5 text-center transition hover:border-sky-200 hover:bg-sky-50'
  >
- <span className='inline-flex items-center gap-2'>
- <span className='rounded-xl bg-white p-2 text-sky-700 shadow-[0_4px_12px_rgba(59,130,246,0.18)]'>
- <BellRing className='h-4 w-4 animate-pulse' />
+ <span className='inline-flex rounded-2xl bg-white p-2.5 text-sky-700 shadow-[0_6px_14px_rgba(59,130,246,0.2)]'>
+ <BellRing className='h-5 w-5 animate-pulse' />
  </span>
- <span>
- <p className='text-sm font-semibold text-slate-800'>{locale === 'th' ? '\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19' : 'Notifications'}</p>
- <p className='text-[11px] text-slate-500'>{locale === 'th' ? '\u0e2d\u0e31\u0e1b\u0e40\u0e14\u0e15\u0e23\u0e30\u0e1a\u0e1a' : 'System updates'}</p>
- </span>
- </span>
- <span className='rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white'>{noticeItems.length}</span>
+ <span className='mt-1.5 text-sm font-semibold text-slate-800'>{locale === 'th' ? '\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19' : 'Notifications'}</span>
+ <span className='text-[11px] text-slate-500'>{locale === 'th' ? '\u0e2d\u0e31\u0e1b\u0e40\u0e14\u0e15\u0e23\u0e30\u0e1a\u0e1a' : 'System updates'}</span>
+ {noticeUnreadCount > 0 ? (
+ <span className='absolute right-2 top-2 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white'>{noticeUnreadCount}</span>
+ ) : null}
  </button>
 
  <button
  type='button'
  onClick={() => router.push('/help-center')}
- className='flex items-center justify-between gap-2 rounded-2xl border border-violet-100 bg-violet-50/70 px-3 py-2.5 text-left transition hover:border-violet-200 hover:bg-violet-50'
+ className='group relative flex min-h-[108px] flex-col items-center justify-center rounded-2xl border border-violet-100 bg-violet-50/70 px-2 py-2.5 text-center transition hover:border-violet-200 hover:bg-violet-50'
  >
- <span className='inline-flex items-center gap-2'>
- <span className='rounded-xl bg-white p-2 text-violet-700 shadow-[0_4px_12px_rgba(124,58,237,0.16)]'>
- <LifeBuoy className='h-4 w-4' />
+ <span className='inline-flex rounded-2xl bg-white p-2.5 text-violet-700 shadow-[0_6px_14px_rgba(124,58,237,0.18)]'>
+ <LifeBuoy className='h-5 w-5' />
  </span>
- <span>
- <p className='text-sm font-semibold text-slate-800'>{locale === 'th' ? '\u0e28\u0e39\u0e19\u0e22\u0e4c\u0e0a\u0e48\u0e27\u0e22\u0e40\u0e2b\u0e25\u0e37\u0e2d' : 'Help center'}</p>
- <p className='text-[11px] text-slate-500'>{locale === 'th' ? 'FAQ • Ticket • ติดต่อแอดมิน' : 'FAQ • Ticket • Contact admin'}</p>
- </span>
- </span>
- <span className='rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white'>
+ <span className='mt-1.5 text-sm font-semibold text-slate-800'>{locale === 'th' ? '\u0e28\u0e39\u0e19\u0e22\u0e4c\u0e0a\u0e48\u0e27\u0e22\u0e40\u0e2b\u0e25\u0e37\u0e2d' : 'Help center'}</span>
+ <span className='text-[11px] text-slate-500'>{locale === 'th' ? 'FAQ \u2022 Ticket \u2022 \u0e15\u0e34\u0e14\u0e15\u0e48\u0e2d\u0e41\u0e2d\u0e14\u0e21\u0e34\u0e19' : 'FAQ \u2022 Ticket \u2022 Contact admin'}</span>
+ <span className='absolute right-2 top-2 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white'>
  {locale === 'th' ? '\u0e40\u0e02\u0e49\u0e32' : 'Open'}
  </span>
  </button>
  </div>
 
- <div className='mt-2 space-y-1.5'>
- {noticeItems.slice(0, 2).map((item) => (
- <div key={item.id} className='rounded-xl border border-[var(--border-soft)] bg-white/80 px-3 py-2'>
- <p className='text-xs font-semibold text-slate-700'>{item.title}</p>
- <p className='mt-0.5 text-[11px] leading-4 text-slate-500'>{item.detail}</p>
+ <div className='mt-2 flex justify-end'>
+ <TopQuickActions />
  </div>
- ))}
  </div>
- </Card>
 
- <Card className='rounded-[22px] bg-white/92 px-3.5 py-3'>
+ <div className='rounded-[24px] bg-white/70 px-2 py-2 backdrop-blur-sm'>
  <div className='mb-2 flex items-center justify-between'>
  <h2 className='text-sm font-semibold text-slate-800'>{locale === 'th' ? '\u0e41\u0e2b\u0e25\u0e48\u0e07\u0e01\u0e32\u0e23\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d' : 'Connected sources'}</h2>
  <span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700'>
@@ -254,10 +257,10 @@ export default function HomePage() {
  );
  })}
  </div>
- </Card>
+ </div>
 
  <div className='grid grid-cols-2 gap-3.5'>
- <Card className='rounded-[20px] bg-white/92 px-3.5 py-3.5'>
+ <div className='rounded-[22px] bg-white/75 px-3.5 py-3.5 backdrop-blur-sm'>
  <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e23\u0e30\u0e1a\u0e1a\u0e04\u0e27\u0e32\u0e21\u0e40\u0e2a\u0e16\u0e35\u0e22\u0e23' : 'System stability'}</p>
  <p className='mt-1 text-[33px] font-semibold leading-none text-slate-900'>{stabilityScore}/100</p>
  <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '\u0e04\u0e48\u0e32\u0e41\u0e19\u0e27\u0e42\u0e19\u0e49\u0e21\u0e43\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14' : 'Latest reliability trend'}</p>
@@ -267,9 +270,9 @@ export default function HomePage() {
  return <div key={index} className='w-4 rounded-sm bg-gradient-to-t from-emerald-300 to-cyan-300' style={{ height: String(adjusted) + 'px' }} />;
  })}
  </div>
- </Card>
+ </div>
 
- <Card className='rounded-[20px] bg-white/92 px-3.5 py-3.5'>
+ <div className='rounded-[22px] bg-white/75 px-3.5 py-3.5 backdrop-blur-sm'>
  <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e1e\u0e37\u0e49\u0e19\u0e17\u0e35\u0e48\u0e08\u0e31\u0e14\u0e40\u0e01\u0e47\u0e1a' : 'Storage capacity'}</p>
  <p className='mt-1 text-[30px] font-semibold leading-none text-slate-900'>{storagePercent}%</p>
  <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '\u0e2a\u0e31\u0e14\u0e2a\u0e48\u0e27\u0e19\u0e08\u0e32\u0e01\u0e02\u0e35\u0e14\u0e08\u0e33\u0e01\u0e31\u0e14 50 MB' : 'Based on 50 MB soft limit'}</p>
@@ -280,36 +283,36 @@ export default function HomePage() {
  />
  </div>
  <p className='mt-2 text-xs text-slate-500'>{formatStorage(storageUsedBytes)}</p>
- </Card>
+ </div>
  </div>
 
  <div className='grid grid-cols-3 gap-2.5'>
- <Card className='rounded-[18px] border-[var(--border-soft)] bg-white/92 px-3 py-2.5'>
+ <div className='rounded-[18px] bg-white/75 px-3 py-2.5 backdrop-blur-sm'>
  <div className='flex items-center gap-1.5 text-slate-600'>
  <KeyRound className='h-3.5 w-3.5' />
  <p className='text-[10px] font-semibold leading-4'>{locale === 'th' ? 'รหัสส่วนตัว' : 'Personal keys'}</p>
  </div>
  <p className='mt-1 text-[30px] font-semibold leading-none text-slate-900'>{itemCount}</p>
  <p className='mt-1 text-[10px] leading-4 text-slate-500'>{locale === 'th' ? 'จำนวนรายการในคลัง' : 'Vault items'}</p>
- </Card>
+ </div>
 
- <Card className='rounded-[18px] border-[var(--border-soft)] bg-white/92 px-3 py-2.5'>
+ <div className='rounded-[18px] bg-white/75 px-3 py-2.5 backdrop-blur-sm'>
  <div className='flex items-center gap-1.5 text-slate-600'>
  <BookText className='h-3.5 w-3.5' />
  <p className='text-[10px] font-semibold leading-4'>{locale === 'th' ? 'โน้ต' : 'Notes'}</p>
  </div>
  <p className='mt-1 text-[30px] font-semibold leading-none text-slate-900'>{noteCount}</p>
  <p className='mt-1 text-[10px] leading-4 text-slate-500'>{locale === 'th' ? 'จำนวนรายการโน้ต' : 'Note entries'}</p>
- </Card>
+ </div>
 
- <Card className='rounded-[18px] border-[var(--border-soft)] bg-white/92 px-3 py-2.5'>
+ <div className='rounded-[18px] bg-white/75 px-3 py-2.5 backdrop-blur-sm'>
  <div className='flex items-center gap-1.5 text-slate-600'>
  <UsersRound className='h-3.5 w-3.5' />
  <p className='text-[10px] font-semibold leading-4'>{locale === 'th' ? 'รหัสทีม' : 'Team keys'}</p>
  </div>
  <p className='mt-1 text-[30px] font-semibold leading-none text-slate-900'>{teamKeyCount}</p>
  <p className='mt-1 text-[10px] leading-4 text-slate-500'>{locale === 'th' ? 'จำนวนห้องทีม' : 'Team rooms'}</p>
- </Card>
+ </div>
  </div>
 
  {activeConnection ? (
@@ -386,4 +389,5 @@ export default function HomePage() {
  </section>
  );
 }
+
 
