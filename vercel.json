@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/notifications/push/process",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
