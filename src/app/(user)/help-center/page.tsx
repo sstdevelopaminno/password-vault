@@ -80,9 +80,9 @@ export default function HelpCenterPage() {
     setLoading(true);
     try {
       const [faqRes, ticketRes, contactRes] = await Promise.all([
-        fetch("/api/support/faqs", { cache: "no-store" }),
+        fetch("/api/support/faqs?locale=" + locale),
         fetch("/api/support/tickets?limit=6&page=1", { cache: "no-store" }),
-        fetch("/api/support/contact", { cache: "no-store" }),
+        fetch("/api/support/contact"),
       ]);
 
       const faqBody = await faqRes.json().catch(() => ({}));

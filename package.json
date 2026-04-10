@@ -1,6 +1,6 @@
 {
   "name": "password-vault",
-  "version": "18.11.15",
+  "version": "19.12.16",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",

@@ -16,4 +16,4 @@ Goal: wrap the hosted Next.js app first and keep the current web flow unchanged.
 ## Current pilot value
 - CAPACITOR_SERVER_URL target: `https://password-vault-ivory.vercel.app`
 - Verified preview build for this round: `https://password-vault-lnqqytn93-sstdevelopaminnos-projects.vercel.app`
-- Version under validation: `18.11.15`
+- Version under validation: `19.12.16`

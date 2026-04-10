@@ -63,7 +63,7 @@ export async function GET(req: Request) {
     .from("support_tickets")
     .select(
       "id,category,priority,subject,message,status,admin_response,created_at,updated_at",
-      { count: "exact" },
+      { count: "planned" },
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })

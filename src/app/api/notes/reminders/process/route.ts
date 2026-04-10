@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { processNoteReminderJobs } from '@/lib/note-reminders';
+import { processNoteReminderJobs, type ProcessNoteReminderSummary } from '@/lib/note-reminders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,61 @@ function parseBatch(raw: string | null | undefined) {
  const value = Number(raw ?? 50);
  if (!Number.isFinite(value)) return 50;
  return Math.min(200, Math.max(1, Math.floor(value)));
+}
+
+function parseMaxJobs(raw: string | null | undefined) {
+ const value = Number(raw ?? 600);
+ if (!Number.isFinite(value)) return 600;
+ return Math.min(10000, Math.max(1, Math.floor(value)));
+}
+
+function emptySummary(): ProcessNoteReminderSummary {
+ return {
+ ok: true,
+ fetched: 0,
+ processed: 0,
+ queued: 0,
+ retried: 0,
+ cancelled: 0,
+ failed: 0,
+ skipped: 0,
+ errors: [],
+ };
+}
+
+function mergeSummary(target: ProcessNoteReminderSummary, next: ProcessNoteReminderSummary) {
+ target.ok = target.ok && next.ok;
+ target.fetched += next.fetched;
+ target.processed += next.processed;
+ target.queued += next.queued;
+ target.retried += next.retried;
+ target.cancelled += next.cancelled;
+ target.failed += next.failed;
+ target.skipped += next.skipped;
+ if (next.errors.length > 0) {
+ target.errors.push(...next.errors);
+ }
+}
+
+async function drainReminderJobs(batchSize: number, maxJobs: number) {
+ const summary = emptySummary();
+ let remaining = maxJobs;
+
+ while (remaining > 0) {
+ const nextBatch = Math.min(batchSize, remaining);
+ const round = await processNoteReminderJobs({ batchSize: nextBatch });
+ mergeSummary(summary, round);
+
+ if (round.fetched === 0) break;
+ if (round.processed === 0 && round.skipped >= round.fetched) break;
+ remaining -= round.fetched;
+ }
+
+ if (summary.errors.length > 0) {
+ summary.ok = false;
+ }
+
+ return summary;
 }
 
 function hasValidSecret(req: Request) {
@@ -28,7 +83,8 @@ export async function GET(req: Request) {
 
  const { searchParams } = new URL(req.url);
  const batchSize = parseBatch(searchParams.get('batch'));
- const summary = await processNoteReminderJobs({ batchSize });
+ const maxJobs = parseMaxJobs(searchParams.get('maxJobs'));
+ const summary = await drainReminderJobs(batchSize, maxJobs);
  return NextResponse.json(summary, { status: summary.ok ? 200 : 500 });
 }
 
@@ -39,6 +95,7 @@ export async function POST(req: Request) {
 
  const payload = await req.json().catch(() => ({}));
  const batchSize = parseBatch(String((payload as { batchSize?: number }).batchSize ?? 50));
- const summary = await processNoteReminderJobs({ batchSize });
+ const maxJobs = parseMaxJobs(String((payload as { maxJobs?: number }).maxJobs ?? 600));
+ const summary = await drainReminderJobs(batchSize, maxJobs);
  return NextResponse.json(summary, { status: summary.ok ? 200 : 500 });
 }

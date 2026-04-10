@@ -1,4 +1,4 @@
-# Release Readiness 18.11.15
+# Release Readiness 19.12.16
 
 ## Summary Gate
 - Overall release readiness: **NOT 100% yet**

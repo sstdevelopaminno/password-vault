@@ -47,5 +47,8 @@ export async function GET() {
     roleLabel: roleLabel(row.role),
   }));
 
-  return NextResponse.json({ contacts });
+  return NextResponse.json(
+    { contacts },
+    { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" } },
+  );
 }

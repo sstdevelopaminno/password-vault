@@ -64,7 +64,7 @@ export async function GET(req: Request) {
  const admin = createAdminClient();
  let query = admin
  .from('notes')
- .select('id,title,content,reminder_at,meeting_at,created_at,updated_at', { count: 'exact' })
+ .select('id,title,content,reminder_at,meeting_at,created_at,updated_at', { count: 'planned' })
  .eq('user_id', auth.user.id)
  .order('updated_at', { ascending: false })
  .order('id', { ascending: false })
