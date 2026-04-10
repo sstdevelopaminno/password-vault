@@ -82,6 +82,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     pendingApproval: true,
-    message: "OTP verified. Auto approval will complete in 1-2 minutes.",
+    message: "OTP verified. Your account is waiting for admin approval.",
   });
 }
+

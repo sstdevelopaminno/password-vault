@@ -203,20 +203,17 @@ export default function VaultDetailPage() {
     [itemId, locale, markCopied, notify, showToast, text.copyFailed, writeClipboardWithFallback],
   );
 
-  const buildAllCopyPayload = useCallback(
-    (secret: string) => {
-      const lines = [
-        `${text.titleLabel}: ${item?.title ?? '-'}`,
-        `${text.usernameLabel}: ${item?.username ?? '-'}`,
-        `${text.passwordLabel}: ${secret}`,
-      ];
-      if (item?.url) {
-        lines.push(`${text.urlLabel}: ${item.url}`);
-      }
-      return lines.join('\n');
-    },
-    [item?.title, item?.url, item?.username, text.passwordLabel, text.titleLabel, text.urlLabel, text.usernameLabel],
-  );
+  const buildAllCopyPayload = (secret: string) => {
+    const lines = [
+      `${text.titleLabel}: ${item?.title ?? '-'}`,
+      `${text.usernameLabel}: ${item?.username ?? '-'}`,
+      `${text.passwordLabel}: ${secret}`,
+    ];
+    if (item?.url) {
+      lines.push(`${text.urlLabel}: ${item.url}`);
+    }
+    return lines.join('\n');
+  };
 
   const executeSecureAction = useCallback(
     async (actionData: PendingAction, assertionToken: string) => {

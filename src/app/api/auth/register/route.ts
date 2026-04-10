@@ -198,7 +198,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       approved: false,
-      message: "OTP verified. You can login now. Auto approval will complete in 1-2 minutes.",
+      message: "OTP verified. You can log in after an administrator approves your account.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -209,3 +209,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

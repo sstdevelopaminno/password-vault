@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, ChevronDown, ChevronUp, ShieldAlert, X } from "lucide-react";
@@ -154,11 +154,11 @@ async function showSystemNotification(input: HeadsUpNotificationInput, settings:
   try {
     const registration = await navigator.serviceWorker.getRegistration();
     if (registration) {
-      await registration.showNotification(`${APP_NAME} • ${input.title}`, options);
+      await registration.showNotification(`${APP_NAME} - ${input.title}`, options);
       return;
     }
     // fallback
-    const notification = new Notification(`${APP_NAME} • ${input.title}`, options);
+    const notification = new Notification(`${APP_NAME} - ${input.title}`, options);
     notification.onclick = () => {
       window.focus();
       if (input.href) window.location.assign(input.href);
@@ -201,7 +201,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
         : `System updated to version ${APP_VERSION}.`;
     const detail =
       locale === "th"
-        ? "แนะนำรีเฟรชหน้าเพื่อรับฟีเจอร์ล่าสุดทั้งหมด"
+        ? "แนะนำให้รีเฟรชหนึ่งครั้งเพื่อใช้งานฟีเจอร์ล่าสุดให้ครบ"
         : "Refresh app once to use all latest features.";
     notify({
       kind: "system",
@@ -334,8 +334,10 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     }
 
     if (snapshot.badge && "setAppBadge" in navigator) {
-      const setBadge = (navigator as Navigator & { setAppBadge?: (contents?: number) => Promise<void> }).setAppBadge;
-      void setBadge?.(1);
+ const setBadge = Reflect.get(navigator, "setAppBadge");
+ if (typeof setBadge === "function") {
+ void setBadge.call(navigator, 1);
+ }
     }
   }, [removeItem]);
 
@@ -343,8 +345,10 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       if (!("clearAppBadge" in navigator)) return;
-      const clear = (navigator as Navigator & { clearAppBadge?: () => Promise<void> }).clearAppBadge;
-      void clear?.();
+ const clearBadge = Reflect.get(navigator, "clearAppBadge");
+ if (typeof clearBadge === "function") {
+ void clearBadge.call(navigator);
+ }
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
@@ -500,3 +504,7 @@ export function useHeadsUpNotifications() {
   }
   return ctx;
 }
+
+
+
+

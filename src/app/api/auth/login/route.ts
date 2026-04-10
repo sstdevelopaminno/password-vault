@@ -9,45 +9,10 @@ import {
 } from "@/lib/session-security";
 import { enqueuePushNotification, processPushQueue } from "@/lib/push-queue";
 
-const AUTO_APPROVE_AFTER_MS = 2 * 60 * 1000;
 const PENDING_STATUSES = new Set(["pending_approval", "pending", "awaiting_approval"]);
 
 function isPendingStatus(status: string) {
   return PENDING_STATUSES.has(String(status ?? "").toLowerCase());
-}
-
-async function tryAutoApprove(input: { userId: string; status: string; role: string; emailVerifiedAt: string }) {
-  const status = String(input.status ?? "");
-  const role = String(input.role ?? "pending");
-  const emailVerifiedAt = String(input.emailVerifiedAt ?? "");
-
-  if (!isPendingStatus(status) || !emailVerifiedAt) {
-    return { status, role, autoApproved: false };
-  }
-
-  const verifiedAtMs = Date.parse(emailVerifiedAt);
-  if (!Number.isFinite(verifiedAtMs) || Date.now() - verifiedAtMs < AUTO_APPROVE_AFTER_MS) {
-    return { status, role, autoApproved: false };
-  }
-
-  const admin = createAdminClient();
-  const nextRole = role === "pending" ? "user" : role;
-
-  const byId = await admin.from("profiles").update({ status: "active", role: nextRole }).eq("id", input.userId);
-  if (byId.error) {
-    console.error("Auto-approve profile update by id failed in login:", byId.error.message);
-  }
-
-  const requestResult = await admin
-    .from("approval_requests")
-    .update({ request_status: "approved", reviewed_at: new Date().toISOString(), reject_reason: null })
-    .eq("user_id", input.userId)
-    .eq("request_status", "pending");
-  if (requestResult.error) {
-    console.error("Auto-approve request update failed in login:", requestResult.error.message);
-  }
-
-  return { status: "active", role: nextRole, autoApproved: true };
 }
 
 async function bindActiveSession(userId: string, appMetadata: unknown) {
@@ -118,22 +83,12 @@ export async function POST(req: Request) {
     }
 
     let status = String(profile.status ?? "pending_approval");
-    let role = String(profile.role ?? "pending");
+    const role = String(profile.role ?? "pending");
     const emailVerifiedAt = profile.email_verified_at
       ? String(profile.email_verified_at)
       : user.email_confirmed_at
         ? String(user.email_confirmed_at)
         : "";
-
-    const autoApprove = await tryAutoApprove({
-      userId: user.id,
-      status,
-      role,
-      emailVerifiedAt,
-    });
-
-    status = autoApprove.status;
-    role = autoApprove.role;
     if (isPendingStatus(status)) {
       status = "pending_approval";
     }
@@ -157,7 +112,7 @@ export async function POST(req: Request) {
       ok: true,
       status,
       role,
-      autoApproved: autoApprove.autoApproved,
+      autoApproved: false,
       email: authEmail,
       needsOtpVerification,
       pendingApproval,
@@ -199,3 +154,7 @@ export async function POST(req: Request) {
     );
   }
 }
+
+
+
+

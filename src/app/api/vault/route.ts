@@ -88,14 +88,25 @@ export async function GET(req: Request) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasMore = page < totalPages;
 
-  const safeItems = (items ?? []).map((item) => ({
+  const safeItems = (items ?? []).map(function (item) {
+  let username = "";
+  let cryptoState = "ok";
+  try {
+    username = decryptText(item.username_value_encrypted);
+  } catch (error) {
+    cryptoState = "needs_reencrypt";
+    console.error("Vault item username decrypt failed:", item.id, error);
+  }
+  return {
     ...item,
-    username: decryptText(item.username_value_encrypted),
+    username: username,
     username_value_encrypted: undefined,
     shared_to_team_count: sharedCountBySource.get(String(item.id)) ?? 0,
-  }));
+    crypto_state: cryptoState,
+  };
+});
 
-  let storageUsedBytes = 0;
+let storageUsedBytes = 0;
   if (includeStorage) {
     const storageQuery = await admin
       .from("vault_items")

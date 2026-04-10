@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -39,7 +39,7 @@ export async function PATCH(req: Request) {
     const verify = await supabase.auth.verifyOtp({
       email: newEmail,
       token: otp,
-      type: 'email_change' as 'email_change',
+      type: 'email_change' as const,
     });
 
     if (verify.error) {
@@ -134,3 +134,4 @@ export async function PATCH(req: Request) {
   await logAudit('profile_name_changed', { actor_user_id: auth.user.id, otp_required: false });
   return NextResponse.json({ ok: true, message: 'Profile updated successfully.' });
 }
+
