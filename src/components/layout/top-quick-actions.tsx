@@ -244,7 +244,7 @@ export function TopQuickActions({
   const hasInstallPrompt = Boolean(installPrompt);
   const showInstallAction = hasInstallPrompt || capabilities.manualInstallRecommended;
   const showInstallButton = showSecondaryActions && showInstallAction;
-  const showUpdateButton = showSecondaryActions;
+  const showUpdateButton = showSecondaryActions && hasUpdate;
   const isSettingsMenu = variant === "settings-menu";
   const actionRowClass = isSettingsMenu
     ? (showSecondaryActions
@@ -618,7 +618,7 @@ export function TopQuickActions({
             className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-violet-200/70 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition hover:bg-violet-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
           >
             <RefreshCw className={"h-3.5 w-3.5" + (updating ? " animate-spin" : "")} />
-            <span>{updating ? text.updating : hasUpdate ? text.update : locale === "th" ? "ตรวจสอบอัปเดต" : "Check update"}</span>
+            <span>{updating ? text.updating : text.update}</span>
           </button>
         ) : null}
       </div>
