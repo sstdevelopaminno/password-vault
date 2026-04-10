@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/i18n/provider";
+import { setOfflineEncryptionPassphrase } from "@/lib/offline-store";
 import type { PinAction } from "@/lib/pin";
 
 type PinModalProps = {
@@ -12,10 +13,11 @@ type PinModalProps = {
   actionLabel: string;
   targetItemId?: string;
   onVerified: (assertionToken: string) => void | Promise<void>;
+  onPinCaptured?: (pin: string) => void;
   onClose?: () => void;
 };
 
-export function PinModal({ action, actionLabel, targetItemId, onVerified, onClose }: PinModalProps) {
+export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinCaptured, onClose }: PinModalProps) {
   const { locale } = useI18n();
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -88,6 +90,8 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onClos
             break;
           }
 
+          onPinCaptured?.(pin);
+          setOfflineEncryptionPassphrase(pin);
           setPin("");
           onClose?.();
           void Promise.resolve(onVerified(body.assertionToken));
@@ -123,7 +127,7 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onClos
       setLoading(false);
       setShowSlowHint(false);
     }
-  }, [action, error, loading, networkFailed, onClose, onVerified, pin, targetItemId, timeoutFailed, verifyFailed]);
+  }, [action, error, loading, networkFailed, onClose, onPinCaptured, onVerified, pin, targetItemId, timeoutFailed, verifyFailed]);
 
   useEffect(() => {
     if (pin.length !== 6 || loading) return;

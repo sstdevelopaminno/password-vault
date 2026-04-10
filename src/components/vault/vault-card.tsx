@@ -12,6 +12,7 @@ type VaultCardProps = {
  updatedAt: string;
  category?: string;
  sharedToTeamCount?: number;
+ pending?: boolean;
  onOpen: (id: string) => void;
  onEdit: (id: string) => void;
  onDelete: (id: string) => void;
@@ -32,6 +33,7 @@ export function VaultCard({
  updatedAt,
  category = 'General',
  sharedToTeamCount = 0,
+ pending = false,
  onOpen,
  onEdit,
  onDelete,
@@ -145,13 +147,22 @@ export function VaultCard({
  </p>
  </div>
  <div className='shrink-0 flex items-center gap-1.5'>
- {isSharedToTeam ? (
+	 {isSharedToTeam ? (
  <span
  className='inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700'
  title={locale === 'th' ? 'แชร์ไปทีมแล้ว' : 'Shared to team'}
  >
  <span className='h-2 w-2 rounded-full bg-emerald-500' />
  {sharedCount}
+ </span>
+	 ) : null}
+ {pending ? (
+ <span
+ className='inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700'
+ title={locale === 'th' ? 'รอซิงก์' : 'Pending sync'}
+ >
+ <span className='h-2 w-2 rounded-full bg-amber-500' />
+ {locale === 'th' ? 'รอซิงก์' : 'Pending'}
  </span>
  ) : null}
  {onShare ? (

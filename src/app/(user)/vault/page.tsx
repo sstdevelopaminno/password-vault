@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
+import { getOfflineCache, setOfflineCache } from '@/lib/offline-store';
+import { flushOfflineQueue, queueOfflineRequest } from '@/lib/offline-sync';
+import { useOutageState } from '@/lib/outage-detector';
 
 type VaultItem = {
  id: string;
@@ -21,6 +24,7 @@ type VaultItem = {
  category: string;
  sharedToTeamCount: number;
  url?: string;
+ pending?: boolean;
 };
 
 type VaultApiItem = {
@@ -67,6 +71,10 @@ const PAGE_SIZE = 12;
 const ASSERTION_TTL_MS = 30_000;
 const FETCH_TIMEOUT_MS = 12_000;
 
+function vaultCacheKey(page: number, q: string) {
+ return 'pv_vault_cache_v1:' + page + ':' + q.trim().toLowerCase();
+}
+
 function clampPage(value: number, totalPages: number) {
  const next = Number.isFinite(value) ? Math.floor(value) : 1;
  return Math.min(Math.max(1, next), Math.max(1, totalPages));
@@ -83,6 +91,7 @@ export default function VaultPage() {
  const router = useRouter();
  const { t, locale } = useI18n();
  const { showToast } = useToast();
+ const { isOfflineMode } = useOutageState();
 
  const [items, setItems] = useState<VaultItem[]>([]);
  const [search, setSearch] = useState('');
@@ -100,6 +109,9 @@ export default function VaultPage() {
  const deferredSearch = useDeferredValue(search);
  const requestLockRef = useRef(false);
  const assertionCacheRef = useRef<Partial<Record<SecureAction, AssertionCacheEntry>>>({});
+ const wasOfflineRef = useRef(isOfflineMode);
+ const latestDeletePinRef = useRef<string | null>(null);
+ const latestEditPinRef = useRef<string | null>(null);
 
  const toDisplayTime = useCallback(
  (raw?: string) => {
@@ -121,8 +133,23 @@ export default function VaultPage() {
  category: item.category ?? t('vault.categoryGeneral'),
  sharedToTeamCount: Math.max(0, Number(item.shared_to_team_count ?? 0)),
  url: item.url ?? undefined,
+ pending: false,
  })),
  [t, toDisplayTime],
+ );
+
+ const persistCurrentPageCache = useCallback(
+ async (nextItems: VaultItem[], nextPage = page, nextTotalPages = totalPages, nextTotalItems = totalItems) => {
+ await setOfflineCache(vaultCacheKey(nextPage, deferredSearch), {
+ items: nextItems,
+ pagination: {
+ page: nextPage,
+ totalPages: nextTotalPages,
+ totalItems: nextTotalItems,
+ },
+ });
+ },
+ [deferredSearch, page, totalItems, totalPages],
  );
 
  const setCachedAssertion = useCallback((action: SecureAction, token: string) => {
@@ -144,7 +171,7 @@ export default function VaultPage() {
  }, []);
 
  const handleUnauthorized = useCallback(() => {
- showToast(locale === 'th' ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่' : 'Session expired. Please sign in again.', 'error');
+ showToast(locale === 'th' ? 'เน€เธเธชเธเธฑเธเธซเธกเธ”เธญเธฒเธขเธธ เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธซเธกเน' : 'Session expired. Please sign in again.', 'error');
  router.replace('/login');
  }, [locale, router, showToast]);
 
@@ -176,6 +203,19 @@ export default function VaultPage() {
  handleUnauthorized();
  return;
  }
+ if (isOfflineMode) {
+ const cached = await getOfflineCache<{
+ items: VaultItem[];
+ pagination: { page: number; totalPages: number; totalItems: number };
+ }>(vaultCacheKey(safePage, deferredSearch));
+ if (cached?.items) {
+ setItems(cached.items);
+ setTotalPages(cached.pagination.totalPages);
+ setTotalItems(cached.pagination.totalItems);
+ if (cached.pagination.page !== page) setPage(cached.pagination.page);
+ return;
+ }
+ }
  showToast(body.error ?? t('vaultDetail.loadFailed'), 'error');
  return;
  }
@@ -189,10 +229,31 @@ export default function VaultPage() {
  setTotalPages(nextTotalPages);
  setTotalItems(nextTotalItems);
  if (nextPage !== page) setPage(nextPage);
+ await setOfflineCache(vaultCacheKey(safePage, deferredSearch), {
+ items: mapped,
+ pagination: {
+ page: nextPage,
+ totalPages: nextTotalPages,
+ totalItems: nextTotalItems,
+ },
+ });
  } catch (error) {
  if ((error as Error).name === 'AbortError') {
  showToast(locale === 'th' ? 'โหลดข้อมูลช้าเกินไป กรุณาลองอีกครั้ง' : 'Loading timed out. Please retry.', 'error');
  } else {
+ if (isOfflineMode) {
+ const cached = await getOfflineCache<{
+ items: VaultItem[];
+ pagination: { page: number; totalPages: number; totalItems: number };
+ }>(vaultCacheKey(targetPage, deferredSearch));
+ if (cached?.items) {
+ setItems(cached.items);
+ setTotalPages(cached.pagination.totalPages);
+ setTotalItems(cached.pagination.totalItems);
+ if (cached.pagination.page !== page) setPage(cached.pagination.page);
+ return;
+ }
+ }
  showToast(t('vaultDetail.loadFailed'), 'error');
  }
  } finally {
@@ -200,7 +261,7 @@ export default function VaultPage() {
  setLoadingPage(false);
  }
  },
- [deferredSearch, handleUnauthorized, locale, mapApiItems, page, showToast, t],
+ [deferredSearch, handleUnauthorized, isOfflineMode, locale, mapApiItems, page, showToast, t],
  );
 
  useEffect(() => {
@@ -211,8 +272,40 @@ export default function VaultPage() {
  void loadItems(page);
  }, [page, deferredSearch, loadItems]);
 
+ useEffect(() => {
+ if (wasOfflineRef.current && !isOfflineMode) {
+ void flushOfflineQueue().then(() => {
+ void loadItems(page);
+ });
+ }
+ wasOfflineRef.current = isOfflineMode;
+ }, [isOfflineMode, loadItems, page]);
+
  const performDelete = useCallback(
- async (targetId: string, assertionToken: string) => {
+ async (targetId: string, assertionToken: string, pin?: string) => {
+ if (isOfflineMode) {
+ if (!pin) {
+ showToast(locale === 'th' ? 'ต้องยืนยัน PIN ก่อนบันทึกงานออฟไลน์' : 'PIN is required for offline queue.', 'error');
+ return;
+ }
+ const nextItems = items.filter((item) => item.id !== targetId);
+ setItems(nextItems);
+ setTotalItems((prev) => Math.max(0, prev - 1));
+ await persistCurrentPageCache(nextItems, page, totalPages, Math.max(0, totalItems - 1));
+ await queueOfflineRequest(
+ '/api/vault/' + targetId,
+ 'DELETE',
+ undefined,
+ undefined,
+ {
+ feature: 'vault',
+ label: 'Delete vault item',
+ pinReverify: { pin: pin, action: 'delete_secret', targetItemId: targetId },
+ },
+ );
+ showToast(locale === 'th' ? 'ลบแล้วแบบออฟไลน์ รอซิงก์อัตโนมัติ' : 'Deleted offline. Waiting for sync.', 'success');
+ return;
+ }
  setMutating(true);
  const res = await fetch('/api/vault/' + targetId, {
  method: 'DELETE',
@@ -239,11 +332,61 @@ export default function VaultPage() {
  void loadItems(targetPage);
  }
  },
- [clearCachedAssertion, handleUnauthorized, items.length, loadItems, page, showToast, t],
+ [
+ clearCachedAssertion,
+ handleUnauthorized,
+ isOfflineMode,
+ items,
+ loadItems,
+ locale,
+ page,
+ persistCurrentPageCache,
+ showToast,
+ t,
+ totalItems,
+ totalPages,
+ ],
  );
 
  const performUpdate = useCallback(
- async (target: PendingEdit, assertionToken: string) => {
+ async (target: PendingEdit, assertionToken: string, pin?: string) => {
+ const now = toDisplayTime();
+ const nextItems = items.map((item) =>
+ item.id === target.id
+ ? {
+ ...item,
+ title: target.payload.title,
+ username: target.payload.username,
+ category: target.payload.category || item.category,
+ url: target.payload.url || '',
+ updatedAt: now,
+ pending: isOfflineMode ? true : false,
+ }
+ : item,
+ );
+
+ if (isOfflineMode) {
+ if (!pin) {
+ showToast(locale === 'th' ? 'ต้องยืนยัน PIN ก่อนบันทึกงานออฟไลน์' : 'PIN is required for offline queue.', 'error');
+ return;
+ }
+ setItems(nextItems);
+ await persistCurrentPageCache(nextItems);
+ await queueOfflineRequest(
+ '/api/vault/' + target.id,
+ 'PATCH',
+ target.payload,
+ { 'Content-Type': 'application/json' },
+ {
+ feature: 'vault',
+ label: 'Edit vault item',
+ pinReverify: { pin: pin, action: 'edit_secret', targetItemId: target.id },
+ },
+ );
+ showToast(locale === 'th' ? 'แก้ไขแล้วแบบออฟไลน์ รอซิงก์อัตโนมัติ' : 'Edited offline. Waiting for sync.', 'success');
+ return;
+ }
+
  setMutating(true);
  const res = await fetch('/api/vault/' + target.id, {
  method: 'PATCH',
@@ -263,31 +406,26 @@ export default function VaultPage() {
  return;
  }
 
- const now = toDisplayTime();
- setItems((prev) =>
- prev.map((item) =>
- item.id === target.id
- ? {
- ...item,
- title: target.payload.title,
- username: target.payload.username,
- category: target.payload.category || item.category,
- url: target.payload.url || '',
- updatedAt: now,
- }
- : item,
- ),
- );
-
+ setItems(nextItems);
  showToast(t('vaultDetail.updatedToast'), 'success');
  },
- [clearCachedAssertion, handleUnauthorized, showToast, t, toDisplayTime],
+ [
+ clearCachedAssertion,
+ handleUnauthorized,
+ isOfflineMode,
+ items,
+ locale,
+ persistCurrentPageCache,
+ showToast,
+ t,
+ toDisplayTime,
+ ],
  );
 
  const unshareItemFromTeams = useCallback(
  async (itemId: string) => {
  if (mutating) return;
- const ok = window.confirm(locale === 'th' ? 'ต้องการยกเลิกแชร์รายการนี้ออกจากทุกห้องทีมใช่หรือไม่' : 'Cancel sharing this item from all team rooms?');
+ const ok = window.confirm(locale === 'th' ? 'เธ•เนเธญเธเธเธฒเธฃเธขเธเน€เธฅเธดเธเนเธเธฃเนเธฃเธฒเธขเธเธฒเธฃเธเธตเนเธญเธญเธเธเธฒเธเธ—เธธเธเธซเนเธญเธเธ—เธตเธกเนเธเนเธซเธฃเธทเธญเนเธกเน' : 'Cancel sharing this item from all team rooms?');
  if (!ok) return;
 
  setMutating(true);
@@ -302,14 +440,14 @@ export default function VaultPage() {
  handleUnauthorized();
  return;
  }
- showToast(body.error ?? (locale === 'th' ? 'ยกเลิกแชร์ไม่สำเร็จ' : 'Failed to cancel sharing'), 'error');
+ showToast(body.error ?? (locale === 'th' ? 'เธขเธเน€เธฅเธดเธเนเธเธฃเนเนเธกเนเธชเธณเน€เธฃเนเธ' : 'Failed to cancel sharing'), 'error');
  return;
  }
 
  const removedCount = Number(body.removedCount ?? 0);
  showToast(
  locale === 'th'
- ? 'ยกเลิกแชร์แล้ว ' + removedCount + ' รายการ'
+ ? 'เธขเธเน€เธฅเธดเธเนเธเธฃเนเนเธฅเนเธง ' + removedCount + ' เธฃเธฒเธขเธเธฒเธฃ'
  : 'Removed team shares: ' + removedCount,
  'success',
  );
@@ -347,6 +485,7 @@ export default function VaultPage() {
  updatedAt={item.updatedAt}
  category={item.category}
  sharedToTeamCount={item.sharedToTeamCount}
+ pending={item.pending}
  onOpen={(id) => router.push('/vault/' + encodeURIComponent(id))}
  onEdit={(id) => {
  if (mutating) return;
@@ -357,7 +496,7 @@ export default function VaultPage() {
  if (mutating) return;
  const cached = getCachedAssertion('delete_secret');
  if (cached) {
- void performDelete(id, cached);
+ void performDelete(id, cached, latestDeletePinRef.current ?? undefined);
  return;
  }
  setPendingDeleteId(id);
@@ -374,14 +513,14 @@ export default function VaultPage() {
  </div>
 
  {loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{t('common.loading')}</p> : null}
- {!loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'ยังไม่มีรายการในคลังรหัส' : 'No vault items yet'}</p> : null}
+ {!loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'เธขเธฑเธเนเธกเนเธกเธตเธฃเธฒเธขเธเธฒเธฃเนเธเธเธฅเธฑเธเธฃเธซเธฑเธช' : 'No vault items yet'}</p> : null}
 
  {items.length > 0 ? (
  <div className='space-y-2 pt-1'>
  <p className='text-center text-xs text-slate-500'>
  {locale === 'th'
- ? `หน้า ${page}/${totalPages} • ทั้งหมด ${totalItems} รายการ`
- : `Page ${page}/${totalPages} • ${totalItems} total items`}
+ ? `เธซเธเนเธฒ ${page}/${totalPages} โ€ข เธ—เธฑเนเธเธซเธกเธ” ${totalItems} เธฃเธฒเธขเธเธฒเธฃ`
+ : `Page ${page}/${totalPages} โ€ข ${totalItems} total items`}
  </p>
  <div className='flex items-center justify-center gap-1.5'>
  <Button
@@ -392,7 +531,7 @@ export default function VaultPage() {
  disabled={page <= 1 || loadingPage}
  >
  <ChevronLeft className='mr-1 h-3.5 w-3.5' />
- {locale === 'th' ? 'ก่อนหน้า' : 'Prev'}
+ {locale === 'th' ? 'เธเนเธญเธเธซเธเนเธฒ' : 'Prev'}
  </Button>
 
  {pageNumbers[0] > 1 ? (
@@ -429,7 +568,7 @@ export default function VaultPage() {
  onClick={() => setPage((v) => Math.min(totalPages, v + 1))}
  disabled={page >= totalPages || loadingPage}
  >
- {locale === 'th' ? 'ถัดไป' : 'Next'}
+ {locale === 'th' ? 'เธ–เธฑเธ”เนเธ' : 'Next'}
  <ChevronRight className='ml-1 h-3.5 w-3.5' />
  </Button>
  </div>
@@ -437,7 +576,17 @@ export default function VaultPage() {
  ) : null}
 
  <AddVaultItemSheet
- onCreated={() => {
+ onCreated={(created) => {
+ if (isOfflineMode) {
+ const pending: VaultItem = {
+ ...created,
+ sharedToTeamCount: 0,
+ pending: true,
+ };
+ setItems((prev) => [pending, ...prev.filter((item) => item.id !== pending.id)]);
+ setTotalItems((prev) => prev + 1);
+ return;
+ }
  setPage(1);
  void loadItems(1);
  }}
@@ -477,7 +626,10 @@ export default function VaultPage() {
  const id = pendingDeleteId;
  setPendingDeleteId(null);
  setCachedAssertion('delete_secret', assertionToken);
- if (id) void performDelete(id, assertionToken);
+ if (id) void performDelete(id, assertionToken, latestDeletePinRef.current ?? undefined);
+ }}
+ onPinCaptured={(pin) => {
+ latestDeletePinRef.current = pin;
  }}
  onClose={() => setPendingDeleteId(null)}
  />
@@ -492,7 +644,10 @@ export default function VaultPage() {
  const target = pendingEdit;
  setPendingEdit(null);
  setCachedAssertion('edit_secret', assertionToken);
- if (target) void performUpdate(target, assertionToken);
+ if (target) void performUpdate(target, assertionToken, latestEditPinRef.current ?? undefined);
+ }}
+ onPinCaptured={(pin) => {
+ latestEditPinRef.current = pin;
  }}
  onClose={() => setPendingEdit(null)}
  />
@@ -512,3 +667,4 @@ export default function VaultPage() {
  </section>
  );
 }
+

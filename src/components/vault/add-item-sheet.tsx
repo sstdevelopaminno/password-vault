@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
+import { queueOfflineRequest } from '@/lib/offline-sync';
+import { useOutageState } from '@/lib/outage-detector';
 
 type CreatedItem = {
  id: string;
@@ -36,6 +38,7 @@ export function AddVaultItemSheet({
  const router = useRouter();
  const { showToast } = useToast();
  const { t, locale } = useI18n();
+ const { isOfflineMode } = useOutageState();
 
  const [open, setOpen] = useState(false);
  const [loading, setLoading] = useState(false);
@@ -60,6 +63,29 @@ export function AddVaultItemSheet({
  const timer = window.setTimeout(() => controller.abort(), SAVE_TIMEOUT_MS);
 
  try {
+ if (isOfflineMode) {
+ const createdAt = new Date().toISOString();
+ await queueOfflineRequest(
+ endpoint,
+ 'POST',
+ form,
+ { 'Content-Type': 'application/json' },
+ { feature: 'vault', label: 'Create vault item' },
+ );
+ onCreated({
+ id: 'offline-' + Date.now(),
+ title: form.title,
+ username: form.username,
+ updatedAt: new Date(createdAt).toLocaleString(locale === 'th' ? 'th-TH' : 'en-US'),
+ category: form.category,
+ });
+ setLoading(false);
+ setOpen(false);
+ setForm({ title: '', username: '', secret: '', category: t('vault.categoryGeneral'), url: '', notes: '' });
+ showToast(locale === 'th' ? 'บันทึกแบบออฟไลน์แล้ว ระบบจะซิงก์อัตโนมัติเมื่อออนไลน์' : 'Saved offline. It will sync automatically when online.', 'success');
+ return;
+ }
+
  const res = await fetch(endpoint, {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },

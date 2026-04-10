@@ -4,6 +4,7 @@ import { createElement, useEffect, type ReactNode } from 'react';
 import { HeadsUpNotificationProvider } from '@/components/notifications/heads-up-provider';
 import { ToastProvider } from '@/components/ui/toast';
 import { I18nProvider } from '@/i18n/provider';
+import { OutageProvider } from '@/lib/outage-detector';
 
 type ProvidersProps = {
   children?: ReactNode;
@@ -25,7 +26,11 @@ export function Providers(props: ProvidersProps) {
     createElement(
       ToastProvider,
       null,
-      createElement(HeadsUpNotificationProvider, null, props.children),
+      createElement(
+        OutageProvider,
+        null,
+        createElement(HeadsUpNotificationProvider, null, props.children),
+      ),
     ),
   );
 }
