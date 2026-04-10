@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, RefreshCw, Smartphone, X } from "lucide-react";
+import { ChevronRight, Download, RefreshCw, Smartphone, X } from "lucide-react";
 import { useHeadsUpNotifications } from "@/components/notifications/heads-up-provider";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
@@ -30,6 +30,11 @@ type VersionPayload = {
   appVersion?: string;
   marker?: string;
   schemaVersion?: string;
+};
+
+type TopQuickActionsProps = {
+  variant?: "toolbar" | "settings-menu";
+  showSecondaryActions?: boolean;
 };
 
 function defaultVersionPayload(): VersionPayload {
@@ -145,7 +150,10 @@ async function clearUpdateData(nextVersion: VersionPayload) {
   }
 }
 
-export function TopQuickActions() {
+export function TopQuickActions({
+  variant = "toolbar",
+  showSecondaryActions = true,
+}: TopQuickActionsProps) {
   const { locale } = useI18n();
   const toast = useToast();
   const { notify } = useHeadsUpNotifications();
@@ -235,6 +243,18 @@ export function TopQuickActions() {
   const runtimeModeLabel = getRuntimeModeLabel(capabilities.mode, locale);
   const hasInstallPrompt = Boolean(installPrompt);
   const showInstallAction = hasInstallPrompt || capabilities.manualInstallRecommended;
+  const showInstallButton = showSecondaryActions && showInstallAction;
+  const showUpdateButton = showSecondaryActions && hasUpdate;
+  const isSettingsMenu = variant === "settings-menu";
+  const actionRowClass = isSettingsMenu
+    ? "w-full"
+    : "flex flex-wrap items-center justify-end gap-2";
+  const runtimeButtonClass = isSettingsMenu
+    ? "group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]"
+    : "inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-[12px] font-semibold shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition active:scale-[0.98] " + getModeTone(capabilities.mode);
+  const runtimeStatusBadgeClass = isSettingsMenu
+    ? "rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600"
+    : "rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-slate-600";
 
   useEffect(function () {
     capabilitiesRef.current = capabilities;
@@ -506,20 +526,44 @@ export function TopQuickActions() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className={actionRowClass}>
         <button
           type="button"
           onClick={() => setShowRuntimeCard(true)}
-          className={"inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-[12px] font-semibold shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition active:scale-[0.98] " + getModeTone(capabilities.mode)}
+          className={runtimeButtonClass + (isSettingsMenu ? "" : getModeTone(capabilities.mode))}
         >
-          <Smartphone className="h-3.5 w-3.5" />
-          <span>{runtimeModeLabel}</span>
-          <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-            {hasUpdate ? text.updateReadyLabel : text.liveLabel}
-          </span>
+          {isSettingsMenu ? (
+            <>
+              <span className="inline-flex items-center gap-3">
+                <span className="rounded-xl bg-slate-100 p-2.5 text-slate-600 transition group-hover:bg-blue-100 group-hover:text-blue-700">
+                  <Smartphone className="h-4 w-4" />
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-base font-semibold leading-6 text-slate-800">
+                    {runtimeModeLabel}
+                  </span>
+                  <span className="text-xs leading-5 text-slate-500">{text.viewRuntime}</span>
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className={runtimeStatusBadgeClass}>
+                  {hasUpdate ? text.updateReadyLabel : text.liveLabel}
+                </span>
+                <ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:text-blue-500" />
+              </span>
+            </>
+          ) : (
+            <>
+              <Smartphone className="h-3.5 w-3.5" />
+              <span>{runtimeModeLabel}</span>
+              <span className={runtimeStatusBadgeClass}>
+                {hasUpdate ? text.updateReadyLabel : text.liveLabel}
+              </span>
+            </>
+          )}
         </button>
 
-        {showInstallAction ? (
+        {showInstallButton ? (
           <button
             type="button"
             onClick={function () {
@@ -536,7 +580,7 @@ export function TopQuickActions() {
           </button>
         ) : null}
 
-        {hasUpdate ? (
+        {showUpdateButton ? (
           <button
             type="button"
             onClick={() => void runUpdate()}

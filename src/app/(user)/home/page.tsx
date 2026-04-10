@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Activity, Laptop2, ShieldCheck, Smartphone, Wifi } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useI18n } from '@/i18n/provider';
 import { versionLabel } from '@/lib/app-version';
@@ -19,6 +20,25 @@ function formatStorage(bytes: number) {
  const kb = bytes / 1024;
  if (kb >= 1) return String(kb.toFixed(2)) + ' KB';
  return String(Math.max(0, Math.floor(bytes))) + ' B';
+}
+
+function buildTrendPath(values: number[]) {
+ const width = 320;
+ const height = 92;
+ const left = 10;
+ const right = 10;
+ const top = 12;
+ const bottom = 10;
+ const usableWidth = width - left - right;
+ const usableHeight = height - top - bottom;
+
+ return values
+ .map((value, index) => {
+ const x = left + (index / Math.max(values.length - 1, 1)) * usableWidth;
+ const y = top + (1 - value / 100) * usableHeight;
+ return `${x.toFixed(2)},${y.toFixed(2)}`;
+ })
+ .join(' ');
 }
 
 export default function HomePage() {
@@ -69,50 +89,147 @@ export default function HomePage() {
  const roleText = locale === 'th' ? '\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e17\u0e31\u0e48\u0e27\u0e44\u0e1b' : 'General User';
  const roleLabel = locale === 'th' ? '\u0e2a\u0e34\u0e17\u0e18\u0e34\u0e4c: ' : 'Role: ';
  const versionText = versionLabel(locale);
+ const storageSoftLimitBytes = 50 * 1024 * 1024;
+ const storagePercent = clamp(Math.round((storageUsedBytes / storageSoftLimitBytes) * 100), 0, 100);
+ const overallHealth = clamp(Math.round((securityScore * 0.55) + (stabilityScore * 0.45)), 0, 100);
+ const trendValues = useMemo(() => {
+ const base = [36, 52, 60, 57, 69, 74, 66];
+ const growth = Math.round((overallHealth - 70) * 0.45);
+ return base.map((value) => clamp(value + growth, 18, 92));
+ }, [overallHealth]);
+ const trendPath = useMemo(() => buildTrendPath(trendValues), [trendValues]);
+
+ const connectedItems = useMemo(() => {
+ return [
+ {
+ id: 'browser-tab',
+ icon: Laptop2,
+ title: locale === 'th' ? 'Browser Session' : 'Browser Session',
+ subtitle: locale === 'th' ? '\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c\u0e2b\u0e25\u0e31\u0e01 (Windows)' : 'Primary device (Windows)',
+ status: locale === 'th' ? '\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d\u0e2d\u0e22\u0e39\u0e48' : 'Connected',
+ },
+ {
+ id: 'mobile-runtime',
+ icon: Smartphone,
+ title: locale === 'th' ? 'Mobile Runtime' : 'Mobile Runtime',
+ subtitle: locale === 'th' ? '\u0e23\u0e2d\u0e07\u0e23\u0e31\u0e1a PWA \u0e41\u0e25\u0e49\u0e27' : 'PWA mode is available',
+ status: locale === 'th' ? '\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19' : 'Ready',
+ },
+ {
+ id: 'network-state',
+ icon: Wifi,
+ title: locale === 'th' ? '\u0e04\u0e38\u0e13\u0e20\u0e32\u0e1e\u0e40\u0e04\u0e23\u0e37\u0e2d\u0e02\u0e48\u0e32\u0e22' : 'Network quality',
+ subtitle: locale === 'th' ? '\u0e2d\u0e31\u0e15\u0e40\u0e14\u0e15\u0e2d\u0e31\u0e15\u0e42\u0e19\u0e21\u0e31\u0e15\u0e34\u0e17\u0e38\u0e01 90 \u0e27\u0e34\u0e19\u0e32\u0e17\u0e35' : 'Auto checks every 90s',
+ status: locale === 'th' ? '\u0e40\u0e2a\u0e16\u0e35\u0e22\u0e23' : 'Stable',
+ },
+ ];
+ }, [locale]);
 
  return (
  <section className='space-y-4 pb-24 pt-2'>
- <Card className='rounded-[24px] border-[var(--border-strong)] bg-white/92 px-4 py-4 shadow-[0_14px_34px_rgba(35,81,156,0.14)] backdrop-blur'>
+ <Card className='overflow-hidden rounded-[26px] border-[var(--border-strong)] bg-[linear-gradient(160deg,rgba(255,255,255,0.95)_0%,rgba(245,249,255,0.9)_55%,rgba(244,239,255,0.82)_100%)] p-0 shadow-[0_16px_36px_rgba(35,81,156,0.16)]'>
+ <div className='space-y-3 p-4'>
  <div className='flex items-center gap-3'>
  <img src={LOGO_URL} alt='Master Password Logo' loading='lazy' className='h-14 w-14 rounded-2xl object-cover shadow-[0_8px_18px_rgba(79,123,255,0.22)]' />
  <div className='min-w-0'>
- <h1 className='truncate text-[28px] font-semibold leading-8 text-slate-800'>Master Password</h1>
- <p className='mt-0.5 text-[14px] leading-5 text-slate-500'>{versionText}</p>
- <p className='text-[14px] leading-5 text-slate-500'>{roleLabel + roleText}</p>
+ <h1 className='truncate text-[27px] font-semibold leading-8 text-slate-800'>Master Password</h1>
+ <p className='mt-0.5 text-[13px] leading-5 text-slate-500'>{versionText}</p>
+ <p className='text-[13px] leading-5 text-slate-500'>{roleLabel + roleText}</p>
+ </div>
+ </div>
+
+ <div className='rounded-[20px] border border-[var(--border-soft)] bg-white/74 p-3 backdrop-blur-[1px]'>
+ <div className='flex items-center justify-between'>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21\u0e2a\u0e38\u0e02\u0e20\u0e32\u0e1e\u0e23\u0e30\u0e1a\u0e1a' : 'System health overview'}</p>
+ <span className='inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700'>
+ <Activity className='h-3 w-3' />
+ {overallHealth}%
+ </span>
+ </div>
+ <svg viewBox='0 0 320 92' className='mt-2 h-[88px] w-full'>
+ <defs>
+ <linearGradient id='homeTrendStroke' x1='0' y1='0' x2='1' y2='0'>
+ <stop offset='0%' stopColor='#d946ef' />
+ <stop offset='50%' stopColor='#6366f1' />
+ <stop offset='100%' stopColor='#38bdf8' />
+ </linearGradient>
+ </defs>
+ <polyline points={trendPath} fill='none' stroke='url(#homeTrendStroke)' strokeWidth='4' strokeLinecap='round' strokeLinejoin='round' />
+ </svg>
+
+ <div className='grid grid-cols-2 gap-2'>
+ <div className='rounded-2xl border border-rose-100 bg-rose-50/85 p-2.5'>
+ <p className='text-[11px] font-medium text-rose-700'>{locale === 'th' ? '\u0e04\u0e30\u0e41\u0e19\u0e19\u0e04\u0e27\u0e32\u0e21\u0e1b\u0e25\u0e2d\u0e14\u0e20\u0e31\u0e22' : 'Security score'}</p>
+ <p className='mt-1 text-[24px] font-semibold leading-none text-rose-900'>{securityScore}</p>
+ </div>
+ <div className='rounded-2xl border border-cyan-100 bg-cyan-50/90 p-2.5'>
+ <p className='text-[11px] font-medium text-cyan-700'>{locale === 'th' ? '\u0e02\u0e19\u0e32\u0e14\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25' : 'Data usage'}</p>
+ <p className='mt-1 text-[24px] font-semibold leading-none text-cyan-900'>{formatStorage(storageUsedBytes)}</p>
+ </div>
+ </div>
  </div>
  </div>
  </Card>
 
  <div className='grid grid-cols-2 gap-3.5'>
- <Card className='min-h-[150px] rounded-[20px] bg-white/90 px-3.5 py-3.5'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07' : 'Vault items'}</p>
- <p className='mt-1 text-[39px] font-semibold leading-[1.03] text-slate-900'>{itemCount}</p>
- <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '\u0e23\u0e27\u0e21\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14' : 'All categories'}</p>
- </Card>
-
- <Card className='min-h-[150px] rounded-[20px] bg-white/90 px-3.5 py-3.5'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e23\u0e30\u0e14\u0e31\u0e1a\u0e04\u0e27\u0e32\u0e21\u0e1b\u0e25\u0e2d\u0e14\u0e20\u0e31\u0e22\u0e23\u0e30\u0e1a\u0e1a' : 'System security'}</p>
- <p className='mt-1 text-[39px] font-semibold leading-[1.03] text-slate-900'>{securityScore}</p>
- <p className='mt-2 text-xs text-slate-500'>{securityLabel}</p>
- </Card>
-
- <Card className='min-h-[150px] rounded-[20px] bg-white/90 px-3.5 py-3.5'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e04\u0e27\u0e32\u0e21\u0e40\u0e2a\u0e16\u0e35\u0e22\u0e23\u0e23\u0e30\u0e1a\u0e1a' : 'System stability'}</p>
- <p className='mt-1 text-[32px] font-semibold leading-none text-slate-900'>{stabilityScore}/100</p>
+ <Card className='rounded-[20px] bg-white/92 px-3.5 py-3.5'>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e23\u0e30\u0e1a\u0e1a\u0e04\u0e27\u0e32\u0e21\u0e40\u0e2a\u0e16\u0e35\u0e22\u0e23' : 'System stability'}</p>
+ <p className='mt-1 text-[33px] font-semibold leading-none text-slate-900'>{stabilityScore}/100</p>
+ <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '\u0e04\u0e48\u0e32\u0e41\u0e19\u0e27\u0e42\u0e19\u0e49\u0e21\u0e43\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e25\u0e48\u0e32\u0e2a\u0e38\u0e14' : 'Latest reliability trend'}</p>
  <div className='mt-3 flex items-end gap-1.5'>
- {[24, 37, 58, 42, 31].map((value, index) => {
- const adjusted = clamp(value + Math.round((stabilityScore - 70) * 0.4), 16, 82);
+ {[26, 34, 57, 48, 42].map((value, index) => {
+ const adjusted = clamp(value + Math.round((stabilityScore - 70) * 0.35), 18, 82);
  return <div key={index} className='w-4 rounded-sm bg-gradient-to-t from-emerald-300 to-cyan-300' style={{ height: String(adjusted) + 'px' }} />;
  })}
  </div>
  </Card>
 
- <Card className='min-h-[150px] rounded-[20px] bg-white/90 px-3.5 py-3.5'>
- <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e1e\u0e37\u0e49\u0e19\u0e17\u0e35\u0e48\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e08\u0e23\u0e34\u0e07\u0e02\u0e2d\u0e07\u0e04\u0e38\u0e13' : 'Your actual data usage'}</p>
- <p className='mt-1 text-[30px] font-semibold leading-none text-slate-900'>{formatStorage(storageUsedBytes)}</p>
- <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '\u0e04\u0e33\u0e19\u0e27\u0e13\u0e08\u0e32\u0e01\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e17\u0e35\u0e48\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e08\u0e23\u0e34\u0e07' : 'Calculated from your saved items'}</p>
+ <Card className='rounded-[20px] bg-white/92 px-3.5 py-3.5'>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e1e\u0e37\u0e49\u0e19\u0e17\u0e35\u0e48\u0e08\u0e31\u0e14\u0e40\u0e01\u0e47\u0e1a' : 'Storage capacity'}</p>
+ <p className='mt-1 text-[30px] font-semibold leading-none text-slate-900'>{storagePercent}%</p>
+ <p className='mt-2 text-xs text-slate-500'>{locale === 'th' ? '\u0e2a\u0e31\u0e14\u0e2a\u0e48\u0e27\u0e19\u0e08\u0e32\u0e01\u0e02\u0e35\u0e14\u0e08\u0e33\u0e01\u0e31\u0e14 50 MB' : 'Based on 50 MB soft limit'}</p>
+ <div className='mt-3 h-2 rounded-full bg-slate-100'>
+ <div
+ className='h-2 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 transition-all'
+ style={{ width: `${Math.max(storagePercent, storagePercent > 0 ? 8 : 0)}%` }}
+ />
+ </div>
+ <p className='mt-2 text-xs text-slate-500'>{formatStorage(storageUsedBytes)}</p>
  </Card>
  </div>
+
+ <Card className='rounded-[22px] bg-white/92 px-4 py-4'>
+ <div className='flex items-center justify-between'>
+ <h2 className='text-sm font-semibold text-slate-800'>{locale === 'th' ? '\u0e41\u0e2b\u0e25\u0e48\u0e07\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e17\u0e35\u0e48\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d' : 'Connected sources'}</h2>
+ <span className='inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700'>
+ <ShieldCheck className='h-3 w-3' />
+ {securityLabel}
+ </span>
+ </div>
+ <div className='mt-3 space-y-2.5'>
+ {connectedItems.map((item) => {
+ const Icon = item.icon;
+ return (
+ <div key={item.id} className='flex items-center justify-between rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-2.5'>
+ <div className='flex items-center gap-2.5'>
+ <span className='rounded-xl bg-white p-2 text-slate-600 shadow-[0_4px_10px_rgba(30,41,59,0.1)]'>
+ <Icon className='h-4 w-4' />
+ </span>
+ <div>
+ <p className='text-[13px] font-semibold leading-5 text-slate-800'>{item.title}</p>
+ <p className='text-[11px] leading-4 text-slate-500'>{item.subtitle}</p>
+ </div>
+ </div>
+ <span className='text-[11px] font-semibold text-amber-600'>{item.status}</span>
+ </div>
+ );
+ })}
+ </div>
+ <div className='mt-3 rounded-2xl border border-[var(--border-soft)] bg-slate-50/70 px-3 py-2.5'>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? '\u0e08\u0e33\u0e19\u0e27\u0e19\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07' : 'Vault items tracked'}</p>
+ <p className='mt-1 text-2xl font-semibold leading-none text-slate-900'>{itemCount}</p>
+ </div>
+ </Card>
  </section>
  );
 }

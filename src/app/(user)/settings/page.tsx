@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
+import { TopQuickActions } from '@/components/layout/top-quick-actions';
 import { useI18n } from '@/i18n/provider';
 import {
   clampPinSessionTimeoutSec,
@@ -646,6 +647,7 @@ export default function SettingsPage() {
           </span>
           <ChevronRight className='h-4 w-4 text-slate-400' />
         </button>
+        <TopQuickActions variant='settings-menu' showSecondaryActions={false} />
         {menuBtn('logout', locale === 'th' ? 'ออกจากระบบ' : 'Sign out', LogOut)}
       </div>
 
