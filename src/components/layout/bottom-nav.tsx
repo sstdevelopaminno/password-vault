@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { Cog, FileText, House, KeyRound, KeySquare, LayoutDashboard, ScrollText, ShieldCheck, User } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
@@ -12,10 +12,6 @@ type Item = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-type Role = 'pending' | 'user' | 'approver' | 'admin' | 'super_admin';
-
-const ELEVATED_ROLES: Role[] = ['approver', 'admin', 'super_admin'];
-
 function isActivePath(pathname: string, href: string) {
   if (href === '/home') return pathname === '/home' || pathname === '/';
   return pathname === href || pathname.startsWith(href + '/');
@@ -23,33 +19,7 @@ function isActivePath(pathname: string, href: string) {
 
 export function BottomNav({ admin = false }: { admin?: boolean }) {
   const pathname = usePathname();
-  const { t, locale } = useI18n();
-
-  const [canSeeRequests, setCanSeeRequests] = useState(() => {
-    if (admin) return false;
-    if (typeof window === 'undefined') return false;
-    const cachedRole = window.sessionStorage.getItem('pv_role');
-    return Boolean(cachedRole && ELEVATED_ROLES.includes(cachedRole as Role));
-  });
-
-  useEffect(() => {
-    if (admin) return;
-    const controller = new AbortController();
-    void fetch('/api/profile/me', {
-      method: 'GET',
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        const body = (await res.json().catch(() => ({}))) as { role?: string };
-        const role = String(body.role ?? 'user') as Role;
-        window.sessionStorage.setItem('pv_role', role);
-        setCanSeeRequests(ELEVATED_ROLES.includes(role));
-      })
-      .catch(() => {});
-
-    return () => controller.abort();
-  }, [admin]);
+  const { t } = useI18n();
 
   const userItems: Item[] = useMemo(() => {
     const items: Item[] = [
@@ -57,17 +27,10 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
       { href: '/notes', label: t('nav.notes'), icon: FileText },
       { href: '/vault', label: t('nav.vault'), icon: KeyRound },
       { href: '/org-shared', label: t('nav.orgShared'), icon: KeySquare },
+      { href: '/settings', label: t('nav.settings'), icon: Cog },
     ];
-    if (canSeeRequests) {
-      items.push({
-        href: '/requests',
-        label: locale === 'th' ? 'คำขอสมัคร' : 'Requests',
-        icon: ShieldCheck,
-      });
-    }
-    items.push({ href: '/settings', label: t('nav.settings'), icon: Cog });
     return items;
-  }, [canSeeRequests, locale, t]);
+  }, [t]);
 
   const adminItems: Item[] = useMemo(
     () => [
