@@ -9,6 +9,9 @@ import {
 } from "@/lib/admin-qr-login";
 
 const ALLOWED_ADMIN_ROLES = new Set(["admin", "super_admin"]);
+const RETRYABLE_UPSTREAM_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const UPSTREAM_TIMEOUT_MS = 12000;
+const UPSTREAM_MAX_ATTEMPTS = 3;
 
 const requestSchema = z
   .object({
@@ -31,6 +34,10 @@ type ProfileRow = {
   status: string;
 };
 
+type UpstreamApproveResult =
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; status: number; error: string };
+
 function getBearerToken(request: Request) {
   const authorization = request.headers.get("authorization");
   if (!authorization) return null;
@@ -41,6 +48,77 @@ function getBearerToken(request: Request) {
 
 function normalizeOrigin(value: string) {
   return new URL(value).origin;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function postUpstreamApprove(
+  adminOrigin: string,
+  integrationSecret: string,
+  payload: {
+    challengeId: string;
+    challengeToken: string;
+    nonce: string;
+    userAccessToken: string;
+    decision: "approve" | "reject";
+    reason?: string;
+    appInstanceId: string;
+  },
+): Promise<UpstreamApproveResult> {
+  let lastStatus = 502;
+  let lastError = "Unable to approve QR login";
+
+  for (let attempt = 1; attempt <= UPSTREAM_MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+
+    try {
+      const upstreamResponse = await fetch(`${adminOrigin}/api/integrations/qr-login/approve`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${integrationSecret}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      const upstreamBody = (await upstreamResponse.json().catch(() => ({}))) as Record<string, unknown>;
+      if (upstreamResponse.ok) {
+        return { ok: true, body: upstreamBody };
+      }
+
+      lastStatus = upstreamResponse.status;
+      lastError = String(upstreamBody.error ?? "Unable to approve QR login");
+
+      const shouldRetry =
+        RETRYABLE_UPSTREAM_STATUSES.has(upstreamResponse.status) && attempt < UPSTREAM_MAX_ATTEMPTS;
+      if (!shouldRetry) {
+        return { ok: false, status: lastStatus, error: lastError };
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        lastStatus = 504;
+        lastError = "Admin QR integration timed out";
+      } else {
+        lastStatus = 502;
+        lastError = error instanceof Error ? error.message : "Admin QR integration request failed";
+      }
+
+      if (attempt === UPSTREAM_MAX_ATTEMPTS) {
+        return { ok: false, status: lastStatus, error: lastError };
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    await sleep(200 * attempt);
+  }
+
+  return { ok: false, status: lastStatus, error: lastError };
 }
 
 export async function POST(request: Request) {
@@ -129,13 +207,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This account is not allowed to approve admin QR login" }, { status: 403 });
   }
 
-  const upstreamResponse = await fetch(`${adminOrigin}/api/integrations/qr-login/approve`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${integrationSecret}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
+  const upstreamResult = await postUpstreamApprove(adminOrigin, integrationSecret, {
       challengeId: parsedChallenge.payload.challengeId,
       challengeToken: parsedChallenge.payload.challengeToken,
       nonce: parsedChallenge.payload.nonce,
@@ -143,22 +215,18 @@ export async function POST(request: Request) {
       decision: input.decision,
       reason: input.reason,
       appInstanceId: input.appInstanceId ?? request.headers.get("x-app-instance-id") ?? "user-app",
-    }),
-    cache: "no-store",
   });
 
-  const upstreamBody = (await upstreamResponse.json().catch(() => ({}))) as Record<string, unknown>;
-
-  if (!upstreamResponse.ok) {
+  if (!upstreamResult.ok) {
     return NextResponse.json(
-      { error: String(upstreamBody.error ?? "Unable to approve QR login"), upstreamStatus: upstreamResponse.status },
-      { status: upstreamResponse.status },
+      { error: upstreamResult.error, upstreamStatus: upstreamResult.status },
+      { status: upstreamResult.status },
     );
   }
 
   return NextResponse.json({
     ok: true,
-    challenge: upstreamBody.challenge ?? null,
+    challenge: upstreamResult.body.challenge ?? null,
   });
 }
 
