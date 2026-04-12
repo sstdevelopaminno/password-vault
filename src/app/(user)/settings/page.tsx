@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Bell, ChevronLeft, ChevronRight, KeyRound, Languages, LifeBuoy, Lock, LogOut, Mail, RefreshCw, Shield, UserRound } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, KeyRound, Languages, LifeBuoy, Lock, LogOut, Mail, QrCode, RefreshCw, Shield, UserRound } from 'lucide-react';
 import { OtpInput } from '@/components/auth/otp-input';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,12 +26,12 @@ function mapError(message: unknown, t: (key: any) => string, locale: 'th' | 'en'
   if (text.includes('token') || text.includes('invalid otp')) return t('verifyOtp.invalid');
   if (text.includes('duplicate key value') && text.includes('profiles_email_key')) {
     return locale === 'th'
-      ? 'พบข้อมูลบัญชีซ้ำ ระบบกำลังเชื่อมบัญชีเดิมให้อัตโนมัติ กรุณาลองอีกครั้ง'
+      ? 'เธเธเธเนเธญเธกเธนเธฅเธเธฑเธเธเธตเธเนเธณ เธฃเธฐเธเธเธเธณเธฅเธฑเธเน€เธเธทเนเธญเธกเธเธฑเธเธเธตเน€เธ”เธดเธกเนเธซเนเธญเธฑเธ•เนเธเธกเธฑเธ•เธด เธเธฃเธธเธ“เธฒเธฅเธญเธเธญเธตเธเธเธฃเธฑเนเธ'
       : 'Duplicate profile detected. Please retry once while the system reconciles your account.';
   }
   if (text.includes('rate limit')) {
     return locale === 'th'
-      ? 'OTP ถูกจำกัดความถี่ กรุณารอสักครู่และใช้ OTP ล่าสุดในอีเมล'
+      ? 'OTP เธ–เธนเธเธเธณเธเธฑเธ”เธเธงเธฒเธกเธ–เธตเน เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเนเนเธฅเธฐเนเธเน OTP เธฅเนเธฒเธชเธธเธ”เนเธเธญเธตเน€เธกเธฅ'
       : 'OTP is rate limited. Please wait and use the latest OTP from email.';
   }
   return String(message ?? 'Unknown error');
@@ -64,6 +64,8 @@ export default function SettingsPage() {
 
   const [fullName, setFullName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
+  const [profileRole, setProfileRole] = useState('pending');
+  const [profileStatus, setProfileStatus] = useState('pending_approval');
   const [pinSessionEnabled, setPinSessionEnabled] = useState(true);
   const [pinSessionTimeoutSec, setPinSessionTimeoutSec] = useState(DEFAULT_PIN_SESSION_TIMEOUT_SEC);
   const [pinSecuritySaving, setPinSecuritySaving] = useState(false);
@@ -129,6 +131,8 @@ export default function SettingsPage() {
     if (!res.ok) return;
     setFullName(String(body?.fullName ?? ''));
     setProfileEmail(String(body?.email ?? ''));
+    setProfileRole(String(body?.role ?? 'pending'));
+    setProfileStatus(String(body?.status ?? 'pending_approval'));
     setPinSessionEnabled(body?.pinSessionEnabled !== false);
     setPinSessionTimeoutSec(
       clampPinSessionTimeoutSec(body?.pinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC),
@@ -152,7 +156,7 @@ export default function SettingsPage() {
   async function updateProfile() {
     const name = String(fullName).trim();
     if (name.length < 2) {
-      toast.showToast(locale === 'th' ? 'ชื่อโปรไฟล์สั้นเกินไป' : 'Profile name is too short', 'error');
+      toast.showToast(locale === 'th' ? 'เธเธทเนเธญเนเธเธฃเนเธเธฅเนเธชเธฑเนเธเน€เธเธดเธเนเธ' : 'Profile name is too short', 'error');
       return;
     }
 
@@ -167,9 +171,9 @@ export default function SettingsPage() {
   }
 
   function timeoutOptionLabel(sec: number) {
-    if (sec < 60) return locale === 'th' ? `${sec} วินาที` : `${sec}s`;
+    if (sec < 60) return locale === 'th' ? `${sec} เธงเธดเธเธฒเธ—เธต` : `${sec}s`;
     const mins = Math.floor(sec / 60);
-    return locale === 'th' ? `${mins} นาที` : `${mins} min`;
+    return locale === 'th' ? `${mins} เธเธฒเธ—เธต` : `${mins} min`;
   }
 
   async function updatePinSecurity(enabled: boolean, nextTimeoutSec = pinSessionTimeoutSec) {
@@ -192,8 +196,8 @@ export default function SettingsPage() {
     toast.showToast(
       locale === 'th'
         ? enabled
-          ? 'เปิดการล็อกหน้าจอด้วย PIN แล้ว'
-          : 'ปิดการล็อกหน้าจอด้วย PIN แล้ว'
+          ? 'เน€เธเธดเธ”เธเธฒเธฃเธฅเนเธญเธเธซเธเนเธฒเธเธญเธ”เนเธงเธข PIN เนเธฅเนเธง'
+          : 'เธเธดเธ”เธเธฒเธฃเธฅเนเธญเธเธซเธเนเธฒเธเธญเธ”เนเธงเธข PIN เนเธฅเนเธง'
         : enabled
           ? 'PIN screen lock enabled.'
           : 'PIN screen lock disabled.',
@@ -204,14 +208,14 @@ export default function SettingsPage() {
   async function sendEmailOtp() {
     const email = String(newEmail).trim().toLowerCase();
     if (!email.includes('@')) {
-      toast.showToast(locale === 'th' ? 'กรุณากรอกอีเมลให้ถูกต้อง' : 'Invalid email', 'error');
+      toast.showToast(locale === 'th' ? 'เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธญเธตเน€เธกเธฅเนเธซเนเธ–เธนเธเธ•เนเธญเธ' : 'Invalid email', 'error');
       return;
     }
 
     if (resendIn > 0) {
       toast.showToast(
         locale === 'th'
-          ? 'กรุณารอก่อนขอรหัสใหม่ และใช้ OTP ล่าสุดจากอีเมลได้ทันที'
+          ? 'เธเธฃเธธเธ“เธฒเธฃเธญเธเนเธญเธเธเธญเธฃเธซเธฑเธชเนเธซเธกเน เนเธฅเธฐเนเธเน OTP เธฅเนเธฒเธชเธธเธ”เธเธฒเธเธญเธตเน€เธกเธฅเนเธ”เนเธ—เธฑเธเธ—เธต'
           : 'Please wait before resend and use your latest OTP now.',
         'error',
       );
@@ -273,7 +277,7 @@ export default function SettingsPage() {
 
   function beginPasswordChange() {
     if (newPassword.length < 8) {
-      toast.showToast(locale === 'th' ? 'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร' : 'Password must be at least 8 characters', 'error');
+      toast.showToast(locale === 'th' ? 'เธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเนเธ•เนเธญเธเธกเธตเธญเธขเนเธฒเธเธเนเธญเธข 8 เธ•เธฑเธงเธญเธฑเธเธฉเธฃ' : 'Password must be at least 8 characters', 'error');
       return;
     }
     setPasswordStep('enter_pin');
@@ -281,11 +285,11 @@ export default function SettingsPage() {
 
   async function updatePassword() {
     if (newPassword.length < 8) {
-      toast.showToast(locale === 'th' ? 'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร' : 'Password must be at least 8 characters', 'error');
+      toast.showToast(locale === 'th' ? 'เธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเนเธ•เนเธญเธเธกเธตเธญเธขเนเธฒเธเธเนเธญเธข 8 เธ•เธฑเธงเธญเธฑเธเธฉเธฃ' : 'Password must be at least 8 characters', 'error');
       return;
     }
     if (passwordPin.length !== 6) {
-      toast.showToast(locale === 'th' ? 'กรุณากรอก PIN 6 หลักเพื่อยืนยัน' : 'Please enter 6-digit PIN', 'error');
+      toast.showToast(locale === 'th' ? 'เธเธฃเธธเธ“เธฒเธเธฃเธญเธ PIN 6 เธซเธฅเธฑเธเน€เธเธทเนเธญเธขเธทเธเธขเธฑเธ' : 'Please enter 6-digit PIN', 'error');
       return;
     }
     if (passwordPinLoading) return;
@@ -349,26 +353,28 @@ export default function SettingsPage() {
       const response = await fetch('/api/auth/logout', { method: 'POST' });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        toast.showToast(mapError(body?.error ?? (locale === 'th' ? 'ออกจากระบบไม่สำเร็จ' : 'Logout failed'), t, locale), 'error');
+        toast.showToast(mapError(body?.error ?? (locale === 'th' ? 'เธญเธญเธเธเธฒเธเธฃเธฐเธเธเนเธกเนเธชเธณเน€เธฃเนเธ' : 'Logout failed'), t, locale), 'error');
         setLoading(false);
         return;
       }
 
-      toast.showToast(locale === 'th' ? 'ออกจากระบบแล้ว' : 'Signed out', 'success');
+      toast.showToast(locale === 'th' ? 'เธญเธญเธเธเธฒเธเธฃเธฐเธเธเนเธฅเนเธง' : 'Signed out', 'success');
       router.push('/login');
       router.refresh();
     } catch {
-      toast.showToast(locale === 'th' ? 'เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่' : 'Network error. Please try again.', 'error');
+      toast.showToast(locale === 'th' ? 'เน€เธเธทเนเธญเธกเธ•เนเธญเนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเน' : 'Network error. Please try again.', 'error');
       setLoading(false);
     }
   }
 
   const resendLabel =
     resendIn > 0
-      ? (locale === 'th' ? 'ส่งใหม่ใน ' : 'Resend in ') + String(resendIn) + 's'
+      ? (locale === 'th' ? 'เธชเนเธเนเธซเธกเนเนเธ ' : 'Resend in ') + String(resendIn) + 's'
       : locale === 'th'
-        ? 'ส่ง OTP ใหม่'
+        ? 'เธชเนเธ OTP เนเธซเธกเน'
         : 'Resend OTP';
+
+  const canUseAdminQr = profileStatus === 'active' && ['approver', 'admin', 'super_admin'].includes(profileRole);
 
   const menuBtn = (key: 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout', title: string, Icon: any) => (
     <button
@@ -390,15 +396,15 @@ export default function SettingsPage() {
   const nameView = (
     <Card className='space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]'>
       <div className='space-y-1.5'>
-        <p className='text-xs font-semibold text-slate-500'>{locale === 'th' ? 'ชื่อโปรไฟล์' : 'Profile name'}</p>
+        <p className='text-xs font-semibold text-slate-500'>{locale === 'th' ? 'เธเธทเนเธญเนเธเธฃเนเธเธฅเน' : 'Profile name'}</p>
         <Input value={fullName} placeholder={t('settings.fullNamePlaceholder')} onChange={(ev) => setFullName(ev.target.value)} className='h-11 rounded-xl bg-white' />
       </div>
       <div className='space-y-1.5'>
-        <p className='text-xs font-semibold text-slate-500'>{locale === 'th' ? 'อีเมล' : 'Email'}</p>
+        <p className='text-xs font-semibold text-slate-500'>{locale === 'th' ? 'เธญเธตเน€เธกเธฅ' : 'Email'}</p>
         <Input value={profileEmail} readOnly className='h-11 rounded-xl bg-white text-slate-700' />
       </div>
       <div className='space-y-1.5'>
-        <p className='text-xs font-semibold text-slate-500'>{locale === 'th' ? 'รหัสผ่าน' : 'Password'}</p>
+        <p className='text-xs font-semibold text-slate-500'>{locale === 'th' ? 'เธฃเธซเธฑเธชเธเนเธฒเธ' : 'Password'}</p>
         <Input value='xxxxx' readOnly className='h-11 rounded-xl bg-white text-slate-700 tracking-[0.2em]' />
       </div>
       <Button onClick={() => void updateProfile()} disabled={loading} className='h-11 rounded-xl'>
@@ -426,18 +432,18 @@ export default function SettingsPage() {
       />
       <div className='grid grid-cols-2 gap-2'>
         <Button variant='secondary' className='h-12 rounded-2xl' onClick={() => goMenuRoot()} disabled={emailLoading}>
-          {locale === 'th' ? 'ยกเลิก' : 'Cancel'}
+          {locale === 'th' ? 'เธขเธเน€เธฅเธดเธ' : 'Cancel'}
         </Button>
         <Button className='h-12 rounded-2xl bg-white text-blue-900 hover:bg-blue-50' onClick={() => void sendEmailOtp()} disabled={emailLoading || resendIn > 0}>
-          {resendIn > 0 ? (locale === 'th' ? 'ส่งใหม่ใน ' : 'Resend in ') + String(resendIn) + 's' : t('settings.requestEmailChange')}
+          {resendIn > 0 ? (locale === 'th' ? 'เธชเนเธเนเธซเธกเนเนเธ ' : 'Resend in ') + String(resendIn) + 's' : t('settings.requestEmailChange')}
         </Button>
       </div>
       <div className='rounded-xl border border-cyan-200/40 bg-cyan-300/20 px-3 py-2 text-xs font-medium text-cyan-100'>
-        {locale === 'th' ? 'หากได้รับ OTP แล้ว ไม่ต้องกดขอซ้ำ และใช้ OTP ล่าสุดได้ทันที' : 'If you already received OTP email, do not request again. Use latest OTP.'}
+        {locale === 'th' ? 'เธซเธฒเธเนเธ”เนเธฃเธฑเธ OTP เนเธฅเนเธง เนเธกเนเธ•เนเธญเธเธเธ”เธเธญเธเนเธณ เนเธฅเธฐเนเธเน OTP เธฅเนเธฒเธชเธธเธ”เนเธ”เนเธ—เธฑเธเธ—เธต' : 'If you already received OTP email, do not request again. Use latest OTP.'}
       </div>
       {showUseLatestOtp ? (
       <Button variant='secondary' className='h-11 rounded-xl border border-white/40 bg-white/15 text-white hover:bg-white/20' onClick={() => setEmailStep('enter_otp')} disabled={emailLoading}>
-        {locale === 'th' ? 'ใช้ OTP ล่าสุด' : 'Use latest OTP'}
+        {locale === 'th' ? 'เนเธเน OTP เธฅเนเธฒเธชเธธเธ”' : 'Use latest OTP'}
       </Button>
       ) : null}
     </Card>
@@ -450,15 +456,15 @@ export default function SettingsPage() {
       <div className='rounded-xl border border-cyan-200/40 bg-cyan-300/20 px-3 py-2 text-xs font-medium text-cyan-100'>
         {emailAutoLoading
           ? locale === 'th'
-            ? 'กำลังยืนยัน OTP และบันทึกอัตโนมัติ...'
+            ? 'เธเธณเธฅเธฑเธเธขเธทเธเธขเธฑเธ OTP เนเธฅเธฐเธเธฑเธเธ—เธถเธเธญเธฑเธ•เนเธเธกเธฑเธ•เธด...'
             : 'Verifying OTP and saving automatically...'
           : locale === 'th'
-            ? 'กรอก OTP 6 หลักได้ทันที แม้ติด rate limit ของการส่งอีเมล'
+            ? 'เธเธฃเธญเธ OTP 6 เธซเธฅเธฑเธเนเธ”เนเธ—เธฑเธเธ—เธต เนเธกเนเธ•เธดเธ” rate limit เธเธญเธเธเธฒเธฃเธชเนเธเธญเธตเน€เธกเธฅ'
             : 'Enter 6-digit OTP now, even if resend is rate-limited.'}
       </div>
       <div className='grid grid-cols-2 gap-2'>
         <Button variant='secondary' className='h-11 rounded-xl' onClick={() => { setEmailStep('enter_email'); setEmailOtp(''); setResendIn(0); }} disabled={emailAutoLoading}>
-          {locale === 'th' ? 'ยกเลิก' : 'Cancel'}
+          {locale === 'th' ? 'เธขเธเน€เธฅเธดเธ' : 'Cancel'}
         </Button>
         <Button className='h-11 rounded-xl bg-white text-blue-900 hover:bg-blue-50' onClick={() => void sendEmailOtp()} disabled={emailLoading || resendIn > 0}>
           {resendLabel}
@@ -475,19 +481,19 @@ export default function SettingsPage() {
         <>
           <Input type='password' value={newPassword} placeholder={t('settings.newPasswordPlaceholder')} onChange={(ev) => setNewPassword(ev.target.value)} />
           <Button onClick={beginPasswordChange} disabled={loading || passwordPinLoading}>
-            {locale === 'th' ? 'บันทึก' : 'Save'}
+            {locale === 'th' ? 'เธเธฑเธเธ—เธถเธ' : 'Save'}
           </Button>
         </>
       ) : (
         <>
           <p className='text-xs text-slate-500'>
             {locale === 'th'
-              ? 'ยืนยัน PIN เพื่อบันทึกรหัสผ่านใหม่ ระบบจะบันทึกอัตโนมัติเมื่อกรอกครบ'
+              ? 'เธขเธทเธเธขเธฑเธ PIN เน€เธเธทเนเธญเธเธฑเธเธ—เธถเธเธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเน เธฃเธฐเธเธเธเธฐเธเธฑเธเธ—เธถเธเธญเธฑเธ•เนเธเธกเธฑเธ•เธดเน€เธกเธทเนเธญเธเธฃเธญเธเธเธฃเธ'
               : 'Enter PIN to confirm. Save runs automatically when complete.'}
           </p>
-          <OtpInput value={passwordPin} onChange={setPasswordPin} length={6} ariaLabel={locale === 'th' ? 'กรอก PIN ยืนยัน' : 'Enter confirm PIN'} />
+          <OtpInput value={passwordPin} onChange={setPasswordPin} length={6} ariaLabel={locale === 'th' ? 'เธเธฃเธญเธ PIN เธขเธทเธเธขเธฑเธ' : 'Enter confirm PIN'} />
           <Button variant='secondary' onClick={() => { setPasswordStep('enter_password'); setPasswordPin(''); }} disabled={passwordPinLoading}>
-            {locale === 'th' ? 'ย้อนกลับ' : 'Back'}
+            {locale === 'th' ? 'เธขเนเธญเธเธเธฅเธฑเธ' : 'Back'}
           </Button>
         </>
       )}
@@ -501,11 +507,11 @@ export default function SettingsPage() {
           <Shield className='mt-0.5 h-4 w-4 text-slate-600' />
           <div>
             <p className='text-sm font-semibold text-slate-800'>
-              {locale === 'th' ? 'เปิดรักษาความปลอดภัย PIN ล็อกหน้าจอ' : 'Enable PIN screen lock security'}
+              {locale === 'th' ? 'เน€เธเธดเธ”เธฃเธฑเธเธฉเธฒเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข PIN เธฅเนเธญเธเธซเธเนเธฒเธเธญ' : 'Enable PIN screen lock security'}
             </p>
             <p className='text-xs text-slate-500'>
               {locale === 'th'
-                ? 'ปิดได้หากไม่ต้องการให้แอปเด้งล็อก PIN ทุกครั้ง'
+                ? 'เธเธดเธ”เนเธ”เนเธซเธฒเธเนเธกเนเธ•เนเธญเธเธเธฒเธฃเนเธซเนเนเธญเธเน€เธ”เนเธเธฅเนเธญเธ PIN เธ—เธธเธเธเธฃเธฑเนเธ'
                 : 'Turn off if you do not want app-level PIN lock prompt.'}
             </p>
           </div>
@@ -517,7 +523,7 @@ export default function SettingsPage() {
             onClick={() => void updatePinSecurity(true)}
             disabled={pinSecuritySaving}
           >
-            {locale === 'th' ? 'เปิดใช้งาน' : 'Enabled'}
+            {locale === 'th' ? 'เน€เธเธดเธ”เนเธเนเธเธฒเธ' : 'Enabled'}
           </Button>
           <Button
             variant={!pinSessionEnabled ? 'default' : 'secondary'}
@@ -525,12 +531,12 @@ export default function SettingsPage() {
             onClick={() => void updatePinSecurity(false)}
             disabled={pinSecuritySaving}
           >
-            {locale === 'th' ? 'ปิดใช้งาน' : 'Disabled'}
+            {locale === 'th' ? 'เธเธดเธ”เนเธเนเธเธฒเธ' : 'Disabled'}
           </Button>
         </div>
         <div className='mt-3 space-y-1.5'>
           <p className='text-xs font-semibold text-slate-600'>
-            {locale === 'th' ? 'ตั้งเวลาล็อกอัตโนมัติเมื่อไม่มีการใช้งาน' : 'Set auto-lock timeout after inactivity'}
+            {locale === 'th' ? 'เธ•เธฑเนเธเน€เธงเธฅเธฒเธฅเนเธญเธเธญเธฑเธ•เนเธเธกเธฑเธ•เธดเน€เธกเธทเนเธญเนเธกเนเธกเธตเธเธฒเธฃเนเธเนเธเธฒเธ' : 'Set auto-lock timeout after inactivity'}
           </p>
           <div className='grid grid-cols-3 gap-2'>
             {PIN_SESSION_TIMEOUT_OPTIONS_SEC.map((sec) => (
@@ -547,7 +553,7 @@ export default function SettingsPage() {
           </div>
           <p className='text-[11px] text-slate-500'>
             {locale === 'th'
-              ? 'ระบบจะจับการแตะ/คลิก/พิมพ์/เลื่อนหน้าจอ หากไม่มีการใช้งานครบเวลาที่ตั้งไว้จะล็อก PIN ทันที'
+              ? 'เธฃเธฐเธเธเธเธฐเธเธฑเธเธเธฒเธฃเนเธ•เธฐ/เธเธฅเธดเธ/เธเธดเธกเธเน/เน€เธฅเธทเนเธญเธเธซเธเนเธฒเธเธญ เธซเธฒเธเนเธกเนเธกเธตเธเธฒเธฃเนเธเนเธเธฒเธเธเธฃเธเน€เธงเธฅเธฒเธ—เธตเนเธ•เธฑเนเธเนเธงเนเธเธฐเธฅเนเธญเธ PIN เธ—เธฑเธเธ—เธต'
               : 'The app tracks tap/click/type/scroll activity and locks with PIN immediately after selected idle time.'}
           </p>
         </div>
@@ -562,7 +568,7 @@ export default function SettingsPage() {
   const languageView = (
     <Card className='space-y-4 rounded-[24px] p-4'>
       <p className='text-sm text-slate-600'>
-        {locale === 'th' ? 'เลือกภาษาที่ต้องการใช้งานในระบบ' : 'Choose your preferred app language.'}
+        {locale === 'th' ? 'เน€เธฅเธทเธญเธเธ เธฒเธฉเธฒเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเนเธเนเธเธฒเธเนเธเธฃเธฐเธเธ' : 'Choose your preferred app language.'}
       </p>
       <div className='grid grid-cols-2 gap-2'>
         <Button
@@ -570,7 +576,7 @@ export default function SettingsPage() {
           className={locale === 'th' ? 'h-11 rounded-xl' : 'h-11 rounded-xl'}
           onClick={() => setLocale('th')}
         >
-          ไทย
+          เนเธ—เธข
         </Button>
         <Button
           variant={locale === 'en' ? 'default' : 'secondary'}
@@ -586,10 +592,10 @@ export default function SettingsPage() {
   const logoutView = (
     <Card className='space-y-3 rounded-[24px] p-4'>
       <p className='text-sm text-slate-600'>
-        {locale === 'th' ? 'กดยืนยันเพื่อออกจากระบบในอุปกรณ์นี้' : 'Confirm to sign out from this device.'}
+        {locale === 'th' ? 'เธเธ”เธขเธทเธเธขเธฑเธเน€เธเธทเนเธญเธญเธญเธเธเธฒเธเธฃเธฐเธเธเนเธเธญเธธเธเธเธฃเธ“เนเธเธตเน' : 'Confirm to sign out from this device.'}
       </p>
       <Button variant='destructive' className='h-11 rounded-xl' onClick={() => void logout()} disabled={loading}>
-        {loading ? (locale === 'th' ? 'กำลังออกจากระบบ...' : 'Signing out...') : (locale === 'th' ? 'ยืนยันออกจากระบบ' : 'Sign out')}
+        {loading ? (locale === 'th' ? 'เธเธณเธฅเธฑเธเธญเธญเธเธเธฒเธเธฃเธฐเธเธ...' : 'Signing out...') : (locale === 'th' ? 'เธขเธทเธเธขเธฑเธเธญเธญเธเธเธฒเธเธฃเธฐเธเธ' : 'Sign out')}
       </Button>
     </Card>
   );
@@ -603,9 +609,9 @@ export default function SettingsPage() {
         : active === 'pin'
           ? t('settings.pinTitle')
           : active === 'language'
-            ? (locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language')
+            ? (locale === 'th' ? 'เน€เธเธฅเธตเนเธขเธเธ เธฒเธฉเธฒ' : 'Change language')
             : locale === 'th'
-              ? 'ออกจากระบบ'
+              ? 'เธญเธญเธเธเธฒเธเธฃเธฐเธเธ'
               : 'Sign out';
 
   const body = active === 'name'
@@ -624,14 +630,31 @@ export default function SettingsPage() {
 
   return (
     <section className='space-y-5 pb-24 pt-2'>
-      {active ? null : <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{t('settings.title')}</h1>}
-      {active ? null : <p className='text-sm leading-6 text-slate-500'>{locale === 'th' ? 'เลือกเมนูที่ต้องการปรับแต่งโปรไฟล์ของคุณ' : 'Select a menu to update your profile settings.'}</p>}
+      {active ? null : (
+        <div className='flex items-start justify-between gap-3'>
+          <div>
+            <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{t('settings.title')}</h1>
+            <p className='text-sm leading-6 text-slate-500'>{locale === 'th' ? 'เน€เธฅเธทเธญเธเน€เธกเธเธนเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธเธฃเธฑเธเนเธ•เนเธเนเธเธฃเนเธเธฅเนเธเธญเธเธเธธเธ“' : 'Select a menu to update your profile settings.'}</p>
+          </div>
+          {canUseAdminQr ? (
+            <button
+              type='button'
+              onClick={() => router.push('/settings/admin-qr-login')}
+              className='inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 shadow-[0_8px_18px_rgba(37,99,235,0.16)] transition hover:bg-blue-100'
+              aria-label={locale === 'th' ? 'สแกน QR สำหรับแอดมินล็อกอิน' : 'Scan QR for admin login'}
+              title={locale === 'th' ? 'สแกน QR Admin Login' : 'Scan Admin Login QR'}
+            >
+              <QrCode className='h-4 w-4' />
+            </button>
+          ) : null}
+        </div>
+      )}
       <div className={active ? 'hidden' : 'grid gap-3.5'}>
         {menuBtn('name', t('settings.nameTitle'), UserRound)}
         {menuBtn('email', t('settings.emailTitle'), Mail)}
         {menuBtn('password', t('settings.passwordTitle'), Lock)}
         {menuBtn('pin', t('settings.pinTitle'), KeyRound)}
-        {menuBtn('language', locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language', Languages)}
+        {menuBtn('language', locale === 'th' ? 'เน€เธเธฅเธตเนเธขเธเธ เธฒเธฉเธฒ' : 'Change language', Languages)}
         <button
           type='button'
           onClick={() => router.push('/settings/notifications')}
@@ -642,7 +665,7 @@ export default function SettingsPage() {
               <Bell className='h-4 w-4' />
             </span>
             <span className='text-base font-semibold leading-6 text-slate-800'>
-              {locale === 'th' ? 'การแจ้งเตือน' : 'Notifications'}
+              {locale === 'th' ? 'เธเธฒเธฃเนเธเนเธเน€เธ•เธทเธญเธ' : 'Notifications'}
             </span>
           </span>
           <ChevronRight className='h-4 w-4 text-slate-400' />
@@ -657,7 +680,7 @@ export default function SettingsPage() {
               <LifeBuoy className='h-4 w-4' />
             </span>
             <span className='text-base font-semibold leading-6 text-slate-800'>
-              {locale === 'th' ? 'ศูนย์ช่วยเหลือ' : 'Help center'}
+              {locale === 'th' ? 'เธจเธนเธเธขเนเธเนเธงเธขเน€เธซเธฅเธทเธญ' : 'Help center'}
             </span>
           </span>
           <ChevronRight className='h-4 w-4 text-slate-400' />
@@ -672,13 +695,13 @@ export default function SettingsPage() {
               <RefreshCw className='h-4 w-4' />
             </span>
             <span className='text-base font-semibold leading-6 text-slate-800'>
-              {locale === 'th' ? 'ศูนย์ซิงก์ออฟไลน์' : 'Offline Sync Center'}
+              {locale === 'th' ? 'เธจเธนเธเธขเนเธเธดเธเธเนเธญเธญเธเนเธฅเธเน' : 'Offline Sync Center'}
             </span>
           </span>
           <ChevronRight className='h-4 w-4 text-slate-400' />
         </button>
         <TopQuickActions variant='settings-menu' showSecondaryActions={false} />
-        {menuBtn('logout', locale === 'th' ? 'ออกจากระบบ' : 'Sign out', LogOut)}
+        {menuBtn('logout', locale === 'th' ? 'เธญเธญเธเธเธฒเธเธฃเธฐเธเธ' : 'Sign out', LogOut)}
       </div>
 
       {body && (
@@ -689,7 +712,7 @@ export default function SettingsPage() {
  type='button'
  className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600'
  onClick={goMenuRoot}
- aria-label={locale === 'th' ? 'ย้อนกลับ' : 'Back'}
+ aria-label={locale === 'th' ? 'เธขเนเธญเธเธเธฅเธฑเธ' : 'Back'}
  >
  <ChevronLeft className='h-4 w-4' />
  </button>
@@ -704,3 +727,6 @@ export default function SettingsPage() {
     </section>
   );
 }
+
+
+
