@@ -8,7 +8,7 @@ import {
   parseAdminQrPayload,
 } from "@/lib/admin-qr-login";
 
-const ALLOWED_ADMIN_ROLES = new Set(["approver", "admin", "super_admin"]);
+const ALLOWED_ADMIN_ROLES = new Set(["admin", "super_admin"]);
 
 const requestSchema = z
   .object({
@@ -161,4 +161,5 @@ export async function POST(request: Request) {
     challenge: upstreamBody.challenge ?? null,
   });
 }
+
 

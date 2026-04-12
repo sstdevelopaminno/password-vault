@@ -48,7 +48,7 @@ export default function AdminQrLoginPage() {
 
     const nextRole = String(body.role ?? "");
     const nextStatus = String(body.status ?? "");
-    const allowed = nextStatus === "active" && ["approver", "admin", "super_admin"].includes(nextRole);
+    const allowed = nextStatus === "active" && ["admin", "super_admin"].includes(nextRole);
 
     setRole(nextRole || "user");
     setAccessState(allowed ? "allowed" : "forbidden");
@@ -211,7 +211,7 @@ export default function AdminQrLoginPage() {
               ? "บัญชีนี้ไม่มีสิทธิ์ยืนยัน QR ล็อกอินของฝั่งแอดมิน"
               : "This account does not have permission to approve admin QR login."}
           </p>
-          <p className="text-xs text-rose-600">{locale === "th" ? "ต้องเป็น approver, admin หรือ super_admin เท่านั้น" : "Only approver, admin, or super_admin are allowed."}</p>
+          <p className="text-xs text-rose-600">{locale === "th" ? "ต้องเป็น admin หรือ super_admin เท่านั้น" : "Only admin or super_admin are allowed."}</p>
         </Card>
       ) : null}
 
@@ -312,5 +312,6 @@ export default function AdminQrLoginPage() {
     </section>
   );
 }
+
 
 
