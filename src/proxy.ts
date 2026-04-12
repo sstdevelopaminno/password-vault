@@ -7,7 +7,6 @@ import {
 
 const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
 const userPaths = ["/home", "/vault", "/org-shared", "/settings", "/requests", "/help-center"];
-const ACTIVE_SESSION_SYNC_GRACE_MS = 300_000;
 
 const publicApiPaths = new Set([
   "/api/auth/login",
@@ -24,24 +23,6 @@ const publicApiPaths = new Set([
   "/api/auth/logout",
   "/api/notifications/push/process",
 ]);
-
-function parseTokenIssuedAtMs(token: string) {
-  const raw = String(token ?? "");
-  if (!raw) return 0;
-  const firstPart = raw.split(".")[0] ?? "";
-  if (!firstPart) return 0;
-  const parsed = Number.parseInt(firstPart, 36);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
-  return parsed;
-}
-
-function parseMetadataUpdatedAtMs(value: unknown) {
-  const raw = String(value ?? "");
-  if (!raw) return 0;
-  const parsed = Date.parse(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
-  return parsed;
-}
 
 function clearAuthCookies(request: NextRequest, response: NextResponse) {
   const cookieNames = new Set<string>([ACTIVE_SESSION_COOKIE]);
@@ -117,29 +98,6 @@ export async function proxy(request: NextRequest) {
       user.app_metadata && typeof user.app_metadata.pv_active_session === "string"
         ? user.app_metadata.pv_active_session
         : "";
-    const metadataIssuedAtMs = parseTokenIssuedAtMs(metadataToken);
-    const metadataUpdatedAtMs =
-      user.app_metadata && typeof user.app_metadata.pv_active_updated_at === "string"
-        ? parseMetadataUpdatedAtMs(user.app_metadata.pv_active_updated_at)
-        : 0;
-    const metadataReferenceAtMs = Math.max(metadataIssuedAtMs, metadataUpdatedAtMs);
-    const cookieIssuedAtMs = parseTokenIssuedAtMs(cookieToken);
-    const now = Date.now();
-    const cookieLooksValidTime =
-      cookieIssuedAtMs > 0 &&
-      cookieIssuedAtMs <= now + 60_000;
-    const cookieWithinSyncWindow =
-      cookieLooksValidTime &&
-      metadataReferenceAtMs > 0 &&
-      Math.abs(cookieIssuedAtMs - metadataReferenceAtMs) <= ACTIVE_SESSION_SYNC_GRACE_MS;
-    const cookieAppearsNewerThanMetadata =
-      cookieLooksValidTime &&
-      metadataReferenceAtMs > 0 &&
-      cookieIssuedAtMs >= metadataReferenceAtMs;
-    const metadataAppearsNewerThanCookie =
-      metadataReferenceAtMs > 0 &&
-      cookieIssuedAtMs > 0 &&
-      metadataReferenceAtMs - cookieIssuedAtMs > ACTIVE_SESSION_SYNC_GRACE_MS;
 
     if (metadataToken && !cookieToken) {
       response.cookies.set({
@@ -151,20 +109,13 @@ export async function proxy(request: NextRequest) {
     }
 
     if (metadataToken && cookieToken && cookieToken !== metadataToken) {
-      if (cookieAppearsNewerThanMetadata || cookieWithinSyncWindow) {
-        if (cookieWithinSyncWindow) {
-          response.cookies.set({
-            name: ACTIVE_SESSION_COOKIE,
-            value: metadataToken,
-            httpOnly: true,
-            ...getSharedCookieOptions(),
-          });
-        }
-      } else if (metadataAppearsNewerThanCookie || !cookieLooksValidTime) {
-        const out = unauthorizedFor(request, "Session expired due to login from another device.");
-        clearAuthCookies(request, out);
-        return out;
-      }
+      // Soft-sync mode: keep user signed in and reconcile cookie drift transparently.
+      response.cookies.set({
+        name: ACTIVE_SESSION_COOKIE,
+        value: metadataToken,
+        httpOnly: true,
+        ...getSharedCookieOptions(),
+      });
     }
   }
 
@@ -183,7 +134,7 @@ export const config = {
   matcher: [
     "/home/:path*",
     "/vault/:path*",
- "/org-shared/:path*",
+    "/org-shared/:path*",
     "/settings/:path*",
     "/requests/:path*",
     "/help-center/:path*",
@@ -194,4 +145,3 @@ export const config = {
     "/api/:path*",
   ],
 };
-

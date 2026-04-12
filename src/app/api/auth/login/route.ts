@@ -73,12 +73,12 @@ export async function POST(req: Request) {
       profile = resolved.profile;
     } catch (resolveError) {
       console.error("Failed to resolve profile in login:", resolveError);
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       return NextResponse.json({ error: "Account profile mismatch. Please contact admin." }, { status: 409 });
     }
 
     if (profile.status === "disabled") {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
     }
 
