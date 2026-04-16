@@ -245,8 +245,8 @@ export default function NotesPage() {
 
  const scanDueNotices = () => {
  const now = Date.now();
- const lowerBound = now - 5 * 60 * 1000;
- const upperBound = now + 15 * 1000;
+ const lowerBound = now - 24 * 60 * 60 * 1000;
+ const upperBound = now + 20 * 1000;
  const discovered: DueNoticeItem[] = [];
 
  for (const note of calendarNotes) {
@@ -262,7 +262,11 @@ export default function NotesPage() {
  const seenKey = 'pv_note_due_seen_v1:' + note.id + ':' + candidate.kind + ':' + candidate.at;
  if (window.localStorage.getItem(seenKey) === '1') continue;
 
+ try {
  window.localStorage.setItem(seenKey, '1');
+ } catch {
+ // ignore local storage errors
+ }
  discovered.push({
  noteId: note.id,
  kind: candidate.kind,
@@ -273,9 +277,10 @@ export default function NotesPage() {
  }
 
  if (discovered.length === 0) return;
+ discovered.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
  setDueQueue((prev) => {
  const next = [...prev];
- for (const item of discovered) {
+ for (const item of discovered.slice(0, 12)) {
  const exists = next.some(
  (entry) => entry.noteId === item.noteId && entry.kind === item.kind && entry.at === item.at,
  );
@@ -831,8 +836,8 @@ setDeleting(true);
  ) : null}
 
  {editorOpen ? (
- <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
- <div className='mx-auto mt-6 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
+ <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-[2px]'>
+ <div className='mx-auto my-3 w-full max-w-[460px] max-h-[calc(100dvh-24px)] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
  <h2 className='text-base font-semibold'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
  <button type='button' onClick={() => setEditorOpen(false)} className='rounded-full p-1 text-slate-500 hover:bg-slate-100'><X className='h-5 w-5' /></button>
@@ -842,6 +847,9 @@ setDeleting(true);
  <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-sm text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
  <label className='text-xs font-medium text-slate-600'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</label>
  <Input type='datetime-local' value={draftReminder} onChange={(e) => setDraftReminder(e.target.value)} />
+ <p className='-mt-1 text-[11px] leading-5 text-slate-500'>
+ {isTh ? 'เมื่อถึงเวลา ระบบจะส่งแจ้งเตือนในแอป/พุช และอีเมล (ถ้าตั้งค่าอีเมลเซิร์ฟเวอร์ไว้)' : 'When due, the app sends in-app/push and email reminders (if email provider is configured).'}
+ </p>
  <label className='text-xs font-medium text-slate-600'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</label>
  <Input type='datetime-local' value={draftMeeting} onChange={(e) => setDraftMeeting(e.target.value)} />
  </div>

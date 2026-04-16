@@ -22,6 +22,9 @@ function emptySummary(): ProcessNoteReminderSummary {
  fetched: 0,
  processed: 0,
  queued: 0,
+ emailSent: 0,
+ emailFailed: 0,
+ emailSkipped: 0,
  retried: 0,
  cancelled: 0,
  failed: 0,
@@ -35,6 +38,9 @@ function mergeSummary(target: ProcessNoteReminderSummary, next: ProcessNoteRemin
  target.fetched += next.fetched;
  target.processed += next.processed;
  target.queued += next.queued;
+ target.emailSent += next.emailSent;
+ target.emailFailed += next.emailFailed;
+ target.emailSkipped += next.emailSkipped;
  target.retried += next.retried;
  target.cancelled += next.cancelled;
  target.failed += next.failed;

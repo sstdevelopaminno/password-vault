@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { enqueuePushNotification } from '@/lib/push-queue';
+import { sendNoteReminderEmail } from '@/lib/email-notifications';
 
 type ReminderJobStatus = 'pending' | 'processing' | 'queued' | 'cancelled' | 'failed';
 
@@ -21,11 +22,18 @@ type NoteRow = {
  reminder_at: string | null;
 };
 
+type ReminderRecipientRow = {
+ email: string | null;
+};
+
 export type ProcessNoteReminderSummary = {
  ok: boolean;
  fetched: number;
  processed: number;
  queued: number;
+ emailSent: number;
+ emailFailed: number;
+ emailSkipped: number;
  retried: number;
  cancelled: number;
  failed: number;
@@ -173,6 +181,19 @@ async function loadTargetNote(job: ReminderJobRow) {
  return (noteQuery.data ?? null) as NoteRow | null;
 }
 
+async function loadReminderRecipient(job: ReminderJobRow) {
+ const admin = createAdminClient();
+ const recipientQuery = await admin
+ .from('profiles')
+ .select('email')
+ .eq('id', job.user_id)
+ .maybeSingle();
+ if (recipientQuery.error) {
+ throw new Error(recipientQuery.error.message);
+ }
+ return (recipientQuery.data ?? null) as ReminderRecipientRow | null;
+}
+
 export async function processNoteReminderJobs(options?: { batchSize?: number }): Promise<ProcessNoteReminderSummary> {
  const batchSize = clampBatchSize(options?.batchSize);
  const admin = createAdminClient();
@@ -194,6 +215,9 @@ export async function processNoteReminderJobs(options?: { batchSize?: number }):
  fetched: 0,
  processed: 0,
  queued: 0,
+ emailSent: 0,
+ emailFailed: 0,
+ emailSkipped: 0,
  retried: 0,
  cancelled: 0,
  failed: 0,
@@ -208,6 +232,9 @@ export async function processNoteReminderJobs(options?: { batchSize?: number }):
  fetched: jobs.length,
  processed: 0,
  queued: 0,
+ emailSent: 0,
+ emailFailed: 0,
+ emailSkipped: 0,
  retried: 0,
  cancelled: 0,
  failed: 0,
@@ -225,6 +252,7 @@ export async function processNoteReminderJobs(options?: { batchSize?: number }):
 
  summary.processed += 1;
  const note = await loadTargetNote(job);
+ const recipient = await loadReminderRecipient(job);
  if (!note?.id) {
  await markJob(job.id, { status: 'cancelled', last_error: 'Note deleted' });
  summary.cancelled += 1;
@@ -239,7 +267,7 @@ export async function processNoteReminderJobs(options?: { batchSize?: number }):
  continue;
  }
 
- const queued = await enqueuePushNotification({
+ const pushQueued = await enqueuePushNotification({
  userId: note.user_id,
  kind: 'general',
  title: 'Note reminder',
@@ -254,21 +282,54 @@ export async function processNoteReminderJobs(options?: { batchSize?: number }):
  },
  });
 
- if (queued.ok) {
+ const targetEmail = String(recipient?.email ?? '').trim().toLowerCase();
+ let emailResult: { ok: boolean; skipped?: boolean; error?: string };
+
+ if (!targetEmail) {
+ emailResult = { ok: false, skipped: true, error: 'Missing profile email' };
+ summary.emailSkipped += 1;
+ } else {
+ const sent = await sendNoteReminderEmail({
+ toEmail: targetEmail,
+ noteTitle: note.title,
+ noteId: note.id,
+ reminderAt: noteReminder,
+ });
+ emailResult = sent;
+ if (sent.ok) {
+ summary.emailSent += 1;
+ } else if (sent.skipped) {
+ summary.emailSkipped += 1;
+ } else {
+ summary.emailFailed += 1;
+ }
+ }
+
+ const pushOk = pushQueued.ok;
+ if (pushOk || emailResult.ok) {
+ const deliveryErrors: string[] = [];
+ if (!pushOk) {
+ deliveryErrors.push('push:' + String(pushQueued.error ?? 'queue failed'));
+ }
+ if (!emailResult.ok) {
+ deliveryErrors.push('email:' + String(emailResult.error ?? 'send failed'));
+ }
+
  await markJob(job.id, {
  status: 'queued',
- push_queue_id: queued.id,
- last_error: null,
+ push_queue_id: pushOk ? pushQueued.id : null,
+ last_error: deliveryErrors.length > 0 ? deliveryErrors.join(' | ') : null,
  });
  summary.queued += 1;
  continue;
  }
 
  const nextAttemptCount = job.attempt_count + 1;
+ const combinedError = 'push:' + String(pushQueued.error ?? 'queue failed') + ' | email:' + String(emailResult.error ?? 'send failed');
  if (nextAttemptCount >= job.max_attempts) {
  await markJob(job.id, {
  status: 'failed',
- last_error: queued.error,
+ last_error: combinedError,
  });
  summary.failed += 1;
  continue;
@@ -279,7 +340,7 @@ export async function processNoteReminderJobs(options?: { batchSize?: number }):
  await markJob(job.id, {
  status: 'pending',
  next_retry_at: retryAt,
- last_error: queued.error,
+ last_error: combinedError,
  });
  summary.retried += 1;
  } catch (error) {
