@@ -72,10 +72,15 @@ async function drainReminderJobs(batchSize: number, maxJobs: number) {
 }
 
 function hasValidSecret(req: Request) {
- const expected = process.env.NOTES_REMINDER_CRON_SECRET || process.env.CRON_SECRET || '';
+ const expected = String(
+ process.env.NOTES_REMINDER_CRON_SECRET ||
+ process.env.CRON_SECRET ||
+ process.env.PUSH_CRON_SECRET ||
+ '',
+ ).trim();
  if (!expected) return process.env.NODE_ENV !== 'production';
- const viaHeader = req.headers.get('x-notes-cron-secret') ?? '';
- const authorization = req.headers.get('authorization') ?? '';
+ const viaHeader = String(req.headers.get('x-notes-cron-secret') ?? '').trim();
+ const authorization = String(req.headers.get('authorization') ?? '');
  const bearer = authorization.toLowerCase().startsWith('bearer ')
  ? authorization.slice(7).trim()
  : '';
