@@ -4,7 +4,7 @@
 - HTTPS deploy is available on Vercel.
 - Test accounts exist for Android Chrome and iPhone Safari.
 - Server logs can be inspected for runtime-diagnostics events.
-- Use build `19.12.16` for this round.
+- Use build `20.13.17` for this round.
 
 ## Deploy targets for this round
 - Preview: `https://password-vault-lnqqytn93-sstdevelopaminnos-projects.vercel.app`

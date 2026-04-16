@@ -24,34 +24,26 @@ const publicApiPaths = new Set([
   "/api/notifications/push/process",
 ]);
 
-function clearAuthCookies(request: NextRequest, response: NextResponse) {
-  const cookieNames = new Set<string>([ACTIVE_SESSION_COOKIE]);
-  request.cookies.getAll().forEach((cookie) => {
-    if (cookie.name.startsWith("sb-")) {
-      cookieNames.add(cookie.name);
-    }
-  });
-
-  cookieNames.forEach((name) => {
-    response.cookies.set({
-      name,
-      value: "",
-      path: "/",
-      maxAge: 0,
-    });
-  });
+function apiError(message: string, status: number) {
+  return NextResponse.json(
+    { error: message },
+    {
+      status,
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate" },
+    },
+  );
 }
 
 function unauthorizedFor(request: NextRequest, message: string) {
   if (request.nextUrl.pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: message }, { status: 401 });
+    return apiError(message, 401);
   }
   return NextResponse.redirect(new URL("/login", request.url));
 }
 
 function forbiddenFor(request: NextRequest, message: string) {
   if (request.nextUrl.pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: message }, { status: 403 });
+    return apiError(message, 403);
   }
   return NextResponse.redirect(new URL("/vault", request.url));
 }

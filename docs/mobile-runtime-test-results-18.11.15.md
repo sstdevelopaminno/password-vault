@@ -1,7 +1,7 @@
-# Mobile Runtime Test Results 19.12.16
+# Mobile Runtime Test Results 20.13.17
 
 ## Scope
-- Build version: `19.12.16`
+- Build version: `20.13.17`
 - Runtime diagnostics endpoint: `/api/runtime/diagnostics`
 - Checklist source: `docs/mobile-runtime-qa-checklist.md`
 - Test window start: `2026-04-10`

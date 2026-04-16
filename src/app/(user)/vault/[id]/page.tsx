@@ -279,11 +279,14 @@ export default function VaultDetailPage() {
 
   const busy = pendingAction !== null;
 
-  const CopyLabel = ({ row }: { row: RowKey }) => (
-    <span className={`inline-flex items-center gap-1.5 text-xs ${copiedRow === row ? 'text-emerald-700' : ''}`}>
-      {copiedRow === row ? <CheckCircle2 className='h-3.5 w-3.5' /> : <Copy className='h-3.5 w-3.5' />}
-      {copiedRow === row ? text.copiedDone : t('vaultDetail.copy')}
-    </span>
+  const renderCopyLabel = useCallback(
+    (row: RowKey) => (
+      <span className={`inline-flex items-center gap-1.5 text-xs ${copiedRow === row ? 'text-emerald-700' : ''}`}>
+        {copiedRow === row ? <CheckCircle2 className='h-3.5 w-3.5' /> : <Copy className='h-3.5 w-3.5' />}
+        {copiedRow === row ? text.copiedDone : t('vaultDetail.copy')}
+      </span>
+    ),
+    [copiedRow, t, text.copiedDone],
   );
 
   return (
@@ -313,7 +316,7 @@ export default function VaultDetailPage() {
                 });
               }}
             >
-              <CopyLabel row='title' />
+              {renderCopyLabel('title')}
             </Button>
           </div>
 
@@ -338,7 +341,7 @@ export default function VaultDetailPage() {
                 });
               }}
             >
-              <CopyLabel row='username' />
+              {renderCopyLabel('username')}
             </Button>
           </div>
 
@@ -361,7 +364,7 @@ export default function VaultDetailPage() {
                 });
               }}
             >
-              <CopyLabel row='password' />
+              {renderCopyLabel('password')}
             </Button>
           </div>
 
@@ -387,7 +390,7 @@ export default function VaultDetailPage() {
                   });
                 }}
               >
-                <CopyLabel row='url' />
+                {renderCopyLabel('url')}
               </Button>
             </div>
           ) : null}
