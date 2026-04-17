@@ -18,6 +18,26 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
+    version: "V16.5",
+    releasedOn: "2026-04-17",
+    titleTh: "อัปเดตเวอร์ชันใหม่และปล่อยระบบล่าสุด",
+    titleEn: "New Version Rollout and Production Refresh",
+    highlightsTh: [
+      "ปรับเวอร์ชันแอปเป็น V16.5 พร้อมอัปเดต marker สำหรับ runtime ใหม่",
+      "อัปเดตข้อความแจ้งเตือนให้ระบุชัดว่าในรอบนี้ปรับอะไรบ้าง",
+      "อัปโค้ดขึ้น GitHub และปล่อยขึ้น Vercel Production",
+      "รัน Supabase sync เพื่อตรวจให้ฐานข้อมูลอยู่สถานะล่าสุด",
+      "คงหน้ารายละเอียด release notes เพื่อให้กดดูย้อนหลังได้จากเมนูแจ้งเตือน",
+    ],
+    highlightsEn: [
+      "Updated app version to V16.5 with refreshed runtime marker flow.",
+      "Expanded update notification text to clearly summarize this release scope.",
+      "Published code to GitHub and deployed to Vercel production.",
+      "Ran Supabase sync to confirm the database is up to date.",
+      "Kept release-notes history accessible directly from notifications.",
+    ],
+  },
+  {
     version: "21.14.18",
     releasedOn: "2026-04-17",
     titleTh: "เสถียรภาพ Mobile/PWA และระบบอัปเดต",
@@ -53,20 +73,6 @@ const RELEASE_HISTORY: ReleaseEntry[] = [
       "Enhanced runtime diagnostics collection for faster issue triage.",
     ],
   },
-  {
-    version: "18.11.15",
-    releasedOn: "2026-04-01",
-    titleTh: "เสริมความพร้อมก่อนปล่อยจริง",
-    titleEn: "Release Readiness Hardening",
-    highlightsTh: [
-      "ปรับชุดทดสอบความพร้อมก่อนปล่อยจริงและตรวจเสถียรภาพ API หลัก",
-      "ย้ำขั้นตอนตรวจฐานข้อมูลและ migration ก่อน deploy",
-    ],
-    highlightsEn: [
-      "Improved pre-release readiness checks and core API stability validation.",
-      "Strengthened migration/database verification steps before deployment.",
-    ],
-  },
 ];
 
 function asLocale(locale: string): ReleaseLocale {
@@ -89,14 +95,14 @@ export function getReleaseUpdateTitle(locale: string) {
 
 export function getReleaseUpdateMessage(locale: string) {
   return asLocale(locale) === "th"
-    ? `อัปเดตเป็นเวอร์ชัน ${APP_VERSION} แล้ว เพื่อเพิ่มความเสถียรบนมือถือและ PWA`
-    : `Updated to version ${APP_VERSION} for better mobile and PWA stability.`;
+    ? `อัปเดตระบบเป็นเวอร์ชัน ${APP_VERSION} เรียบร้อยแล้ว`
+    : `System updated to version ${APP_VERSION}.`;
 }
 
 export function getReleaseUpdateDetail(locale: string) {
   return asLocale(locale) === "th"
-    ? "ปรับระบบอัปเดต/แคช แก้พฤติกรรม UI บนมือถือ ตรวจ i18n ไทย-อังกฤษ และยกระดับความเสถียรการล็อกอิน"
-    : "Improved update/cache flow, fixed mobile UI behavior, hardened Thai/English i18n, and stabilized login behavior.";
+    ? "รอบนี้อัปเดต: ปรับเวอร์ชันใหม่, อัปโค้ดขึ้น GitHub, ปล่อย Vercel, ตรวจ Supabase และปรับข้อความแจ้งเตือนให้อ่านง่ายขึ้น"
+    : "This round includes: new version bump, GitHub publish, Vercel production deploy, Supabase sync check, and clearer update notification text.";
 }
 
 export function getReleaseHighlights(locale: string) {
