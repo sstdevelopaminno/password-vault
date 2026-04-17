@@ -9,7 +9,7 @@ import { useI18n } from '@/i18n/provider';
 import { versionLabel } from '@/lib/app-version';
 import { UPDATE_DETAILS_PATH } from '@/lib/release-update';
 
-const LOGO_URL = 'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/Imagemaster password.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzL0ltYWdlbWFzdGVyIHBhc3N3b3JkLnBuZyIsImlhdCI6MTc3NDcxOTUzNywiZXhwIjoxODA2MjU1NTM3fQ.k-KJDjjccxBz8odBvF-SKmrHEdKgMQHRSy__nohIeDk';
+const LOGO_URL = '/icons/vault-logo.png';
 const NOTICE_READ_STORAGE_KEY = 'pv_home_notice_read_v1';
 
 function clamp(value: number, min: number, max: number) {
@@ -179,7 +179,7 @@ export default function HomePage() {
  <div className='flex items-center gap-3'>
  <Image
  src={LOGO_URL}
- alt='Master Password Logo'
+ alt='Vault Logo'
  width={56}
  height={56}
  priority
@@ -187,7 +187,7 @@ export default function HomePage() {
  className='h-14 w-14 rounded-2xl object-cover shadow-[0_8px_18px_rgba(79,123,255,0.22)]'
  />
  <div className='min-w-0'>
- <h1 className='truncate text-[27px] font-semibold leading-8 text-slate-800'>Master Password</h1>
+ <h1 className='truncate text-[27px] font-semibold leading-8 text-slate-800'>Vault</h1>
  <p className='mt-0.5 text-[13px] leading-5 text-slate-500'>{versionText}</p>
  <p className='text-[13px] leading-5 text-slate-500'>{roleLabel + roleText}</p>
  </div>

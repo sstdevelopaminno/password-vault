@@ -5,6 +5,7 @@ import { ShieldCheck } from 'lucide-react';
 import { MobileShell } from '@/components/layout/mobile-shell'; 
 import { Button } from '@/components/ui/button'; 
 import { Card } from '@/components/ui/card'; 
+import { AndroidApkDownloadButton } from '@/components/app/android-apk-download-button';
 import { useI18n } from '@/i18n/provider'; 
  
 export default function LandingPage() { 
@@ -34,6 +35,7 @@ export default function LandingPage() {
           <Link href='/register' className='block'> 
             <Button variant='secondary' className='h-11 w-full text-[15px] bg-white/72'>{t('landing.createAccount')}</Button> 
           </Link> 
+          <AndroidApkDownloadButton className='pt-1' />
         </Card> 
       </main> 
     </MobileShell> 

@@ -445,8 +445,8 @@ export default function OrgSharedPage() {
  <Card className='space-y-3'>
  <p className='text-xs text-slate-500'>
  {locale === 'th'
- ? 'แชร์ได้เฉพาะอีเมลผู้ใช้งานที่มีบัญชีใน Password Vault และสถานะ Active'
- : 'Only existing active Password Vault users can be invited by email.'}
+ ? 'แชร์ได้เฉพาะอีเมลผู้ใช้งานที่มีบัญชีใน Vault และสถานะ Active'
+ : 'Only existing active Vault users can be invited by email.'}
  </p>
  <Input value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder={locale === 'th' ? 'อีเมลผู้ใช้งานในระบบ' : 'App user email'} />
 

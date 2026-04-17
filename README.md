@@ -1,4 +1,4 @@
-# Password Vault (Production-Ready Mobile-First Scaffold)
+# Vault (Production-Ready Mobile-First Scaffold)
 
 ## Stack
 - Next.js App Router + TypeScript
@@ -118,6 +118,15 @@ Use `.env.example` and set:
 npm install
 npm run dev
 ```
+
+## Android APK Release (Capacitor)
+```bash
+npm run cap:sync:android
+npm run apk:android:release
+```
+
+Detailed release steps and compatibility rules:
+- `docs/android-apk-release-guide.md`
 
 ## Ops Checks
 ```bash

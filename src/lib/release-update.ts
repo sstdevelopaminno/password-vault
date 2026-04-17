@@ -18,7 +18,7 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.6",
+    version: "V16.6.3",
     releasedOn: "2026-04-18",
     titleTh: "อัปเดตเวอร์ชันใหม่และปล่อยระบบล่าสุด",
     titleEn: "New Version Rollout and Production Refresh",

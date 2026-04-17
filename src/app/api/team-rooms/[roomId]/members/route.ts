@@ -139,7 +139,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  return NextResponse.json({ error: profileError.message }, { status: 400 });
  }
  if (!profile?.id) {
- return NextResponse.json({ error: 'No Password Vault user found for this email' }, { status: 404 });
+ return NextResponse.json({ error: 'No Vault user found for this email' }, { status: 404 });
  }
  if (String(profile.status ?? '') !== 'active') {
  return NextResponse.json({ error: 'Target user is not active' }, { status: 400 });

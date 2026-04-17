@@ -1,6 +1,6 @@
-export const APP_ICON_192 = "/icons/icon-192.svg";
-export const APP_ICON_512 = "/icons/icon-512.svg";
-export const APP_ICON_MASKABLE = "/icons/maskable.svg";
+export const APP_ICON_192 = "/icons/icon-192.png";
+export const APP_ICON_512 = "/icons/icon-512.png";
+export const APP_ICON_MASKABLE = "/icons/maskable-512.png";
 
 export const NOTIFICATION_SETTINGS_STORAGE_KEY = "pv_notification_settings_v1";
 export const VERSION_SEEN_STORAGE_KEY = "pv_seen_app_version";

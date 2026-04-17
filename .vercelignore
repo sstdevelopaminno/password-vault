@@ -1,2 +1,12 @@
 .tmp 
 .tmp/**
+tools
+tools/**
+android
+android/**
+ios
+ios/**
+load-tests
+load-tests/**
+docs
+docs/**

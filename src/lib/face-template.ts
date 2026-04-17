@@ -1,5 +1,22 @@
 export const FACE_CAPTURE_SIZE = 16;
 
+export type CameraAccessErrorCode =
+  | "not-supported"
+  | "permission-denied"
+  | "device-not-found"
+  | "device-busy"
+  | "unknown";
+
+export class CameraAccessError extends Error {
+  code: CameraAccessErrorCode;
+
+  constructor(code: CameraAccessErrorCode, message: string) {
+    super(message);
+    this.name = "CameraAccessError";
+    this.code = code;
+  }
+}
+
 export type CapturedFaceSample = {
   vector: number[];
   quality: number;
@@ -83,14 +100,43 @@ export function captureFaceSample(video: HTMLVideoElement): CapturedFaceSample {
 }
 
 export async function startCamera(video: HTMLVideoElement) {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: "user",
-      width: { ideal: 640 },
-      height: { ideal: 640 },
-    },
-    audio: false,
-  });
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+    throw new CameraAccessError("not-supported", "Camera API is not supported on this device.");
+  }
+
+  let stream: MediaStream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "user",
+        width: { ideal: 640 },
+        height: { ideal: 640 },
+      },
+      audio: false,
+    });
+  } catch (error) {
+    if (error instanceof DOMException) {
+      if (error.name === "NotAllowedError" || error.name === "SecurityError") {
+        throw new CameraAccessError(
+          "permission-denied",
+          "Camera permission denied. Please allow camera access and retry.",
+        );
+      }
+      if (error.name === "NotFoundError" || error.name === "OverconstrainedError") {
+        throw new CameraAccessError(
+          "device-not-found",
+          "No front camera was detected on this device.",
+        );
+      }
+      if (error.name === "NotReadableError" || error.name === "AbortError") {
+        throw new CameraAccessError(
+          "device-busy",
+          "Camera is busy in another app. Close other camera apps and retry.",
+        );
+      }
+    }
+    throw new CameraAccessError("unknown", "Unable to start camera stream.");
+  }
 
   video.srcObject = stream;
   video.muted = true;

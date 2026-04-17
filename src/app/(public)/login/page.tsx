@@ -220,8 +220,8 @@ export default function LoginPage() {
       title: locale === "th" ? "เข้าสู่ระบบสำเร็จ" : "Login successful",
       message:
         locale === "th"
-          ? "ยินดีต้อนรับกลับสู่ Password Vault"
-          : "Welcome back to Password Vault.",
+          ? "ยินดีต้อนรับกลับสู่ Vault"
+          : "Welcome back to Vault.",
       href: "/home",
       alsoSystem: true,
     });

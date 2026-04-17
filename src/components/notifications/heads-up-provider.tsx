@@ -56,7 +56,7 @@ type HeadsUpContextValue = {
 const SETTINGS_STORAGE_KEY = "pv_notification_settings_v1";
 const VERSION_SEEN_KEY = "pv_seen_app_version";
 const AUTO_PERMISSION_PROMPT_KEY = "pv_auto_permission_prompted_v1";
-const APP_NAME = "Password Vault";
+const APP_NAME = "Vault";
 const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "").trim();
 const SWIPE_DISMISS_DISTANCE = 72;
 const SWIPE_MAX_OFFSET = 180;
@@ -153,8 +153,8 @@ async function showSystemNotification(input: HeadsUpNotificationInput, settings:
 
   const options: NotificationOptions = {
     body: input.message,
-    icon: "/icons/icon-192.svg",
-    badge: settings.badge ? "/icons/icon-192.svg" : undefined,
+    icon: "/icons/icon-192.png",
+    badge: settings.badge ? "/icons/icon-192.png" : undefined,
     data: { href: input.href ?? "/home" },
     tag: `pv-${input.kind}-${Date.now()}`,
     requireInteraction: Boolean(input.persistent || input.kind === "security"),
@@ -477,7 +477,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
       if (!data || data.type !== "PUSH_RECEIVED") return;
 
       const payload = data.payload ?? {};
-      const title = String(payload.title ?? "Password Vault");
+      const title = String(payload.title ?? "Vault");
       const message = String(payload.body ?? payload.message ?? "");
       if (!message) return;
 

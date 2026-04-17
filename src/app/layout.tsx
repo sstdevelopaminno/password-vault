@@ -8,7 +8,7 @@ import './globals.css';
 const runtimeBuildMarker = getRuntimeBuildMarker();
 
 export const metadata: Metadata = {
-  title: 'Password Vault',
+  title: 'Vault',
   description: 'Mobile-first password manager with OTP, PIN and RBAC',
   icons: {
     icon: [{ url: APP_ICON_192, type: 'image/svg+xml' }],
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Password Vault',
+    title: 'Vault',
   },
 };
 

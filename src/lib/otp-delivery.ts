@@ -151,7 +151,7 @@ function getOtpMailFrom() {
 }
 
 function getAppName() {
-  const fallback = "Password Vault";
+  const fallback = "Vault";
   const value = getEnv("OTP_APP_NAME");
   return value || fallback;
 }

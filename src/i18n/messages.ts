@@ -5,7 +5,7 @@ export const DEFAULT_LOCALE: Locale = "th";
 export const messages = {
   th: {
     common: {
-      appName: "Password Vault",
+      appName: "Vault",
       loading: "กำลังโหลด...",
       th: "ไทย",
       en: "English",
@@ -173,7 +173,7 @@ export const messages = {
   },
   en: {
     common: {
-      appName: "Password Vault",
+      appName: "Vault",
       loading: "Loading...",
       th: "ไทย",
       en: "English",

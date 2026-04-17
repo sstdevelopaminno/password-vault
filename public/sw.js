@@ -1,10 +1,10 @@
-const swUrl = new URL(self.location.href);  
+﻿const swUrl = new URL(self.location.href);  
 const buildValue = swUrl.searchParams.get('build');  
 const BUILD_MARKER = buildValue ? buildValue : 'dev';  
 const STATIC_CACHE_NAME = 'pv-static-' + BUILD_MARKER;  
 const PAGE_CACHE_NAME = 'pv-pages-' + BUILD_MARKER;  
 const CACHE_PREFIXES = ['pv-static-', 'pv-pages-'];  
-const APP_SHELL = ['/offline.html', '/login', '/icons/icon-192.svg', '/icons/icon-512.svg', '/icons/maskable.svg'];  
+const APP_SHELL = ['/offline.html', '/login', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png'];  
 const NAVIGATION_NETWORK_TIMEOUT_MS = 7000;
 const SAFE_PAGE_CACHE_PATHS = ['/', '/login', '/register', '/forgot-password', '/verify-otp', '/offline.html'];
   
@@ -160,7 +160,7 @@ self.addEventListener('fetch', function (event) {
 self.addEventListener('push', function (event) {  
   if (!event.data) return;  
   const payload = event.data.json();  
-  let title = 'Password Vault';  
+  let title = 'Vault';  
   let body = '';  
   let href = '/home';  
   let tag = 'pv-push';  
@@ -179,8 +179,8 @@ self.addEventListener('push', function (event) {
   
   const options = {  
     body: body,  
-    icon: '/icons/icon-192.svg',  
-    badge: '/icons/icon-192.svg',  
+    icon: '/icons/icon-192.png',  
+    badge: '/icons/icon-192.png',  
     image: image,  
     data: { href: href },  
     tag: tag,  
@@ -240,7 +240,7 @@ self.addEventListener('message', function (event) {
   
   if (event.data.type === 'SHOW_NOTIFICATION') {  
     const payload = event.data.payload ? event.data.payload : {};  
-    const title = payload.title ? payload.title : 'Password Vault';  
+    const title = payload.title ? payload.title : 'Vault';  
     const body = payload.message ? payload.message : '';  
     const href = payload.href ? payload.href : '/home';  
     const tag = payload.tag ? payload.tag : 'pv-local';  
@@ -248,8 +248,8 @@ self.addEventListener('message', function (event) {
   
     event.waitUntil(self.registration.showNotification(title, {  
       body: body,  
-      icon: '/icons/icon-192.svg',  
-      badge: '/icons/icon-192.svg',  
+      icon: '/icons/icon-192.png',  
+      badge: '/icons/icon-192.png',  
       image: payload.thumbnailUrl,  
       data: { href: href },  
       tag: tag,  
@@ -260,3 +260,4 @@ self.addEventListener('message', function (event) {
     }));  
   }  
 }); 
+

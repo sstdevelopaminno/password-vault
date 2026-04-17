@@ -44,3 +44,7 @@ next-env.d.ts
 .tmp/
 .tmp_*
 supabase/.temp/
+
+# local JDK/tooling for Android build
+/tools/
+/android/keystore/

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { captureFaceSample, startCamera, stopCamera } from "@/lib/face-template";
+import { CameraAccessError, captureFaceSample, startCamera, stopCamera } from "@/lib/face-template";
 
 type FacePinLoginGateProps = {
   children?: React.ReactNode;
@@ -36,6 +36,25 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
 
   const [error, setError] = useState("");
 
+  const mapCameraError = useCallback((cameraError: unknown) => {
+    if (cameraError instanceof CameraAccessError) {
+      if (cameraError.code === "permission-denied") {
+        return "Camera permission is denied. Please allow access and retry, or continue with OTP fallback.";
+      }
+      if (cameraError.code === "device-not-found") {
+        return "No front camera found on this device. Continue with OTP fallback.";
+      }
+      if (cameraError.code === "device-busy") {
+        return "Camera is busy in another app. Close other camera apps and retry, or use OTP fallback.";
+      }
+      if (cameraError.code === "not-supported") {
+        return "This device/browser does not support camera access. Continue with OTP fallback.";
+      }
+    }
+    if (cameraError instanceof Error && cameraError.message) return cameraError.message;
+    return "Unable to access camera. Continue with OTP fallback.";
+  }, []);
+
   const stopCameraNow = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -60,9 +79,9 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
       setCameraReady(true);
     } catch (cameraError) {
       setCameraReady(false);
-      setError(cameraError instanceof Error ? cameraError.message : "Unable to access camera.");
+      setError(mapCameraError(cameraError));
     }
-  }, [required, stopCameraNow, verified]);
+  }, [mapCameraError, required, stopCameraNow, verified]);
 
   const loadSession = useCallback(async () => {
     if (!enabled || !hasPin) {

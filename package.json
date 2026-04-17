@@ -1,6 +1,6 @@
 {
   "name": "password-vault",
-  "version": "16.5.0",
+  "version": "16.6.3",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
@@ -16,7 +16,8 @@
     "cap:add:android": "cap add android",
     "cap:add:ios": "cap add ios",
     "cap:open:android": "cap open android",
-    "cap:open:ios": "cap open ios"
+    "cap:open:ios": "cap open ios",
+    "apk:android:release": "node scripts/build-android-apk.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

@@ -44,11 +44,11 @@ function getReminderResendApiKey() {
 }
 
 function getReminderFromAddress() {
-  return getEnv("NOTE_REMINDER_EMAIL_FROM") || getEnv("OTP_EMAIL_FROM") || "Password Vault <no-reply@password-vault.local>";
+  return getEnv("NOTE_REMINDER_EMAIL_FROM") || getEnv("OTP_EMAIL_FROM") || "Vault <no-reply@password-vault.local>";
 }
 
 function getAppName() {
-  return getEnv("OTP_APP_NAME") || "Password Vault";
+  return getEnv("OTP_APP_NAME") || "Vault";
 }
 
 function getAppBaseUrl() {

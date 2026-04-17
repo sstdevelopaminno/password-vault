@@ -14,7 +14,7 @@ const allowNavigation = parseAllowNavigation(allowNavigationCsv);
 
 const config: CapacitorConfig = {
   appId: 'com.passwordvault.app',
-  appName: 'Password Vault',
+  appName: 'Vault',
   // webDir is required by Capacitor even when pilot mode points to a remote server URL.
   webDir: 'www',
   server: serverUrl
