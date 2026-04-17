@@ -63,7 +63,11 @@ This avoids shipping stale `www` bundle as the only source of truth.
 ## 9) TWA path (optional)
 If Android TWA is needed in addition to Capacitor:
 1. Configure Digital Asset Links (`/.well-known/assetlinks.json`).
-   Use `docs/twa-assetlinks.example.json` as the template, then replace package name and signing fingerprint.
-2. Sign app with production keystore.
-3. Validate verified origin and fallback behavior.
-4. Keep the same update/caching policy on the web origin.
+   This project serves the file from Next route: `src/app/.well-known/assetlinks.json/route.ts`.
+   Set env values:
+   - `ANDROID_TWA_PACKAGE_NAME` (default `com.passwordvault.app`)
+   - `ANDROID_TWA_SHA256_FINGERPRINTS` (comma-separated SHA-256 fingerprints)
+2. Keep `docs/twa-assetlinks.example.json` as the reference payload format.
+3. Sign app with production keystore.
+4. Validate verified origin and fallback behavior.
+5. Keep the same update/caching policy on the web origin.

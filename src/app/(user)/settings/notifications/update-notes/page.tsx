@@ -5,11 +5,11 @@ import { ChevronLeft, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/i18n/provider";
 import { APP_VERSION } from "@/lib/app-version";
-import { getReleaseHighlights, getReleaseUpdateTitle } from "@/lib/release-update";
+import { getReleaseHistory, getReleaseUpdateTitle } from "@/lib/release-update";
 
 export default function UpdateNotesPage() {
   const { locale } = useI18n();
-  const highlights = getReleaseHighlights(locale);
+  const releases = getReleaseHistory(locale);
 
   return (
     <section className="space-y-4 pb-24">
@@ -30,17 +30,32 @@ export default function UpdateNotesPage() {
           </p>
           <p className="mt-1 text-xs text-blue-800">
             {locale === "th"
-              ? "รอบนี้เน้นความเสถียร Mobile/PWA, ระบบแคช, i18n ไทย-อังกฤษ และการล็อกอิน"
-              : "This release focuses on Mobile/PWA stability, cache reliability, Thai/English i18n, and login flow stability."}
+              ? "หน้าจอนี้สรุปสาเหตุการอัปเดตย้อนหลังทั้งหมด เพื่อให้ตรวจสอบได้ง่ายจากเมนูแจ้งเตือน"
+              : "This page contains version history and update reasons, directly linked from notifications."}
           </p>
         </div>
 
-        <div className="space-y-2">
-          {highlights.map((item) => (
-            <div key={item} className="flex items-start gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-              <p className="text-sm leading-6 text-slate-700">{item}</p>
-            </div>
+        <div className="space-y-3">
+          {releases.map((release) => (
+            <article key={release.version} className="rounded-2xl border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">
+                  v{release.version} - {release.title}
+                </p>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                  {release.releasedOnLabel}
+                </span>
+              </div>
+
+              <div className="mt-2 space-y-1.5">
+                {release.highlights.map((item) => (
+                  <div key={`${release.version}-${item}`} className="flex items-start gap-2 rounded-xl bg-slate-50 px-2.5 py-2">
+                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600" />
+                    <p className="text-xs leading-5 text-slate-700">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
           ))}
         </div>
       </Card>

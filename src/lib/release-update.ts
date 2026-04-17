@@ -1,39 +1,132 @@
 import { APP_VERSION } from "@/lib/app-version";
 
 export const UPDATE_DETAILS_PATH = "/settings/notifications/update-notes";
+export const TWA_ASSETLINKS_ENV_PACKAGE_KEY = "ANDROID_TWA_PACKAGE_NAME";
+export const TWA_ASSETLINKS_ENV_FINGERPRINTS_KEY = "ANDROID_TWA_SHA256_FINGERPRINTS";
+export const DEFAULT_ANDROID_PACKAGE = "com.passwordvault.app";
+
+type ReleaseLocale = "th" | "en";
+
+type ReleaseEntry = {
+  version: string;
+  releasedOn: string;
+  titleTh: string;
+  titleEn: string;
+  highlightsTh: string[];
+  highlightsEn: string[];
+};
+
+const RELEASE_HISTORY: ReleaseEntry[] = [
+  {
+    version: "21.14.18",
+    releasedOn: "2026-04-17",
+    titleTh: "เสถียรภาพ Mobile/PWA และระบบอัปเดต",
+    titleEn: "Mobile/PWA Stability and Update Reliability",
+    highlightsTh: [
+      "ปรับความเสถียรระบบอัปเดตเวอร์ชันใหม่ พร้อมเคลียร์ runtime cache เก่าอย่างปลอดภัย",
+      "แก้พฤติกรรมแถบล่างบนมือถือและลดอาการ UI กระตุกจาก cache เก่า",
+      "เสริมเสถียรภาพการล็อกอินและการรีเช็ก runtime หลังอัปเดต",
+      "ตรวจความถูกต้อง i18n ไทย-อังกฤษในจุดใช้งานหลัก",
+      "เพิ่มหน้า release notes และลิงก์จากแจ้งเตือนเพื่อกดดูรายละเอียดอัปเดตได้ทันที",
+    ],
+    highlightsEn: [
+      "Improved runtime update stability with safe stale-cache invalidation.",
+      "Fixed mobile bottom-bar behavior and reduced stale-cache UI glitches.",
+      "Hardened login flow and post-update runtime re-check reliability.",
+      "Improved Thai/English i18n consistency on key user paths.",
+      "Added a dedicated release-notes page linked directly from update notifications.",
+    ],
+  },
+  {
+    version: "20.13.17",
+    releasedOn: "2026-04-10",
+    titleTh: "รอบเสริมพื้นฐาน PWA และตรวจ QA มือถือ",
+    titleEn: "PWA Baseline and Mobile QA Round",
+    highlightsTh: [
+      "ยกระดับ checklist ตรวจ runtime มือถือและพฤติกรรม cache",
+      "เพิ่มการตรวจความพร้อมโหมดติดตั้งแอปบน Android/iOS",
+      "ปรับการตรวจวัดและบันทึกสัญญาณ runtime เพื่อแก้ปัญหาได้เร็วขึ้น",
+    ],
+    highlightsEn: [
+      "Expanded mobile runtime QA checklist and cache behavior checks.",
+      "Improved install-readiness diagnostics for Android/iOS app modes.",
+      "Enhanced runtime diagnostics collection for faster issue triage.",
+    ],
+  },
+  {
+    version: "18.11.15",
+    releasedOn: "2026-04-01",
+    titleTh: "เสริมความพร้อมก่อนปล่อยจริง",
+    titleEn: "Release Readiness Hardening",
+    highlightsTh: [
+      "ปรับชุดทดสอบความพร้อมก่อนปล่อยจริงและตรวจเสถียรภาพ API หลัก",
+      "ย้ำขั้นตอนตรวจฐานข้อมูลและ migration ก่อน deploy",
+    ],
+    highlightsEn: [
+      "Improved pre-release readiness checks and core API stability validation.",
+      "Strengthened migration/database verification steps before deployment.",
+    ],
+  },
+];
+
+function asLocale(locale: string): ReleaseLocale {
+  return locale === "th" ? "th" : "en";
+}
+
+function formatReleaseDate(releasedOn: string, locale: ReleaseLocale) {
+  const date = new Date(`${releasedOn}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return releasedOn;
+  return new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
 
 export function getReleaseUpdateTitle(locale: string) {
-  return locale === "th" ? "อัปเดตระบบเวอร์ชันใหม่" : "New system update";
+  return asLocale(locale) === "th" ? "อัปเดตระบบเวอร์ชันใหม่" : "New system update";
 }
 
 export function getReleaseUpdateMessage(locale: string) {
-  return locale === "th"
+  return asLocale(locale) === "th"
     ? `อัปเดตเป็นเวอร์ชัน ${APP_VERSION} แล้ว เพื่อเพิ่มความเสถียรบนมือถือและ PWA`
     : `Updated to version ${APP_VERSION} for better mobile and PWA stability.`;
 }
 
 export function getReleaseUpdateDetail(locale: string) {
-  return locale === "th"
-    ? "ปรับระบบอัปเดต/แคช ลดปัญหา UI แถบล่างบนมือถือ เพิ่มความแม่นยำ i18n ไทย-อังกฤษ และยกระดับความเสถียรการล็อกอิน"
-    : "Improved update/cache flow, fixed mobile bottom-bar UI issues, hardened Thai/English i18n, and stabilized login behavior.";
+  return asLocale(locale) === "th"
+    ? "ปรับระบบอัปเดต/แคช แก้พฤติกรรม UI บนมือถือ ตรวจ i18n ไทย-อังกฤษ และยกระดับความเสถียรการล็อกอิน"
+    : "Improved update/cache flow, fixed mobile UI behavior, hardened Thai/English i18n, and stabilized login behavior.";
 }
 
 export function getReleaseHighlights(locale: string) {
-  if (locale === "th") {
-    return [
-      "ยกระดับความเสถียรการอัปเดตเวอร์ชันใหม่ พร้อมเคลียร์ runtime cache เก่าอย่างปลอดภัย",
-      "แก้พฤติกรรมแถบล่างบนมือถือให้ไม่จม/เลื่อนผิดจังหวะ และปรับการใช้งานจอมือถือให้คงที่",
-      "เพิ่มความเสถียรของการล็อกอินและการรีเช็ก runtime หลังอัปเดต",
-      "ตรวจความถูกต้องภาษาไทย/อังกฤษ และลดความเสี่ยงข้อความเพี้ยนในจุดสำคัญ",
-      "เพิ่มหน้าอธิบายการอัปเดต พร้อมลิงก์จากการแจ้งเตือนให้กดเข้าดูรายละเอียดได้ทันที",
-    ];
-  }
+  const entry = RELEASE_HISTORY[0];
+  return asLocale(locale) === "th" ? entry.highlightsTh : entry.highlightsEn;
+}
 
+export function getReleaseHistory(locale: string) {
+  const lang = asLocale(locale);
+  return RELEASE_HISTORY.map((entry) => ({
+    version: entry.version,
+    releasedOn: entry.releasedOn,
+    releasedOnLabel: formatReleaseDate(entry.releasedOn, lang),
+    title: lang === "th" ? entry.titleTh : entry.titleEn,
+    highlights: lang === "th" ? entry.highlightsTh : entry.highlightsEn,
+    isCurrent: entry.version === APP_VERSION,
+  }));
+}
+
+export function getDefaultTwaAssetLinksPayload() {
   return [
-    "Improved runtime update stability with safe stale-cache invalidation.",
-    "Fixed mobile bottom-bar behavior and improved viewport consistency.",
-    "Hardened login stability and runtime re-check flow after updates.",
-    "Improved Thai/English i18n consistency in key user paths.",
-    "Added a dedicated update-details page linked directly from notifications.",
+    {
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: {
+        namespace: "android_app",
+        package_name: DEFAULT_ANDROID_PACKAGE,
+        sha256_cert_fingerprints: [
+          "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
+        ],
+      },
+    },
   ];
 }
