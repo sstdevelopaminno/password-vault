@@ -68,3 +68,24 @@ Then set environment values (see `.env.example`):
   - camera busy
   - camera not found
   - unsupported device/browser
+
+## 6) GitHub Actions automation (1+2)
+This repo now includes 2 workflows:
+- `Android APK Release (Tag)`:
+  - File: `.github/workflows/android-apk-release-on-tag.yml`
+  - Trigger: push tag `v*`
+  - Action: build/sign APK and publish GitHub Release asset automatically
+- `Android One-Click Production`:
+  - File: `.github/workflows/android-one-click-prod.yml`
+  - Trigger: manual `workflow_dispatch`
+  - Action: one-click quality checks + signed APK + optional Supabase push + optional Vercel deploy + optional GitHub Release
+
+Required GitHub Secrets:
+- `ANDROID_RELEASE_KEYSTORE_BASE64` (base64 of `.jks` keystore)
+- `ANDROID_RELEASE_KEY_ALIAS`
+- `ANDROID_RELEASE_STORE_PASSWORD`
+- `ANDROID_RELEASE_KEY_PASSWORD`
+- `VERCEL_TOKEN` (for one-click Vercel deploy)
+- `SUPABASE_ACCESS_TOKEN` (for one-click `supabase db push`)
+- `SUPABASE_PROJECT_REF`
+- `SUPABASE_DB_PASSWORD`

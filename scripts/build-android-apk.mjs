@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const javaExecutableName = process.platform === "win32" ? "java.exe" : "java";
 
 function toFsPath(inputPath) {
   if (process.platform !== "win32") return inputPath;
@@ -31,7 +32,7 @@ function findJavaHome() {
       .map((name) => path.join(localJdkRoot, name))
       .filter((full) => statSync(full).isDirectory())
       .filter((full) => {
-        const javaExe = path.join(full, "bin", "java.exe");
+        const javaExe = path.join(full, "bin", javaExecutableName);
         return existsSync(javaExe) && getJavaMajorVersion(javaExe) >= 21;
       });
     if (entries.length) {
@@ -42,7 +43,7 @@ function findJavaHome() {
 
   const fromEnv = process.env.JAVA_HOME ? ensurePath(process.env.JAVA_HOME) : "";
   if (fromEnv) {
-    const javaExe = path.join(fromEnv, "bin", "java.exe");
+    const javaExe = path.join(fromEnv, "bin", javaExecutableName);
     if (existsSync(javaExe) && getJavaMajorVersion(javaExe) >= 21) {
       return fromEnv;
     }
