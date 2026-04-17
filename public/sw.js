@@ -5,6 +5,8 @@ const STATIC_CACHE_NAME = 'pv-static-' + BUILD_MARKER;
 const PAGE_CACHE_NAME = 'pv-pages-' + BUILD_MARKER;  
 const CACHE_PREFIXES = ['pv-static-', 'pv-pages-'];  
 const APP_SHELL = ['/offline.html', '/login', '/icons/icon-192.svg', '/icons/icon-512.svg', '/icons/maskable.svg'];  
+const NAVIGATION_NETWORK_TIMEOUT_MS = 7000;
+const SAFE_PAGE_CACHE_PATHS = ['/', '/login', '/register', '/forgot-password', '/verify-otp', '/offline.html'];
   
 async function cleanupOldCaches() {  
   const keys = await caches.keys();  
@@ -17,11 +19,61 @@ async function cleanupOldCaches() {
   });  
   await Promise.all(removable.map(function (name) { return caches.delete(name); }));  
 } 
+
+async function purgeManagedCaches() {  
+  const keys = await caches.keys();  
+  const removable = keys.filter(function (name) {  
+    const matchesPrefix = CACHE_PREFIXES.some(function (prefix) { return name.startsWith(prefix); });  
+    return matchesPrefix;  
+  });  
+  await Promise.all(removable.map(function (name) { return caches.delete(name); }));  
+} 
+
+async function purgeManagedCachesAndWarmShell() {
+  await purgeManagedCaches();
+  try {
+    const cache = await caches.open(STATIC_CACHE_NAME);
+    await cache.addAll(APP_SHELL);
+  } catch {
+    // ignore warmup failures (for offline or flaky networks)
+  }
+}
   
 function isSameOrigin(request) {  
   const url = new URL(request.url);  
   return url.origin === self.location.origin;  
 }  
+
+function normalizePathname(pathname) {
+  if (!pathname) return '/';
+  if (pathname.length > 1 && pathname.endsWith('/')) return pathname.slice(0, -1);
+  return pathname;
+}
+
+function shouldCacheNavigationPage(request) {
+  if (!isSameOrigin(request)) return false;
+  const url = new URL(request.url);
+  const pathname = normalizePathname(url.pathname);
+  return SAFE_PAGE_CACHE_PATHS.some(function (safePath) {
+    return safePath === pathname;
+  });
+}
+
+async function withTimeout(promise, timeoutMs) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise(function (_, reject) {
+        timer = setTimeout(function () {
+          reject(new Error('NETWORK_TIMEOUT'));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
   
 function shouldRuntimeCache(request) {  
   const url = new URL(request.url);  
@@ -37,6 +89,7 @@ function shouldRuntimeCache(request) {
 async function cachePageResponse(request, response) {  
   if (!isSameOrigin(request)) return;  
   if (response.status !== 200) return;  
+  if (!shouldCacheNavigationPage(request)) return;
   const contentTypeRaw = response.headers.get('content-type');  
   const contentType = contentTypeRaw ? contentTypeRaw : '';  
   if (!contentType.includes('text/html')) return;  
@@ -45,10 +98,10 @@ async function cachePageResponse(request, response) {
 }  
   
 async function offlineNavigationResponse(request) {  
-  const cachedPage = await caches.match(request, { ignoreSearch: true });  
-  if (cachedPage) return cachedPage;  
-  const cachedHome = await caches.match('/home', { ignoreSearch: true });  
-  if (cachedHome) return cachedHome;  
+  if (shouldCacheNavigationPage(request)) {
+    const cachedPage = await caches.match(request, { ignoreSearch: true });  
+    if (cachedPage) return cachedPage;  
+  }
   const offline = await caches.match('/offline.html');  
   if (offline) return offline;  
   return caches.match('/login');  
@@ -68,7 +121,7 @@ self.addEventListener('fetch', function (event) {
   if (event.request.mode === 'navigate') {  
     event.respondWith((async function () {  
       try {  
-        const response = await fetch(event.request);  
+        const response = await withTimeout(fetch(event.request), NAVIGATION_NETWORK_TIMEOUT_MS);  
         await cachePageResponse(event.request, response);  
         return response;  
       } catch {  
@@ -175,10 +228,15 @@ self.addEventListener('message', function (event) {
     return;  
   }  
   
-  if (event.data.type === 'PURGE_OLD_CACHES' || event.data.type === 'PURGE_APP_CACHE') {  
+  if (event.data.type === 'PURGE_OLD_CACHES') {  
     event.waitUntil(cleanupOldCaches());  
     return;  
   }  
+
+  if (event.data.type === 'PURGE_APP_CACHE' || event.data.type === 'PURGE_ALL_CACHES') {  
+    event.waitUntil(purgeManagedCachesAndWarmShell());  
+    return;  
+  }
   
   if (event.data.type === 'SHOW_NOTIFICATION') {  
     const payload = event.data.payload ? event.data.payload : {};  

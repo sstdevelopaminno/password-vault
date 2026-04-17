@@ -1,9 +1,16 @@
 ﻿"use client";
 
+import Image from "next/image";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, ChevronDown, ChevronUp, ShieldAlert, X } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { APP_VERSION } from "@/lib/app-version";
+import {
+  UPDATE_DETAILS_PATH,
+  getReleaseUpdateDetail,
+  getReleaseUpdateMessage,
+  getReleaseUpdateTitle,
+} from "@/lib/release-update";
 
 type NotificationKind = "system" | "security" | "auth" | "vault" | "general";
 
@@ -51,6 +58,8 @@ const VERSION_SEEN_KEY = "pv_seen_app_version";
 const AUTO_PERMISSION_PROMPT_KEY = "pv_auto_permission_prompted_v1";
 const APP_NAME = "Password Vault";
 const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "").trim();
+const SWIPE_DISMISS_DISTANCE = 72;
+const SWIPE_MAX_OFFSET = 180;
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   enabled: true,
@@ -176,8 +185,19 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [browserPermission, setBrowserPermission] = useState<NotificationPermission | "unsupported">(getInitialPermission);
   const [settings, setSettings] = useState<NotificationSettings>(getInitialSettings);
+  const [swipeOffsets, setSwipeOffsets] = useState<Record<string, number>>({});
+  const [swipingId, setSwipingId] = useState<string | null>(null);
   const settingsRef = useRef(settings);
   const pushEndpointRef = useRef("");
+  const swallowClickRef = useRef<{ id: string; until: number } | null>(null);
+  const swipeRef = useRef<{
+    id: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    deltaX: number;
+    dragging: boolean;
+  } | null>(null);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -196,20 +216,14 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     if (previous === APP_VERSION) return;
 
     window.localStorage.setItem(VERSION_SEEN_KEY, APP_VERSION);
-    const message =
-      locale === "th"
-        ? `ระบบอัปเดตเป็นเวอร์ชัน ${APP_VERSION} แล้ว`
-        : `System updated to version ${APP_VERSION}.`;
-    const detail =
-      locale === "th"
-        ? "แนะนำให้รีเฟรชหนึ่งครั้งเพื่อใช้งานฟีเจอร์ล่าสุดให้ครบ"
-        : "Refresh app once to use all latest features.";
+    const message = getReleaseUpdateMessage(locale);
+    const detail = getReleaseUpdateDetail(locale);
     notify({
       kind: "system",
-      title: locale === "th" ? "อัปเดตระบบใหม่" : "New system update",
+      title: getReleaseUpdateTitle(locale),
       message,
       details: detail,
-      href: "/home",
+      href: UPDATE_DETAILS_PATH,
       alsoSystem: true,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -316,7 +330,77 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
       delete next[id];
       return next;
     });
+    setSwipeOffsets((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }, []);
+
+  const beginSwipe = useCallback((id: string, pointerId: number, clientX: number, clientY: number) => {
+    swipeRef.current = {
+      id,
+      pointerId,
+      startX: clientX,
+      startY: clientY,
+      deltaX: 0,
+      dragging: false,
+    };
+    setSwipingId(id);
+  }, []);
+
+  const moveSwipe = useCallback((pointerId: number, clientX: number, clientY: number) => {
+    const current = swipeRef.current;
+    if (!current || current.pointerId !== pointerId) return false;
+
+    const dx = clientX - current.startX;
+    const dy = clientY - current.startY;
+
+    if (!current.dragging) {
+      if (Math.abs(dx) < 8 || Math.abs(dx) <= Math.abs(dy)) return false;
+      current.dragging = true;
+    }
+
+    const nextOffset = Math.max(-SWIPE_MAX_OFFSET, Math.min(SWIPE_MAX_OFFSET, dx));
+    current.deltaX = nextOffset;
+    setSwipeOffsets((prev) => {
+      if (prev[current.id] === nextOffset) return prev;
+      return { ...prev, [current.id]: nextOffset };
+    });
+    return true;
+  }, []);
+
+  const endSwipe = useCallback((pointerId: number, cancelled = false) => {
+    const current = swipeRef.current;
+    if (!current || current.pointerId !== pointerId) return;
+
+    swipeRef.current = null;
+    const id = current.id;
+    const offset = cancelled ? 0 : current.deltaX;
+    const dismiss = !cancelled && Math.abs(offset) >= SWIPE_DISMISS_DISTANCE;
+
+    if (current.dragging) {
+      swallowClickRef.current = { id, until: Date.now() + 260 };
+    }
+
+    if (dismiss) {
+      setSwipeOffsets((prev) => ({ ...prev, [id]: Math.sign(offset) * (SWIPE_MAX_OFFSET + 72) }));
+      window.setTimeout(() => removeItem(id), 110);
+    } else {
+      setSwipeOffsets((prev) => ({ ...prev, [id]: 0 }));
+      window.setTimeout(() => {
+        setSwipeOffsets((prev) => {
+          if (!(id in prev)) return prev;
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }, 220);
+    }
+
+    setSwipingId(null);
+  }, [removeItem]);
 
   const notify = useCallback((input: HeadsUpNotificationInput) => {
     const snapshot = settingsRef.current;
@@ -331,7 +415,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
 
     if (snapshot.popup) {
       setItems((prev) => [nextItem, ...prev].slice(0, 4));
-      const ttl = input.persistent ? 12_000 : 7_000;
+      const ttl = input.persistent ? 6_500 : 3_200;
       window.setTimeout(() => removeItem(id), ttl);
     }
 
@@ -349,10 +433,10 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     }
 
     if (snapshot.badge && "setAppBadge" in navigator) {
- const setBadge = Reflect.get(navigator, "setAppBadge");
- if (typeof setBadge === "function") {
- void setBadge.call(navigator, 1);
- }
+      const setBadge = Reflect.get(navigator, "setAppBadge");
+      if (typeof setBadge === "function") {
+        void setBadge.call(navigator, 1);
+      }
     }
   }, [removeItem]);
 
@@ -360,10 +444,10 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       if (!("clearAppBadge" in navigator)) return;
- const clearBadge = Reflect.get(navigator, "clearAppBadge");
- if (typeof clearBadge === "function") {
- void clearBadge.call(navigator);
- }
+      const clearBadge = Reflect.get(navigator, "clearAppBadge");
+      if (typeof clearBadge === "function") {
+        void clearBadge.call(navigator);
+      }
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
@@ -427,18 +511,57 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
   return (
     <HeadsUpContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-2 z-[90] mx-auto flex w-full max-w-[500px] flex-col gap-2 px-3">
+      <div className="pointer-events-none fixed inset-x-0 top-[max(env(safe-area-inset-top),8px)] z-[90] mx-auto flex w-full max-w-[460px] flex-col gap-2 px-3">
         {items.map((item) => {
           const opened = Boolean(expanded[item.id]);
           const itemTime = new Date(item.createdAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           });
+          const offset = swipeOffsets[item.id] ?? 0;
+          const dragging = swipingId === item.id;
+          const opacity = 1 - Math.min(Math.abs(offset) / 260, 0.45);
 
           return (
             <article
               key={item.id}
-              className="pointer-events-auto animate-heads-up-in overflow-hidden rounded-2xl border border-white/45 bg-white/92 p-3 shadow-[0_16px_34px_rgba(15,23,42,0.22)] backdrop-blur"
+              className="pointer-events-auto animate-heads-up-in overflow-hidden rounded-2xl border border-sky-100/80 bg-white/95 p-3 shadow-[0_18px_38px_rgba(15,23,42,0.2)] ring-1 ring-white/70 backdrop-blur will-change-transform"
+              style={{
+                transform: `translateX(${offset}px)`,
+                opacity,
+                transition: dragging ? "none" : "transform 200ms ease, opacity 200ms ease",
+                touchAction: "pan-y",
+              }}
+              onPointerDown={(event) => {
+                if (event.pointerType === "mouse" && event.button !== 0) return;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                beginSwipe(item.id, event.pointerId, event.clientX, event.clientY);
+              }}
+              onPointerMove={(event) => {
+                const handled = moveSwipe(event.pointerId, event.clientX, event.clientY);
+                if (handled) {
+                  event.preventDefault();
+                }
+              }}
+              onPointerUp={(event) => {
+                endSwipe(event.pointerId);
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+                }
+              }}
+              onPointerCancel={(event) => {
+                endSwipe(event.pointerId, true);
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+                }
+              }}
+              onClickCapture={(event) => {
+                const gate = swallowClickRef.current;
+                if (gate && gate.id === item.id && Date.now() < gate.until) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }
+              }}
             >
               <div className="mb-2 flex items-start justify-between gap-2">
                 <button
@@ -472,9 +595,13 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
                   {opened && item.details ? <p className="mt-1 text-xs leading-5 text-slate-500">{item.details}</p> : null}
                 </div>
                 {item.thumbnailUrl ? (
-                  <img
+                  <Image
                     src={item.thumbnailUrl}
                     alt=""
+                    width={56}
+                    height={56}
+                    sizes="56px"
+                    unoptimized
                     className="h-14 w-14 shrink-0 rounded-xl border border-slate-200 object-cover"
                   />
                 ) : null}

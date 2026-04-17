@@ -124,7 +124,10 @@ export default function TeamRoomPage() {
  }, [locale, roomId, router, showToast, toDisplayDate]);
 
  useEffect(() => {
+ const timer = window.setTimeout(() => {
  void loadAll();
+ }, 0);
+ return () => window.clearTimeout(timer);
  }, [loadAll]);
 
  async function performDelete(itemId: string, assertionToken: string) {

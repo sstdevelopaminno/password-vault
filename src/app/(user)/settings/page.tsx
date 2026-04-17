@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Bell, ChevronLeft, ChevronRight, KeyRound, Languages, LifeBuoy, Lock, LogOut, Mail, QrCode, RefreshCw, Shield, UserRound } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, KeyRound, Languages, LifeBuoy, Lock, LogOut, Mail, QrCode, RefreshCw, Shield, UserRound, type LucideIcon } from 'lucide-react';
 import { OtpInput } from '@/components/auth/otp-input';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,9 +21,9 @@ function digits(value: string) {
   return String(value).replace(/\D/g, '').slice(0, 6);
 }
 
-function mapError(message: unknown, t: (key: any) => string, locale: 'th' | 'en') {
+function mapError<T extends string>(message: unknown, t: (key: T) => string, locale: 'th' | 'en') {
   const text = String(message ?? '').toLowerCase();
-  if (text.includes('token') || text.includes('invalid otp')) return t('verifyOtp.invalid');
+  if (text.includes('token') || text.includes('invalid otp')) return t('verifyOtp.invalid' as T);
   if (text.includes('duplicate key value') && text.includes('profiles_email_key')) {
     return locale === 'th'
       ? 'พบข้อมูลบัญชีซ้ำ ระบบกำลังเชื่อมบัญชีเดิมให้อัตโนมัติ กรุณาลองอีกครั้ง'
@@ -87,45 +87,7 @@ export default function SettingsPage() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
 
-  useEffect(() => {
-    void loadProfile();
-  }, []);
-
-  useEffect(() => {
-    if (resendIn <= 0) return;
-    const timer = setInterval(() => setResendIn((v) => (v > 0 ? v - 1 : 0)), 1000);
-    return () => clearInterval(timer);
-  }, [resendIn]);
-
-  useEffect(() => {
-    if (active !== 'email') return;
-    setEmailStep('enter_email');
-    setEmailOtp('');
-    setResendIn(0);
-    setShowUseLatestOtp(false);
-  }, [active]);
-
-  useEffect(() => {
-    if (active !== 'password') return;
-    setPasswordStep('enter_password');
-    setPasswordPin('');
-  }, [active]);
-
-  useEffect(() => {
-    if (active !== 'email' || emailStep !== 'enter_otp' || emailOtp.length !== 6) return;
-    void confirmEmailChange();
-  }, [active, emailStep, emailOtp]);
-
-  useEffect(() => {
-    if (active !== 'password') return;
-    if (passwordStep !== 'enter_pin') return;
-    if (passwordPin.length !== 6) return;
-    if (newPassword.length < 8) return;
-    if (passwordPinLoading) return;
-    void updatePassword();
-  }, [active, passwordStep, passwordPin, newPassword, passwordPinLoading]);
-
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     const res = await fetch('/api/profile/me', { method: 'GET' });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) return;
@@ -137,9 +99,9 @@ export default function SettingsPage() {
     setPinSessionTimeoutSec(
       clampPinSessionTimeoutSec(body?.pinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC),
     );
-  }
+  }, []);
 
-  async function apiCall(url: string, method: 'POST' | 'PATCH', payload: unknown, fallback: string) {
+  const apiCall = useCallback(async (url: string, method: 'POST' | 'PATCH', payload: unknown, fallback: string) => {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -151,7 +113,7 @@ export default function SettingsPage() {
       return null;
     }
     return body;
-  }
+  }, [locale, t, toast]);
 
   async function updateProfile() {
     const name = String(fullName).trim();
@@ -250,7 +212,7 @@ export default function SettingsPage() {
     toast.showToast(String(body?.message ?? t('settings.otpSent')), 'success');
   }
 
-  async function confirmEmailChange() {
+  const confirmEmailChange = useCallback(async () => {
     if (emailAutoLoading || emailOtp.length !== 6) return;
 
     setEmailAutoLoading(true);
@@ -273,7 +235,7 @@ export default function SettingsPage() {
     setEmailOtp('');
     setResendIn(0);
     void loadProfile();
-  }
+  }, [apiCall, emailAutoLoading, emailOtp, goMenuRoot, loadProfile, newEmail, t, toast]);
 
   function beginPasswordChange() {
     if (newPassword.length < 8) {
@@ -283,7 +245,7 @@ export default function SettingsPage() {
     setPasswordStep('enter_pin');
   }
 
-  async function updatePassword() {
+  const updatePassword = useCallback(async () => {
     if (newPassword.length < 8) {
       toast.showToast(locale === 'th' ? 'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร' : 'Password must be at least 8 characters', 'error');
       return;
@@ -328,7 +290,7 @@ export default function SettingsPage() {
     setPasswordStep('enter_password');
     setNewPassword('');
     setPasswordPin('');
-  }
+  }, [goMenuRoot, locale, newPassword, passwordPin, passwordPinLoading, t, toast]);
 
   async function updatePin() {
     if (newPin.length !== 6 || confirmPin.length !== 6 || newPin !== confirmPin) {
@@ -367,6 +329,59 @@ export default function SettingsPage() {
     }
   }
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadProfile();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadProfile]);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = setInterval(() => setResendIn((v) => (v > 0 ? v - 1 : 0)), 1000);
+    return () => clearInterval(timer);
+  }, [resendIn]);
+
+  useEffect(() => {
+    if (active !== 'email') return;
+    const timer = window.setTimeout(() => {
+      setEmailStep('enter_email');
+      setEmailOtp('');
+      setResendIn(0);
+      setShowUseLatestOtp(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [active]);
+
+  useEffect(() => {
+    if (active !== 'password') return;
+    const timer = window.setTimeout(() => {
+      setPasswordStep('enter_password');
+      setPasswordPin('');
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [active]);
+
+  useEffect(() => {
+    if (active !== 'email' || emailStep !== 'enter_otp' || emailOtp.length !== 6) return;
+    const timer = window.setTimeout(() => {
+      void confirmEmailChange();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [active, confirmEmailChange, emailOtp, emailStep]);
+
+  useEffect(() => {
+    if (active !== 'password') return;
+    if (passwordStep !== 'enter_pin') return;
+    if (passwordPin.length !== 6) return;
+    if (newPassword.length < 8) return;
+    if (passwordPinLoading) return;
+    const timer = window.setTimeout(() => {
+      void updatePassword();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [active, newPassword, passwordPin, passwordPinLoading, passwordStep, updatePassword]);
+
   const resendLabel =
     resendIn > 0
       ? (locale === 'th' ? 'ส่งใหม่ใน ' : 'Resend in ') + String(resendIn) + 's'
@@ -375,7 +390,7 @@ export default function SettingsPage() {
         : 'Resend OTP';
   const canUseAdminQr = profileStatus === 'active' && ['admin', 'super_admin'].includes(profileRole);
 
-  const menuBtn = (key: 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout', title: string, Icon: any) => (
+  const menuBtn = (key: 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout', title: string, Icon: LucideIcon) => (
     <button
       key={key}
       type='button'

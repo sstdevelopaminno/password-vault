@@ -38,6 +38,9 @@ export function ShareToTeamModal({ open, itemId, itemTitle, onClose, onShared }:
  useEffect(() => {
  if (!open) return;
 
+ let alive = true;
+ const timer = window.setTimeout(() => {
+ if (!alive) return;
  setLoadingRooms(true);
  fetch('/api/team-rooms', { cache: 'no-store' })
  .then(async (res) => {
@@ -46,6 +49,7 @@ export function ShareToTeamModal({ open, itemId, itemTitle, onClose, onShared }:
  rooms?: Array<{ id: string; name: string; description?: string }>;
  };
 
+ if (!alive) return;
  if (!res.ok) {
  showToast(body.error ?? 'Failed to load team rooms', 'error');
  setRooms([]);
@@ -62,10 +66,19 @@ export function ShareToTeamModal({ open, itemId, itemTitle, onClose, onShared }:
  if (mapped.length > 0) setSelectedRoomId((prev) => (prev && mapped.some((r) => r.id === prev) ? prev : mapped[0].id));
  })
  .catch(() => {
+ if (!alive) return;
  showToast('Failed to load team rooms', 'error');
  setRooms([]);
  })
- .finally(() => setLoadingRooms(false));
+ .finally(() => {
+ if (alive) setLoadingRooms(false);
+ });
+ }, 0);
+
+ return () => {
+ alive = false;
+ window.clearTimeout(timer);
+ };
  }, [open, showToast]);
 
  const selectedRoom = useMemo(() => rooms.find((room) => room.id === selectedRoomId) ?? null, [rooms, selectedRoomId]);

@@ -45,8 +45,8 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
   const items = admin ? adminItems : userItems;
 
   return (
-    <nav className='fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[460px] px-3 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2'>
-      <div className='rounded-[20px] border border-[var(--border-soft)] bg-white/92 p-1.5 shadow-[0_10px_28px_rgba(20,44,98,0.16)] backdrop-blur-xl'>
+    <nav className='pointer-events-none absolute inset-x-0 bottom-0 z-50 w-full px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 will-change-transform'>
+      <div className='pointer-events-auto rounded-[20px] border border-[var(--border-soft)] bg-white/92 p-1.5 shadow-[0_10px_28px_rgba(20,44,98,0.16)] backdrop-blur-xl'>
         <ul className='grid gap-1.5' style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
           {items.map((item) => {
             const active = isActivePath(pathname, item.href);

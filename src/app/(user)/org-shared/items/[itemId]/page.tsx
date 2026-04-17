@@ -65,7 +65,10 @@ export default function TeamItemDetailPage() {
  }, [itemId, router, showToast]);
 
  useEffect(() => {
+ const timer = window.setTimeout(() => {
  void loadItem();
+ }, 0);
+ return () => window.clearTimeout(timer);
  }, [loadItem]);
 
  async function copyText(value: string, okText: string) {

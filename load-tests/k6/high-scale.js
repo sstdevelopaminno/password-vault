@@ -96,7 +96,7 @@ function callAdminMetrics() {
  apiFailRate.add(!pass);
 }
 
-export default function () {
+export default function highScaleFlow() {
  if (!userEmail || !userPassword) {
  const warmup = http.get(baseUrl + '/login', { tags: { name: 'public_login_page' } });
  check(warmup, { 'public page reachable': (r) => r.status === 200 || r.status === 307 || r.status === 308 });

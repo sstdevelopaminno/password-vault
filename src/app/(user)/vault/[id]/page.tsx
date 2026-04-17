@@ -34,6 +34,10 @@ type AssertionCacheEntry = {
   token: string;
   expiresAt: number;
 };
+type SecretApiBody = {
+  error?: string;
+  secret?: string | null;
+};
 
 const ASSERTION_TTL_MS = 25_000;
 
@@ -120,10 +124,10 @@ export default function VaultDetailPage() {
   const load = useCallback(async () => {
     if (itemId === '') return;
     const res = await fetch('/api/vault/' + itemId, { cache: 'no-store' });
-    const body = await res.json().catch(() => ({}));
+    const body = (await res.json().catch(() => ({}))) as Partial<VaultItemDetail> & { error?: string };
     if (!res.ok) {
       setStatus(t('vaultDetail.loadFailed'));
-      const message = (body as any).error ?? t('vaultDetail.loadFailed');
+      const message = body.error ?? t('vaultDetail.loadFailed');
       showToast(message, 'error');
       if (isNotFoundError(message)) {
         showNotFoundPopup();
@@ -134,7 +138,10 @@ export default function VaultDetailPage() {
   }, [itemId, isNotFoundError, showNotFoundPopup, showToast, t]);
 
   useEffect(() => {
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   const markCopied = useCallback((rowKey: RowKey) => {
@@ -203,18 +210,6 @@ export default function VaultDetailPage() {
     [itemId, locale, markCopied, notify, showToast, text.copyFailed, writeClipboardWithFallback],
   );
 
-  const buildAllCopyPayload = (secret: string) => {
-    const lines = [
-      `${text.titleLabel}: ${item?.title ?? '-'}`,
-      `${text.usernameLabel}: ${item?.username ?? '-'}`,
-      `${text.passwordLabel}: ${secret}`,
-    ];
-    if (item?.url) {
-      lines.push(`${text.urlLabel}: ${item.url}`);
-    }
-    return lines.join('\n');
-  };
-
   const executeSecureAction = useCallback(
     async (actionData: PendingAction, assertionToken: string) => {
       if (actionData.mode === 'copy_field') {
@@ -231,9 +226,9 @@ export default function VaultDetailPage() {
       const res = await fetch('/api/vault/' + itemId + '/secret?action=' + actionData.action, {
         headers: { 'x-pin-assertion': assertionToken },
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || (body as any).secret == null) {
-        const message = (body as any).error ?? t('vaultDetail.actionFailed');
+      const body = (await res.json().catch(() => ({}))) as SecretApiBody;
+      if (!res.ok || body.secret == null) {
+        const message = body.error ?? t('vaultDetail.actionFailed');
         setStatus(message);
         showToast(message, 'error');
         clearCachedAssertion(actionData.action);
@@ -243,17 +238,23 @@ export default function VaultDetailPage() {
         return;
       }
 
-      const secret = String((body as any).secret ?? '');
+      const secret = String(body.secret ?? '');
       if (actionData.mode === 'copy_secret') {
         await copyToClipboard(secret, text.copiedPassword, actionData.copyKey ?? 'password');
       } else if (actionData.mode === 'copy_all') {
-        await copyToClipboard(buildAllCopyPayload(secret), text.copiedAll, actionData.copyKey ?? 'main_copy');
+        const allCopyPayload = [
+          `${text.titleLabel}: ${item?.title ?? '-'}`,
+          `${text.usernameLabel}: ${item?.username ?? '-'}`,
+          `${text.passwordLabel}: ${secret}`,
+          ...(item?.url ? [`${text.urlLabel}: ${item.url}`] : []),
+        ].join('\n');
+        await copyToClipboard(allCopyPayload, text.copiedAll, actionData.copyKey ?? 'main_copy');
       } else {
         setRevealedSecret(secret);
         setStatus(t('vaultDetail.revealed'));
       }
     },
-    [buildAllCopyPayload, clearCachedAssertion, copyToClipboard, isNotFoundError, itemId, showNotFoundPopup, showToast, t, text.copiedAll, text.copiedPassword, text.copyFailed],
+    [clearCachedAssertion, copyToClipboard, isNotFoundError, item, itemId, showNotFoundPopup, showToast, t, text],
   );
 
   const runWithPin = useCallback(

@@ -58,7 +58,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
   const messages = (rows as MessageRow[] | null ?? []).slice().reverse();
   const senderIds = Array.from(new Set(messages.map((row) => row.sender_user_id).filter(Boolean)));
 
-  let profilesById = new Map<string, { fullName: string; email: string }>();
+  const profilesById = new Map<string, { fullName: string; email: string }>();
   if (senderIds.length > 0) {
     const { data: profileRows } = await admin
       .from("profiles")

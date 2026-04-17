@@ -16,4 +16,18 @@ Goal: wrap the hosted Next.js app first and keep the current web flow unchanged.
 ## Current pilot value
 - CAPACITOR_SERVER_URL target: `https://password-vault-ivory.vercel.app`
 - Verified preview build for this round: `https://password-vault-lnqqytn93-sstdevelopaminnos-projects.vercel.app`
-- Version under validation: `20.13.17`
+- Version under validation: `21.14.18`
+
+## Packaging command sequence
+1. Set env for remote runtime:
+   - `CAPACITOR_SERVER_URL=https://password-vault-ivory.vercel.app`
+   - `CAPACITOR_ALLOW_NAVIGATION=phswnczojmrdfioyqsql.supabase.co,password-vault-ivory.vercel.app`
+2. Run sync:
+   - `npm run cap:sync`
+3. Open platform projects:
+   - `npm run cap:open:android`
+   - `npm run cap:open:ios`
+
+## Known risk to avoid
+- If native package points only to local `www` bundle, users can stay on old UI after web deploy.
+- Keep remote server mode for pilot, then use runtime marker/schema reconciliation for forced refresh on update.

@@ -78,7 +78,11 @@ export default function AuditLogsPage() {
  }
 
  useEffect(() => {
+ const timer = window.setTimeout(() => {
  void load(true);
+ }, 0);
+ return () => window.clearTimeout(timer);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, []);
 
  function exportCsv() {

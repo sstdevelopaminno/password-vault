@@ -6,6 +6,12 @@ import { useHeadsUpNotifications } from "@/components/notifications/heads-up-pro
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/i18n/provider";
+import {
+  UPDATE_DETAILS_PATH,
+  getReleaseUpdateDetail,
+  getReleaseUpdateMessage,
+  getReleaseUpdateTitle,
+} from "@/lib/release-update";
 
 function ToggleRow(props: {
   label: string;
@@ -81,6 +87,14 @@ export default function NotificationSettingsPage() {
           {locale === "th" ? "การแจ้งเตือน" : "Notification Settings"}
         </h1>
       </div>
+
+      <Link
+        href={UPDATE_DETAILS_PATH}
+        className="flex items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 transition hover:bg-blue-100"
+      >
+        <span>{locale === "th" ? "ดูรายละเอียดอัปเดตระบบล่าสุด" : "View latest update details"}</span>
+        <ChevronLeft className="h-4 w-4 rotate-180" />
+      </Link>
 
       <Card className="space-y-3">
         <ToggleRow
@@ -245,10 +259,10 @@ export default function NotificationSettingsPage() {
             onClick={() =>
               notify({
                 kind: "system",
-                title: locale === "th" ? "มีเวอร์ชันใหม่พร้อมใช้งาน" : "New version available",
-                message: locale === "th" ? "Password Vault อัปเดตแล้ว กดเพื่อดูรายละเอียด" : "Password Vault was updated. Tap to view details.",
-                details: locale === "th" ? "ตัวอย่าง Expanded Banner Notification" : "Expanded banner preview",
-                href: "/home",
+                title: getReleaseUpdateTitle(locale),
+                message: getReleaseUpdateMessage(locale),
+                details: getReleaseUpdateDetail(locale),
+                href: UPDATE_DETAILS_PATH,
                 alsoSystem: true,
               })
             }

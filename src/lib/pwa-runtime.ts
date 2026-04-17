@@ -17,19 +17,45 @@ export const RUNTIME_LOCAL_STORAGE_KEYS_TO_RESET = [
   RUNTIME_UPDATE_NOTICE_STORAGE_KEY,
 ];
 
-export type RuntimePlatformMode = "android-pwa" | "ios-home-screen" | "browser-tab";
+export type RuntimePlatformMode = "android-pwa" | "ios-home-screen" | "browser-tab" | "capacitor-native";
 
 export type RuntimeCapabilities = {
   mode: RuntimePlatformMode;
   displayStandalone: boolean;
   isAndroid: boolean;
   isIos: boolean;
+  isCapacitorNative: boolean;
+  androidMajorVersion?: number;
+  iosMajorVersion?: number;
+  iosMinorVersion?: number;
+  android14OrNewer: boolean;
+  iosHomeScreenPushSupported: boolean;
+  iosHomeScreenPushReady: boolean;
   serviceWorkerSupported: boolean;
   notificationsSupported: boolean;
   pushManagerSupported: boolean;
   badgingSupported: boolean;
   manualInstallRecommended: boolean;
 };
+
+function parseAndroidMajorVersion(userAgent: string) {
+  const matched = userAgent.match(/android\s+(\d+)/i);
+  if (!matched) return undefined;
+  const version = Number(matched[1]);
+  if (!Number.isFinite(version)) return undefined;
+  return version;
+}
+
+function parseIosVersion(userAgent: string) {
+  const matched = userAgent.match(/os\s+(\d+)[._](\d+)/i);
+  if (!matched) return { major: undefined, minor: undefined };
+  const major = Number(matched[1]);
+  const minor = Number(matched[2]);
+  return {
+    major: Number.isFinite(major) ? major : undefined,
+    minor: Number.isFinite(minor) ? minor : undefined,
+  };
+}
 
 function isStandaloneDisplay() {
   if (typeof window === "undefined") return false;
@@ -48,6 +74,13 @@ export function detectRuntimeCapabilities(): RuntimeCapabilities {
       displayStandalone: false,
       isAndroid: false,
       isIos: false,
+      isCapacitorNative: false,
+      androidMajorVersion: undefined,
+      iosMajorVersion: undefined,
+      iosMinorVersion: undefined,
+      android14OrNewer: false,
+      iosHomeScreenPushSupported: false,
+      iosHomeScreenPushReady: false,
       serviceWorkerSupported: false,
       notificationsSupported: false,
       pushManagerSupported: false,
@@ -62,9 +95,29 @@ export function detectRuntimeCapabilities(): RuntimeCapabilities {
   });
   const isAndroid = userAgent.includes("android");
   const displayStandalone = isStandaloneDisplay();
+  const capacitor = window as typeof window & {
+    Capacitor?: {
+      isNativePlatform?: () => boolean;
+    };
+  };
+  const isCapacitorNative = Boolean(capacitor.Capacitor?.isNativePlatform?.());
+  const androidMajorVersion = parseAndroidMajorVersion(userAgent);
+  const iosVersion = parseIosVersion(userAgent);
+  const android14OrNewer = Boolean(isAndroid && androidMajorVersion && androidMajorVersion >= 14);
+  const iosHomeScreenPushSupported = Boolean(
+    isIos &&
+    iosVersion.major &&
+    (
+      iosVersion.major > 16 ||
+      (iosVersion.major === 16 && (iosVersion.minor ?? 0) >= 4)
+    ),
+  );
+  const iosHomeScreenPushReady = Boolean(iosHomeScreenPushSupported && displayStandalone);
 
   let mode: RuntimePlatformMode = "browser-tab";
-  if (isIos && displayStandalone) {
+  if (isCapacitorNative) {
+    mode = "capacitor-native";
+  } else if (isIos && displayStandalone) {
     mode = "ios-home-screen";
   } else if (isAndroid && displayStandalone) {
     mode = "android-pwa";
@@ -75,11 +128,18 @@ export function detectRuntimeCapabilities(): RuntimeCapabilities {
     displayStandalone: displayStandalone,
     isAndroid: isAndroid,
     isIos: isIos,
+    isCapacitorNative: isCapacitorNative,
+    androidMajorVersion: androidMajorVersion,
+    iosMajorVersion: iosVersion.major,
+    iosMinorVersion: iosVersion.minor,
+    android14OrNewer: android14OrNewer,
+    iosHomeScreenPushSupported: iosHomeScreenPushSupported,
+    iosHomeScreenPushReady: iosHomeScreenPushReady,
     serviceWorkerSupported: "serviceWorker" in navigator,
     notificationsSupported: typeof Notification !== "undefined",
     pushManagerSupported: "PushManager" in window,
     badgingSupported: "setAppBadge" in navigator || "clearAppBadge" in navigator,
-    manualInstallRecommended: isIos && !displayStandalone,
+    manualInstallRecommended: !displayStandalone && !isCapacitorNative && (isIos || isAndroid),
   };
 }
 
@@ -92,6 +152,10 @@ export function getRuntimeModeLabel(mode: RuntimePlatformMode, locale: string) {
 
   if (mode === "ios-home-screen") {
     return isThai ? "iPhone Home Screen" : "iPhone Home Screen";
+  }
+
+  if (mode === "capacitor-native") {
+    return isThai ? "Native App (Capacitor)" : "Native App (Capacitor)";
   }
 
   return isThai ? "Browser Tab" : "Browser Tab";

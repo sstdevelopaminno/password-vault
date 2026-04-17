@@ -21,6 +21,9 @@ type LoginResponse = {
   retryAfterSec?: number;
 };
 
+const LOGIN_TIMEOUT_MS = 12_000;
+const LOGIN_RETRY_DELAY_MS = 350;
+
 function mapLoginError(input: {
   message: unknown;
   fallback: string;
@@ -77,6 +80,67 @@ function mapLoginError(input: {
   return input.fallback;
 }
 
+function wait(ms: number) {
+  return new Promise<void>(function (resolve) {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function shouldRetryLoginStatus(status: number) {
+  return status === 408 || status === 425 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+async function requestLoginWithResilience(payload: { email: string; password: string }): Promise<{
+  response: Response | null;
+  body: LoginResponse;
+}> {
+  let lastNetworkError: unknown = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(function () {
+      controller.abort();
+    }, LOGIN_TIMEOUT_MS);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+        body: JSON.stringify(payload),
+      });
+
+      window.clearTimeout(timer);
+      const body = (await response.json().catch(function () {
+        return {};
+      })) as LoginResponse;
+
+      if (attempt === 0 && shouldRetryLoginStatus(response.status)) {
+        await wait(LOGIN_RETRY_DELAY_MS);
+        continue;
+      }
+
+      return { response, body };
+    } catch (error) {
+      window.clearTimeout(timer);
+      lastNetworkError = error;
+      if (attempt === 0) {
+        await wait(LOGIN_RETRY_DELAY_MS);
+      }
+    }
+  }
+
+  const fallbackError =
+    lastNetworkError instanceof DOMException && lastNetworkError.name === "AbortError"
+      ? "Request timeout. Please retry."
+      : "Network unavailable. Please retry.";
+  return {
+    response: null,
+    body: { error: fallbackError },
+  };
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { notify } = useHeadsUpNotifications();
@@ -97,17 +161,26 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: email.trim().toLowerCase(),
-        password,
-      }),
+    const result = await requestLoginWithResilience({
+      email: email.trim().toLowerCase(),
+      password,
     });
 
-    const body = (await response.json().catch(() => ({}))) as LoginResponse;
-    setLoading(false);
+    if (!result.response) {
+      showToast(
+        mapLoginError({
+          message: result.body.error,
+          locale,
+          fallback: locale === "th" ? "เครือข่ายไม่เสถียร กรุณาลองอีกครั้ง" : "Network unstable. Please retry.",
+        }),
+        "error",
+      );
+      setLoading(false);
+      return;
+    }
+
+    const response = result.response;
+    const body = result.body;
 
     if (!response.ok) {
       const errorText = String(body.error ?? "");
@@ -138,6 +211,7 @@ export default function LoginPage() {
           alsoSystem: true,
         });
       }
+      setLoading(false);
       return;
     }
 
@@ -152,6 +226,7 @@ export default function LoginPage() {
       alsoSystem: true,
     });
 
+    setLoading(false);
     router.push("/home");
   }
 

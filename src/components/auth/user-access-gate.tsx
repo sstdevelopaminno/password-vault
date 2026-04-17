@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useEffect, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { PinSessionGate } from "@/components/auth/pin-session-gate";
 import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/lib/pin-session";
 
 const POLL_MS = 5000;
+const ACCESS_CHECK_ART_URL = "https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/578899.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzU3ODg5OS5wbmciLCJpYXQiOjE3NzY0MTk5NjYsImV4cCI6MTgwNzk1NTk2Nn0.aE8IrA57M7-6CAyrX2XHTtJZwUFi0GV9dCnriyLPhw4";
 
 function parseRetrySeconds(message: string) {
   const matched = String(message).match(/after\s+(\d+)\s*seconds?/i);
@@ -76,8 +77,16 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const unauthorizedRef = useRef(0);
+  const modeRef = useRef(mode);
+  const loadProfileRef = useRef<(showErrorToast: boolean) => Promise<void>>(async function () {
+    // no-op until callback is assigned
+  });
 
-  async function loadProfile(showErrorToast: boolean) {
+  useEffect(function () {
+    modeRef.current = mode;
+  }, [mode]);
+
+  const loadProfile = useCallback(async function (showErrorToast: boolean) {
     try {
       const res = await fetch("/api/profile/me", { cache: "no-store" });
 
@@ -88,7 +97,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
           return;
         }
         window.setTimeout(function () {
-          void loadProfile(false);
+          void loadProfileRef.current(false);
         }, 1200 * unauthorizedRef.current);
         return;
       }
@@ -137,7 +146,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         return;
       }
 
-      if (mode !== "active") {
+      if (modeRef.current !== "active") {
         if (locale === "th") {
           showToast("อนุมัติสำเร็จ เข้าสู่ระบบเรียบร้อย", "success");
         } else {
@@ -151,12 +160,16 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         showToast(locale === "th" ? "เครือข่ายไม่เสถียร กำลังลองใหม่..." : "Network unstable. Retrying...", "error");
       }
       window.setTimeout(function () {
-        void loadProfile(false);
+        void loadProfileRef.current(false);
       }, 1200);
     }
-  }
+  }, [locale, router, showToast]);
 
-  async function verifyOtpNow() {
+  useEffect(function () {
+    loadProfileRef.current = loadProfile;
+  }, [loadProfile]);
+
+  const verifyOtpNow = useCallback(async function () {
     if (loading) {
       return;
     }
@@ -191,9 +204,9 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     setOtp("");
     setLastAutoOtp("");
     setMode("pending");
-  }
+  }, [email, loading, locale, otp, showToast]);
 
-  async function resendOtpNow() {
+  const resendOtpNow = useCallback(async function () {
     if (resendLoading) {
       return;
     }
@@ -236,15 +249,20 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     } else {
       showToast("OTP resent. Please check your inbox", "success");
     }
-  }
+  }, [email, locale, resendIn, resendLoading, showToast]);
 
   useEffect(function () {
-    void loadProfile(true);
-  }, []);
+    const timer = window.setTimeout(function () {
+      void loadProfile(true);
+    }, 0);
+    return function () {
+      window.clearTimeout(timer);
+    };
+  }, [loadProfile]);
 
   useEffect(function () {
     void loadProfile(false);
-  }, [pathname]);
+  }, [loadProfile, pathname]);
 
   useEffect(function () {
     if (resendIn === 0) {
@@ -273,7 +291,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     return function () {
       window.clearInterval(timer);
     };
-  }, [mode]);
+  }, [loadProfile, mode]);
 
   useEffect(function () {
     if (mode !== "active" || hasPin || !pinSessionEnabled) {
@@ -285,7 +303,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     return function () {
       window.clearInterval(timer);
     };
-  }, [mode, hasPin, pinSessionEnabled]);
+  }, [loadProfile, mode, hasPin, pinSessionEnabled]);
 
   useEffect(function () {
     if (mode !== "otp") {
@@ -305,7 +323,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     }
     setLastAutoOtp(otp);
     void verifyOtpNow();
-  }, [mode, loading, otp]);
+  }, [lastAutoOtp, loading, mode, otp, verifyOtpNow]);
 
   if (mode === "active") {
     return h(
@@ -322,6 +340,10 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   if (resendIn !== 0) {
     resendDisabled = true;
   }
+
+  const checkAccessAgain = function () {
+    void loadProfile(true);
+  };
 
   const title = mode === "otp"
     ? locale === "th" ? "ยืนยัน OTP ก่อนเข้าใช้งาน" : "Verify OTP before access"
@@ -357,24 +379,33 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
 
   const pendingPanel = h("div", { className: "space-y-3" },
     h("div", { className: "rounded-2xl border border-blue-200 bg-blue-50/80 p-4 text-sm text-blue-800" }, subtitle),
-    h(Button, { variant: "secondary", className: "w-full", onClick: function () { void loadProfile(true); } }, locale === "th" ? "ตรวจสอบอีกครั้ง" : "Check again"),
+    // eslint-disable-next-line react-hooks/refs
+    h("button", { type: "button", className: "h-11 w-full rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50", onClick: checkAccessAgain }, locale === "th" ? "ตรวจสอบอีกครั้ง" : "Check again"),
   );
 
-  const loadingPanel = h("div", { className: "flex items-center justify-center py-6 text-sm text-slate-500" },
-    h("span", { className: "inline-flex items-center gap-2" },
-      h(Spinner, { className: "h-4 w-4 border-slate-300 border-t-slate-600" }),
-      locale === "th" ? "กำลังตรวจสอบสิทธิ์..." : "Checking access...",
+  const loadingPanel = h("div", { className: "space-y-4" },
+    h("div", {
+      className: "h-[150px] w-full rounded-2xl bg-contain bg-center bg-no-repeat",
+      style: { backgroundImage: `url(${ACCESS_CHECK_ART_URL})` },
+      "aria-hidden": true,
+    }),
+    h("div", { className: "flex items-center justify-center py-1 text-sm text-slate-600" },
+      h("span", { className: "inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 shadow-sm backdrop-blur" },
+        h(Spinner, { className: "h-4 w-4 border-slate-300 border-t-slate-600" }),
+        locale === "th" ? "กำลังตรวจสอบสิทธิ์..." : "Checking access...",
+      ),
     ),
   );
 
   const panel = mode === "otp" ? otpPanel : mode === "pending" ? pendingPanel : loadingPanel;
 
-  return h("div", { className: "fixed inset-0 z-[60] bg-slate-950/40 p-4 backdrop-blur-[2px]" },
+  return h("div", { className: "fixed inset-0 z-[60] bg-slate-950/35 p-4 backdrop-blur-[1.5px]" },
     h("div", { className: "mx-auto mt-16 w-full max-w-[520px]" },
-      h(Card, { className: "space-y-4 rounded-[24px] border border-[var(--border-strong)] bg-white p-5" },
+      h(Card, { className: "space-y-4 rounded-[24px] border border-white/70 bg-white/78 p-5 shadow-[0_20px_48px_rgba(15,23,42,0.24)] backdrop-blur-md" },
         h("h2", { className: "text-lg font-semibold text-slate-900" }, title),
         panel,
       ),
     ),
   );
 }
+

@@ -6,6 +6,7 @@ import { useHeadsUpNotifications } from "@/components/notifications/heads-up-pro
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 import { APP_VERSION } from "@/lib/app-version";
+import { UPDATE_DETAILS_PATH, getReleaseUpdateDetail } from "@/lib/release-update";
 import {
   PIN_SESSION_STORAGE_PREFIX,
   RUNTIME_BUILD_MARKER_STORAGE_KEY,
@@ -73,20 +74,70 @@ function getCapabilityValue(enabled: boolean, locale: string) {
 
 function getInstallValue(capabilities: RuntimeCapabilities, hasInstallPrompt: boolean, locale: string) {
   if (hasInstallPrompt) {
-    return locale === "th" ? "ติดตั้งได้จากปุ่มในเบราว์เซอร์" : "Install prompt is available";
+    return locale === "th" ? "พร้อมติดตั้งจากปุ่ม Install" : "Install prompt is available";
   }
 
   if (capabilities.manualInstallRecommended) {
-    return locale === "th" ? "ติดตั้งผ่าน Safari > Add to Home Screen" : "Install from Safari > Add to Home Screen";
+    if (capabilities.isAndroid) {
+      return locale === "th"
+        ? "ติดตั้งจากเมนู Chrome > Install app / Add to Home screen"
+        : "Install from Chrome menu > Install app / Add to Home screen";
+    }
+    if (capabilities.isIos) {
+      return locale === "th"
+        ? "ติดตั้งจาก Safari > Share > Add to Home Screen"
+        : "Install from Safari > Share > Add to Home Screen";
+    }
+    return locale === "th" ? "ติดตั้งจากเมนูเบราว์เซอร์" : "Install from browser menu";
   }
 
-  return locale === "th" ? "ใช้งานในแท็บเบราว์เซอร์" : "Running in browser tab";
+  if (capabilities.isCapacitorNative) {
+    return locale === "th" ? "กำลังรันเป็นแอปที่ติดตั้งแล้ว (Capacitor)" : "Running as installed native app (Capacitor)";
+  }
+
+  return locale === "th" ? "กำลังรันบนแท็บเบราว์เซอร์" : "Running in browser tab";
 }
 
 function getModeTone(mode: RuntimeCapabilities["mode"]) {
   if (mode === "android-pwa") return "border-emerald-200 bg-emerald-50 text-emerald-800";
   if (mode === "ios-home-screen") return "border-sky-200 bg-sky-50 text-sky-800";
+  if (mode === "capacitor-native") return "border-indigo-200 bg-indigo-50 text-indigo-800";
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function getAndroid14StatusValue(capabilities: RuntimeCapabilities, locale: string) {
+  if (!capabilities.isAndroid) {
+    return locale === "th" ? "ไม่ใช่อุปกรณ์ Android" : "Not an Android device";
+  }
+  const major = capabilities.androidMajorVersion;
+  if (!major) {
+    return locale === "th" ? "ไม่ทราบเวอร์ชัน Android" : "Android version unknown";
+  }
+  if (major >= 14) {
+    return locale === "th" ? `ผ่านเกณฑ์ (Android ${major})` : `Pass (Android ${major})`;
+  }
+  return locale === "th" ? `ต่ำกว่าเป้าหมาย (Android ${major})` : `Below target (Android ${major})`;
+}
+
+function getIosPushStatusValue(capabilities: RuntimeCapabilities, locale: string) {
+  if (!capabilities.isIos) {
+    return locale === "th" ? "ไม่ใช่อุปกรณ์ iOS" : "Not an iOS device";
+  }
+  const major = capabilities.iosMajorVersion;
+  const minor = capabilities.iosMinorVersion;
+  const versionLabel = typeof major === "number" ? `${major}.${typeof minor === "number" ? minor : 0}` : "-";
+
+  if (!capabilities.iosHomeScreenPushSupported) {
+    return locale === "th"
+      ? `ต้องใช้ iOS 16.4 ขึ้นไป (ปัจจุบัน ${versionLabel})`
+      : `Requires iOS 16.4+ (current ${versionLabel})`;
+  }
+  if (!capabilities.displayStandalone) {
+    return locale === "th"
+      ? `รองรับบน iOS ${versionLabel} ติดตั้งลง Home Screen เพื่อเปิดใช้งาน`
+      : `Supported on iOS ${versionLabel}, install to Home Screen to enable`;
+  }
+  return locale === "th" ? `พร้อมใช้งาน (iOS ${versionLabel})` : `Ready (iOS ${versionLabel})`;
 }
 
 async function clearUpdateData(nextVersion: VersionPayload) {
@@ -129,8 +180,8 @@ async function clearUpdateData(nextVersion: VersionPayload) {
   if ("serviceWorker" in navigator) {
     try {
       const registration = await navigator.serviceWorker.getRegistration();
-      const activeWorker = registration?.active ?? registration?.waiting;
-      activeWorker?.postMessage({ type: "PURGE_OLD_CACHES" });
+      const activeWorker = registration?.active ?? registration?.waiting ?? registration?.installing;
+      activeWorker?.postMessage({ type: "PURGE_APP_CACHE" });
     } catch {
       // ignore worker cleanup failures
     }
@@ -140,7 +191,7 @@ async function clearUpdateData(nextVersion: VersionPayload) {
     try {
       const cacheNames = await caches.keys();
       const removable = cacheNames.filter(function (name) {
-        return isManagedRuntimeCacheName(name) && !name.endsWith(nextMarker);
+        return isManagedRuntimeCacheName(name);
       });
       await Promise.all(removable.map(function (name) {
         return caches.delete(name);
@@ -162,7 +213,7 @@ export function TopQuickActions({
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [hasUpdate, setHasUpdate] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [showIosInstallCard, setShowIosInstallCard] = useState(false);
+  const [showInstallHelpCard, setShowInstallHelpCard] = useState(false);
   const [showRuntimeCard, setShowRuntimeCard] = useState(false);
   const [capabilities, setCapabilities] = useState<RuntimeCapabilities>(detectRuntimeCapabilities);
   const [versionInfo, setVersionInfo] = useState<VersionPayload>(defaultVersionPayload);
@@ -243,6 +294,44 @@ export function TopQuickActions({
   }, [locale]);
 
   const runtimeModeLabel = getRuntimeModeLabel(capabilities.mode, locale);
+  const installHelp = useMemo(function () {
+    const isThai = locale === "th";
+    if (capabilities.isAndroid && !capabilities.displayStandalone && !capabilities.isCapacitorNative) {
+      return {
+        title: isThai ? "ติดตั้งบน Android" : "Install on Android",
+        detail: isThai
+          ? "เปิดแอปนี้ใน Chrome แตะเมนูสามจุด แล้วเลือก Install app หรือ Add to Home screen"
+          : "Open this app in Chrome, tap the three-dot menu, then choose Install app or Add to Home screen.",
+        steps: [
+          isThai ? "1) เปิดหน้านี้ใน Chrome" : "1) Open this page in Chrome",
+          isThai ? "2) แตะเมนูสามจุด" : "2) Tap the three-dot menu",
+          isThai ? "3) เลือก Install app หรือ Add to Home screen" : "3) Select Install app or Add to Home screen",
+          isThai ? "4) แตะ Install/Add เพื่อเสร็จสิ้น" : "4) Tap Install/Add to finish",
+        ],
+      };
+    }
+
+    if (capabilities.isIos && !capabilities.displayStandalone && !capabilities.isCapacitorNative) {
+      return {
+        title: text.iosTitle,
+        detail: text.iosDetail,
+        steps: [text.iosStep1, text.iosStep2, text.iosStep3, text.iosStep4],
+      };
+    }
+
+    return {
+      title: isThai ? "ติดตั้งแอป" : "Install app",
+      detail: isThai
+        ? "อุปกรณ์นี้สามารถติดตั้งแอปผ่านเมนูติดตั้งของเบราว์เซอร์ได้"
+        : "This device can install the app from the browser install menu.",
+      steps: [
+        isThai ? "1) เปิดเมนูเบราว์เซอร์" : "1) Open your browser menu",
+        isThai ? "2) เลือก Install app / Add to Home screen" : "2) Choose Install app / Add to Home screen",
+        isThai ? "3) ยืนยันการติดตั้ง" : "3) Confirm installation",
+      ],
+    };
+  }, [capabilities.displayStandalone, capabilities.isAndroid, capabilities.isCapacitorNative, capabilities.isIos, locale, text.iosDetail, text.iosStep1, text.iosStep2, text.iosStep3, text.iosStep4, text.iosTitle]);
+
   const hasInstallPrompt = Boolean(installPrompt);
   const showInstallAction = hasInstallPrompt || capabilities.manualInstallRecommended;
   const showInstallButton = showSecondaryActions && showInstallAction;
@@ -301,6 +390,17 @@ export function TopQuickActions({
     if (typeof window === "undefined") return;
 
     function onVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        setCapabilities(detectRuntimeCapabilities());
+        if ("serviceWorker" in navigator) {
+          void navigator.serviceWorker.getRegistration().then(function (registration) {
+            return registration?.update();
+          }).catch(function () {
+            // ignore runtime update checks on visibility resume
+          });
+        }
+      }
+
       void postRuntimeDiagnostic({
         event: "runtime_visibility_change",
         marker: versionInfo.marker,
@@ -337,7 +437,7 @@ export function TopQuickActions({
 
     function onInstalled() {
       setInstallPrompt(null);
-      setShowIosInstallCard(false);
+      setShowInstallHelpCard(false);
       const nextCapabilities = detectRuntimeCapabilities();
       setCapabilities(nextCapabilities);
       void postRuntimeDiagnostic({
@@ -385,8 +485,8 @@ export function TopQuickActions({
           kind: "system",
           title: text.runtimeReadyTitle,
           message: text.runtimeReadyMessage,
-          details: text.runtimeReadyDetail,
-          href: "/home",
+          details: getReleaseUpdateDetail(locale),
+          href: UPDATE_DETAILS_PATH,
           persistent: true,
           alsoSystem: true,
         });
@@ -445,7 +545,7 @@ export function TopQuickActions({
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, [installPrompt, notify, text, toast, versionInfo.marker, versionInfo.schemaVersion]);
+  }, [installPrompt, locale, notify, text, toast, versionInfo.marker, versionInfo.schemaVersion]);
 
   async function runUpdate() {
     if (updating) return;
@@ -483,7 +583,7 @@ export function TopQuickActions({
       if (!updateReady) {
         pendingVersionRef.current = null;
         setHasUpdate(false);
-        toast.showToast(locale === "th" ? "ระบบเป็นเวอร์ชันล่าสุดแล้ว" : "Already on the latest version");
+        toast.showToast(locale === "th" ? "คุณกำลังใช้เวอร์ชันล่าสุดแล้ว" : "Already on the latest version");
         return;
       }
 
@@ -555,6 +655,14 @@ export function TopQuickActions({
       label: text.badge,
       value: getCapabilityValue(capabilities.badgingSupported, locale),
     },
+    {
+      label: locale === "th" ? "ความพร้อม Android 14+" : "Android 14+ readiness",
+      value: getAndroid14StatusValue(capabilities, locale),
+    },
+    {
+      label: locale === "th" ? "Push บน iOS Home Screen (16.4+)" : "iOS Home Screen Push (16.4+)",
+      value: getIosPushStatusValue(capabilities, locale),
+    },
   ];
 
   return (
@@ -603,10 +711,22 @@ export function TopQuickActions({
             type="button"
             onClick={function () {
               if (installPrompt) {
-                void installPrompt.prompt();
+                void installPrompt
+                  .prompt()
+                  .then(function () {
+                    if (!installPrompt.userChoice) return;
+                    return installPrompt.userChoice.then(function (choice) {
+                      if (choice.outcome !== "accepted") {
+                        setShowInstallHelpCard(true);
+                      }
+                    });
+                  })
+                  .catch(function () {
+                    setShowInstallHelpCard(true);
+                  });
                 return;
               }
-              setShowIosInstallCard(true);
+              setShowInstallHelpCard(true);
             }}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-sky-200/70 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition hover:bg-sky-50 active:scale-[0.98]"
           >
@@ -693,23 +813,23 @@ export function TopQuickActions({
         </div>
       ) : null}
 
-      {showIosInstallCard ? (
+      {showInstallHelpCard ? (
         <div className="fixed inset-0 z-[110] flex items-center justify-center px-4" role="dialog" aria-modal="true">
           <button
             type="button"
             className="absolute inset-0 bg-slate-900/35 backdrop-blur-[1px]"
             aria-label={text.close}
-            onClick={() => setShowIosInstallCard(false)}
+            onClick={() => setShowInstallHelpCard(false)}
           />
           <div className="relative z-10 w-[min(92vw,420px)] rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-base font-semibold text-slate-900">{text.iosTitle}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-600">{text.iosDetail}</p>
+                <p className="text-base font-semibold text-slate-900">{installHelp.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{installHelp.detail}</p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowIosInstallCard(false)}
+                onClick={() => setShowInstallHelpCard(false)}
                 className="rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
                 aria-label={text.close}
               >
@@ -718,10 +838,9 @@ export function TopQuickActions({
             </div>
 
             <ol className="mt-4 space-y-2 text-[13px] text-slate-700">
-              <li className="rounded-lg bg-slate-50 px-3 py-2">{text.iosStep1}</li>
-              <li className="rounded-lg bg-slate-50 px-3 py-2">{text.iosStep2}</li>
-              <li className="rounded-lg bg-slate-50 px-3 py-2">{text.iosStep3}</li>
-              <li className="rounded-lg bg-slate-50 px-3 py-2">{text.iosStep4}</li>
+              {installHelp.steps.map(function (step) {
+                return <li key={step} className="rounded-lg bg-slate-50 px-3 py-2">{step}</li>;
+              })}
             </ol>
           </div>
         </div>
@@ -729,3 +848,4 @@ export function TopQuickActions({
     </>
   );
 }
+

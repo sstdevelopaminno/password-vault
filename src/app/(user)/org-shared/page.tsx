@@ -83,7 +83,10 @@ export default function OrgSharedPage() {
  }, [showToast]);
 
  useEffect(() => {
+ const timer = window.setTimeout(() => {
  void loadRooms();
+ }, 0);
+ return () => window.clearTimeout(timer);
  }, [loadRooms]);
 
  const filteredRooms = useMemo(() => {
@@ -179,7 +182,7 @@ export default function OrgSharedPage() {
  await loadRooms();
  }
 
- async function loadRoomMembers(roomId: string, query = '', suppressErrorToast = false) {
+ const loadRoomMembers = useCallback(async function (roomId: string, query = '', suppressErrorToast = false) {
  const normalizedQuery = query.trim().toLowerCase();
  setLoadingMembers(true);
  setLoadingShareSuggestions(normalizedQuery.length >= 2);
@@ -213,15 +216,17 @@ export default function OrgSharedPage() {
  fullName: item.fullName ?? '',
  email: item.email ?? '',
  })));
- }
+ }, [showToast]);
 
  useEffect(() => {
  if (!sharingRoom) return;
  const keyword = shareEmail.trim();
  if (keyword.length < 2) {
+ const timer = window.setTimeout(() => {
  setShareSuggestions([]);
  setLoadingShareSuggestions(false);
- return;
+ }, 0);
+ return () => window.clearTimeout(timer);
  }
 
  const timer = window.setTimeout(() => {
@@ -229,7 +234,7 @@ export default function OrgSharedPage() {
  }, 280);
 
  return () => window.clearTimeout(timer);
- }, [shareEmail, sharingRoom]);
+ }, [loadRoomMembers, shareEmail, sharingRoom]);
 
  async function shareRoomToEmail() {
  if (!sharingRoom || sharingBusy) return;

@@ -16,6 +16,16 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  images: {
+    formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "phswnczojmrdfioyqsql.supabase.co",
+        pathname: "/storage/v1/object/**",
+      },
+    ],
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: releaseVersion,
   },

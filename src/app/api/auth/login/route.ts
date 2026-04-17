@@ -10,9 +10,28 @@ import {
 import { enqueuePushNotification, processPushQueue } from "@/lib/push-queue";
 
 const PENDING_STATUSES = new Set(["pending_approval", "pending", "awaiting_approval"]);
+const LOGIN_TIMEOUT_MS = 12_000;
 
 function isPendingStatus(status: string) {
   return PENDING_STATUSES.has(String(status ?? "").toLowerCase());
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>(function (_, reject) {
+        timer = setTimeout(function () {
+          reject(new Error(message));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
 }
 
 async function bindActiveSession(userId: string, appMetadata: unknown) {
@@ -37,6 +56,11 @@ export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
     const normalizedEmail = String(email ?? "").trim().toLowerCase();
+    const normalizedPassword = String(password ?? "");
+
+    if (!normalizedEmail || !normalizedPassword) {
+      return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
+    }
 
     const ip = clientIp(req);
     const limit = takeRateLimit(`login:${ip}:${normalizedEmail}`, { limit: 10, windowMs: 5 * 60 * 1000 });
@@ -51,7 +75,21 @@ export async function POST(req: Request) {
     // Ensure stale local cookies won't block a fresh handover login on this device.
     await supabase.auth.signOut({ scope: "local" }).catch(() => {});
 
-    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    let signInResult;
+    try {
+      signInResult = await withTimeout(
+        supabase.auth.signInWithPassword({ email: normalizedEmail, password: normalizedPassword }),
+        LOGIN_TIMEOUT_MS,
+        "LOGIN_TIMEOUT",
+      );
+    } catch (signInTimeoutError) {
+      if (signInTimeoutError instanceof Error && signInTimeoutError.message === "LOGIN_TIMEOUT") {
+        return NextResponse.json({ error: "Login request timeout. Please retry." }, { status: 504 });
+      }
+      throw signInTimeoutError;
+    }
+
+    const { data: signInData, error } = signInResult;
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }

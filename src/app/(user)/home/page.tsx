@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { BellRing, BookText, KeyRound, Laptop2, LifeBuoy, Megaphone, ShieldCheck, Smartphone, UsersRound, Wifi, X } from 'lucide-react';
 import { TopQuickActions } from '@/components/layout/top-quick-actions';
 import { useI18n } from '@/i18n/provider';
 import { versionLabel } from '@/lib/app-version';
+import { UPDATE_DETAILS_PATH } from '@/lib/release-update';
 
 const LOGO_URL = 'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/Imagemaster password.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzL0ltYWdlbWFzdGVyIHBhc3N3b3JkLnBuZyIsImlhdCI6MTc3NDcxOTUzNywiZXhwIjoxODA2MjU1NTM3fQ.k-KJDjjccxBz8odBvF-SKmrHEdKgMQHRSy__nohIeDk';
 const NOTICE_READ_STORAGE_KEY = 'pv_home_notice_read_v1';
@@ -42,52 +44,51 @@ export default function HomePage() {
 
  useEffect(() => {
  let mounted = true;
+ const controller = new AbortController();
 
- fetch('/api/vault?limit=1&page=1&includeStorage=1', { cache: 'no-store' })
- .then((res) => res.json())
- .then((body) => {
+ async function loadHomeSummary() {
+ const [vaultResult, notesResult, teamRoomsResult, profileResult] = await Promise.allSettled([
+ fetch('/api/vault?limit=1&page=1&includeStorage=1', { cache: 'no-store', signal: controller.signal }).then((res) => res.json()),
+ fetch('/api/notes?limit=1&page=1', { cache: 'no-store', signal: controller.signal }).then((res) => res.json()),
+ fetch('/api/team-rooms', { cache: 'no-store', signal: controller.signal }).then((res) => res.json()),
+ fetch('/api/profile/me', { cache: 'no-store', signal: controller.signal }).then((res) => res.json()),
+ ]);
+
  if (!mounted) return;
- const count = Math.max(0, Number(body.pagination?.total ?? (Array.isArray(body.items) ? body.items.length : 0)));
- const usedBytes = Math.max(0, Number(body.storage?.usedBytes ?? 0));
+
+ if (vaultResult.status === 'fulfilled') {
+ const vaultBody = vaultResult.value as { pagination?: { total?: number }; items?: unknown[]; storage?: { usedBytes?: number } };
+ const count = Math.max(0, Number(vaultBody.pagination?.total ?? (Array.isArray(vaultBody.items) ? vaultBody.items.length : 0)));
+ const usedBytes = Math.max(0, Number(vaultBody.storage?.usedBytes ?? 0));
  setItemCount(count);
  setStorageUsedBytes(usedBytes);
  setSecurityScore(Math.round(clamp(58 + (count > 0 ? 10 : 0), 35, 99)));
- })
- .catch(() => {});
-
- fetch('/api/notes?limit=1&page=1', { cache: 'no-store' })
- .then((res) => res.json())
- .then((body) => {
- if (!mounted) return;
- const total = Math.max(0, Number(body.pagination?.total ?? (Array.isArray(body.notes) ? body.notes.length : 0)));
- setNoteCount(total);
- })
- .catch(() => {});
-
- fetch('/api/team-rooms', { cache: 'no-store' })
- .then((res) => res.json())
- .then((body) => {
- if (!mounted) return;
- const total = Math.max(0, Number(Array.isArray(body.rooms) ? body.rooms.length : 0));
- setTeamKeyCount(total);
- })
- .catch(() => {});
-
- fetch('/api/profile/me', { cache: 'no-store' })
- .then((res) => res.json())
- .then((body) => {
- if (!mounted) return;
- const status = String(body.status ?? 'active');
- if (status === 'approved' || status === 'active') {
- setStabilityScore(88);
- return;
  }
- setStabilityScore(72);
- })
- .catch(() => {});
+
+ if (notesResult.status === 'fulfilled') {
+ const notesBody = notesResult.value as { pagination?: { total?: number }; notes?: unknown[] };
+ const total = Math.max(0, Number(notesBody.pagination?.total ?? (Array.isArray(notesBody.notes) ? notesBody.notes.length : 0)));
+ setNoteCount(total);
+ }
+
+ if (teamRoomsResult.status === 'fulfilled') {
+ const teamBody = teamRoomsResult.value as { rooms?: unknown[] };
+ const total = Math.max(0, Number(Array.isArray(teamBody.rooms) ? teamBody.rooms.length : 0));
+ setTeamKeyCount(total);
+ }
+
+ if (profileResult.status === 'fulfilled') {
+ const profileBody = profileResult.value as { status?: string };
+ const status = String(profileBody.status ?? 'active');
+ setStabilityScore(status === 'approved' || status === 'active' ? 88 : 72);
+ }
+ }
+
+ void loadHomeSummary();
 
  return () => {
  mounted = false;
+ controller.abort();
  };
  }, []);
 
@@ -112,6 +113,7 @@ export default function HomePage() {
  id: 'system-update',
  title: locale === 'th' ? 'อัปเดตระบบพร้อมใช้งาน' : 'System update available',
  detail: locale === 'th' ? `ระบบกำลังทำงานบน ${versionText} และตรวจสอบอัปเดตอัตโนมัติ` : `Running on ${versionText} with automatic update checks`,
+ href: UPDATE_DETAILS_PATH,
  },
  {
  id: 'security-news',
@@ -175,7 +177,15 @@ export default function HomePage() {
  <section className='space-y-4 pb-24 pt-2'>
  <div className='px-2 py-2'>
  <div className='flex items-center gap-3'>
- <img src={LOGO_URL} alt='Master Password Logo' loading='lazy' className='h-14 w-14 rounded-2xl object-cover shadow-[0_8px_18px_rgba(79,123,255,0.22)]' />
+ <Image
+ src={LOGO_URL}
+ alt='Master Password Logo'
+ width={56}
+ height={56}
+ priority
+ sizes='56px'
+ className='h-14 w-14 rounded-2xl object-cover shadow-[0_8px_18px_rgba(79,123,255,0.22)]'
+ />
  <div className='min-w-0'>
  <h1 className='truncate text-[27px] font-semibold leading-8 text-slate-800'>Master Password</h1>
  <p className='mt-0.5 text-[13px] leading-5 text-slate-500'>{versionText}</p>
@@ -379,6 +389,18 @@ export default function HomePage() {
  <div key={item.id} className='rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-2.5'>
  <p className='text-sm font-semibold text-slate-800'>{item.title}</p>
  <p className='mt-1 text-xs leading-5 text-slate-600'>{item.detail}</p>
+ {item.href ? (
+ <button
+ type='button'
+ className='mt-2 text-xs font-semibold text-blue-700 underline underline-offset-4'
+ onClick={() => {
+ setShowNoticePanel(false);
+ router.push(item.href);
+ }}
+ >
+ {locale === 'th' ? 'ดูรายละเอียดอัปเดต' : 'View update details'}
+ </button>
+ ) : null}
  </div>
  ))}
  </div>

@@ -17,6 +17,13 @@ type RuntimeDiagnosticPayload = {
   displayStandalone?: boolean;
   isAndroid?: boolean;
   isIos?: boolean;
+  isCapacitorNative?: boolean;
+  androidMajorVersion?: number;
+  iosMajorVersion?: number;
+  iosMinorVersion?: number;
+  android14OrNewer?: boolean;
+  iosHomeScreenPushSupported?: boolean;
+  iosHomeScreenPushReady?: boolean;
   serviceWorkerSupported?: boolean;
   notificationsSupported?: boolean;
   pushManagerSupported?: boolean;
@@ -32,6 +39,12 @@ function sanitizeString(value: unknown) {
 
 function sanitizeBoolean(value: unknown) {
   return typeof value === "boolean" ? value : undefined;
+}
+
+function sanitizeNumber(value: unknown) {
+  if (typeof value !== "number") return undefined;
+  if (!Number.isFinite(value)) return undefined;
+  return value;
 }
 
 function safeBody(input: unknown): RuntimeDiagnosticPayload {
@@ -50,6 +63,13 @@ function safeBody(input: unknown): RuntimeDiagnosticPayload {
     displayStandalone: sanitizeBoolean(body.displayStandalone),
     isAndroid: sanitizeBoolean(body.isAndroid),
     isIos: sanitizeBoolean(body.isIos),
+    isCapacitorNative: sanitizeBoolean(body.isCapacitorNative),
+    androidMajorVersion: sanitizeNumber(body.androidMajorVersion),
+    iosMajorVersion: sanitizeNumber(body.iosMajorVersion),
+    iosMinorVersion: sanitizeNumber(body.iosMinorVersion),
+    android14OrNewer: sanitizeBoolean(body.android14OrNewer),
+    iosHomeScreenPushSupported: sanitizeBoolean(body.iosHomeScreenPushSupported),
+    iosHomeScreenPushReady: sanitizeBoolean(body.iosHomeScreenPushReady),
     serviceWorkerSupported: sanitizeBoolean(body.serviceWorkerSupported),
     notificationsSupported: sanitizeBoolean(body.notificationsSupported),
     pushManagerSupported: sanitizeBoolean(body.pushManagerSupported),
@@ -86,6 +106,13 @@ export async function POST(request: Request) {
     displayStandalone: body.displayStandalone,
     isAndroid: body.isAndroid,
     isIos: body.isIos,
+    isCapacitorNative: body.isCapacitorNative,
+    androidMajorVersion: body.androidMajorVersion,
+    iosMajorVersion: body.iosMajorVersion,
+    iosMinorVersion: body.iosMinorVersion,
+    android14OrNewer: body.android14OrNewer,
+    iosHomeScreenPushSupported: body.iosHomeScreenPushSupported,
+    iosHomeScreenPushReady: body.iosHomeScreenPushReady,
     serviceWorkerSupported: body.serviceWorkerSupported,
     notificationsSupported: body.notificationsSupported,
     pushManagerSupported: body.pushManagerSupported,
