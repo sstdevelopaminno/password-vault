@@ -36,7 +36,7 @@ const rawPublishedAt = String(process.env.NEXT_PUBLIC_ANDROID_APK_PUBLISHED_AT ?
 export const DEFAULT_ANDROID_APK_RELEASE: AndroidApkRelease = {
   versionName: rawVersionName || "16.6.3",
   versionCode: Number.isFinite(rawVersionCode) && rawVersionCode > 0 ? Math.floor(rawVersionCode) : 16603,
-  downloadUrl: rawDownloadUrl || "https://github.com/sstdevelopaminno/password-vault/releases/download/v16.6.3/vault-v16.6.3.apk",
+  downloadUrl: rawDownloadUrl || "https://password-vault-ivory.vercel.app/apk/vault-v16.6.3.apk",
   packageName: rawPackageName || DEFAULT_ANDROID_PACKAGE,
   signingKeySha256:
     rawSigningKeySha256 ||

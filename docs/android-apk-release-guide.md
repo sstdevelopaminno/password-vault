@@ -36,7 +36,7 @@ Signing env for release output:
 
 ## 3) Publish APK for user download
 Choose one channel:
-- Domain/CDN path: for example `/apk/password-vault-v16.6.3.apk`
+- Domain/CDN path: for example `https://password-vault-ivory.vercel.app/apk/vault-v16.6.3.apk`
 - GitHub Releases asset
 
 Then set environment values (see `.env.example`):
