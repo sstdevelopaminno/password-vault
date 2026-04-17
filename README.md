@@ -118,3 +118,21 @@ Use `.env.example` and set:
 npm install
 npm run dev
 ```
+
+## Ops Checks
+```bash
+# 1) Validate OTP provider/env readiness
+npm run check:otp-env
+
+# Optional: send real provider probe email (will send one test message)
+node scripts/check-otp-env.mjs --probe-email=ops@your-domain.com
+
+# Optional: probe both EngageLab/Resend and Supabase OTP in one run
+node scripts/check-otp-env.mjs --probe-email=user@your-domain.com --probe-supabase
+
+# 2) Smoke test Face Login + PIN flow (requires local app running)
+npm run smoke:face-auth
+
+# Optional stricter mode (fails if recovery OTP request is not 2xx)
+node scripts/smoke-face-auth.mjs --strict-otp-request
+```

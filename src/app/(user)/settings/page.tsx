@@ -670,6 +670,21 @@ export default function SettingsPage() {
         {menuBtn('email', t('settings.emailTitle'), Mail)}
         {menuBtn('password', t('settings.passwordTitle'), Lock)}
         {menuBtn('pin', t('settings.pinTitle'), KeyRound)}
+        <button
+          type='button'
+          onClick={() => router.push('/settings/face-login')}
+          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
+        >
+          <span className='inline-flex items-center gap-3'>
+            <span className='rounded-xl bg-slate-100 p-2.5 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'>
+              <Shield className='h-4 w-4' />
+            </span>
+            <span className='text-base font-semibold leading-6 text-slate-800'>
+              {locale === 'th' ? 'Face Login + PIN' : 'Face Login + PIN'}
+            </span>
+          </span>
+          <ChevronRight className='h-4 w-4 text-slate-400' />
+        </button>
         {menuBtn('language', locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language', Languages)}
         <button
           type='button'

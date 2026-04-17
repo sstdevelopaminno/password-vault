@@ -24,7 +24,12 @@ export type ResolvedAuthProfile = {
   status: "pending_approval" | "active" | "disabled";
   pin_hash: string | null;
   email_verified_at: string | null;
+  face_auth_enabled: boolean;
+  face_enrolled_at: string | null;
 };
+
+const AUTH_PROFILE_SELECT_COLUMNS =
+  "id,email,full_name,role,status,pin_hash,email_verified_at,face_auth_enabled,face_enrolled_at";
 
 export type AuthUserSummary = {
   id: string;
@@ -85,7 +90,7 @@ export async function resolveProfileForAuthUser(input: {
 
   const byId = await admin
     .from("profiles")
-    .select("id,email,full_name,role,status,pin_hash,email_verified_at")
+    .select(AUTH_PROFILE_SELECT_COLUMNS)
     .eq("id", input.userId)
     .maybeSingle();
   if (byId.error) throw new Error(byId.error.message);
@@ -106,7 +111,7 @@ export async function resolveProfileForAuthUser(input: {
           .from("profiles")
           .update({ email: normalizedEmail })
           .eq("id", input.userId)
-          .select("id,email,full_name,role,status,pin_hash,email_verified_at")
+          .select(AUTH_PROFILE_SELECT_COLUMNS)
           .maybeSingle();
 
         if (synced.error) throw new Error(synced.error.message);
@@ -123,7 +128,7 @@ export async function resolveProfileForAuthUser(input: {
   if (normalizedEmail) {
     const byEmail = await admin
       .from("profiles")
-      .select("id,email,full_name,role,status,pin_hash,email_verified_at")
+      .select(AUTH_PROFILE_SELECT_COLUMNS)
       .eq("email", normalizedEmail)
       .maybeSingle();
     if (byEmail.error) throw new Error(byEmail.error.message);
@@ -163,14 +168,14 @@ export async function resolveProfileForAuthUser(input: {
       role: "pending",
       status: "pending_approval",
     })
-    .select("id,email,full_name,role,status,pin_hash,email_verified_at")
+    .select(AUTH_PROFILE_SELECT_COLUMNS)
     .maybeSingle();
 
   if (inserted.error) {
     if (isDuplicateEmailConstraintError(inserted.error.message)) {
       const retryById = await admin
         .from("profiles")
-        .select("id,email,full_name,role,status,pin_hash,email_verified_at")
+        .select(AUTH_PROFILE_SELECT_COLUMNS)
         .eq("id", input.userId)
         .maybeSingle();
       if (retryById.error) throw new Error(retryById.error.message);
@@ -180,7 +185,7 @@ export async function resolveProfileForAuthUser(input: {
 
       const retryByEmail = await admin
         .from("profiles")
-        .select("id,email,full_name,role,status,pin_hash,email_verified_at")
+        .select(AUTH_PROFILE_SELECT_COLUMNS)
         .eq("email", normalizedEmail)
         .maybeSingle();
       if (retryByEmail.error) throw new Error(retryByEmail.error.message);

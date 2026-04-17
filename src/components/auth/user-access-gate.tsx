@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 import { PinSessionGate } from "@/components/auth/pin-session-gate";
+import { FacePinLoginGate } from "@/components/auth/face-pin-login-gate";
 import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/lib/pin-session";
 
 const POLL_MS = 5000;
@@ -70,6 +71,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   const [otp, setOtp] = useState("");
   const [lastAutoOtp, setLastAutoOtp] = useState("");
   const [hasPin, setHasPin] = useState(false);
+  const [faceAuthEnabled, setFaceAuthEnabled] = useState(false);
   const [pinSessionEnabled, setPinSessionEnabled] = useState(true);
   const [pinSessionTimeoutSec, setPinSessionTimeoutSec] = useState(DEFAULT_PIN_SESSION_TIMEOUT_SEC);
   const [userId, setUserId] = useState("");
@@ -121,6 +123,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         needsOtpVerification?: boolean;
         pendingApproval?: boolean;
         hasPin?: boolean;
+        faceAuthEnabled?: boolean;
         pinSessionEnabled?: boolean;
         pinSessionTimeoutSec?: unknown;
         userId?: string;
@@ -130,6 +133,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
       const pending = Boolean(payload.pendingApproval);
       setEmail(nextEmail);
       setHasPin(Boolean(payload.hasPin));
+      setFaceAuthEnabled(Boolean(payload.faceAuthEnabled));
       setPinSessionEnabled(payload.pinSessionEnabled !== false);
       setPinSessionTimeoutSec(
         clampPinSessionTimeoutSec(payload.pinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC),
@@ -327,9 +331,13 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
 
   if (mode === "active") {
     return h(
-      PinSessionGate,
-      { hasPin, userId, pinSessionEnabled, pinSessionTimeoutSec },
-      props.children,
+      FacePinLoginGate,
+      { enabled: faceAuthEnabled, hasPin },
+      h(
+        PinSessionGate,
+        { hasPin, userId, pinSessionEnabled, pinSessionTimeoutSec },
+        props.children,
+      ),
     );
   }
 

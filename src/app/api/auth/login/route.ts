@@ -4,6 +4,7 @@ import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/adm
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
 import {
   ACTIVE_SESSION_COOKIE,
+  FACE_PIN_SESSION_COOKIE,
   createActiveSessionToken,
   getSharedCookieOptions,
 } from "@/lib/session-security";
@@ -162,6 +163,13 @@ export async function POST(req: Request) {
       value: activeCookieToken,
       httpOnly: true,
       ...getSharedCookieOptions(),
+    });
+    response.cookies.set({
+      name: FACE_PIN_SESSION_COOKIE,
+      value: "",
+      httpOnly: true,
+      ...getSharedCookieOptions(),
+      maxAge: 0,
     });
 
     void enqueuePushNotification({

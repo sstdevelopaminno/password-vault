@@ -40,6 +40,8 @@ export async function GET() {
   const needsOtpVerification = !emailVerifiedAt;
   const pendingApproval = !needsOtpVerification && status !== "active";
   const hasPin = Boolean(profile.pin_hash);
+  const faceAuthEnabled = Boolean(profile.face_auth_enabled);
+  const faceEnrolledAt = profile.face_enrolled_at ? String(profile.face_enrolled_at) : null;
   const pinSessionEnabled =
     auth.user.user_metadata && typeof auth.user.user_metadata === "object"
       ? (auth.user.user_metadata as Record<string, unknown>).pv_pin_session_enabled !== false
@@ -61,6 +63,8 @@ export async function GET() {
     status,
     emailVerifiedAt,
     hasPin,
+    faceAuthEnabled,
+    faceEnrolledAt,
     pinSessionEnabled,
     pinSessionTimeoutSec,
     needsOtpVerification,

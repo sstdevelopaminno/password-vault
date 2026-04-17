@@ -18,19 +18,19 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.5",
-    releasedOn: "2026-04-17",
+    version: "V16.6",
+    releasedOn: "2026-04-18",
     titleTh: "อัปเดตเวอร์ชันใหม่และปล่อยระบบล่าสุด",
     titleEn: "New Version Rollout and Production Refresh",
     highlightsTh: [
-      "ปรับเวอร์ชันแอปเป็น V16.5 พร้อมอัปเดต marker สำหรับ runtime ใหม่",
+      "ปรับเวอร์ชันแอปเป็น V16.6 พร้อมอัปเดต marker สำหรับ runtime ใหม่",
       "อัปเดตข้อความแจ้งเตือนให้ระบุชัดว่าในรอบนี้ปรับอะไรบ้าง",
       "อัปโค้ดขึ้น GitHub และปล่อยขึ้น Vercel Production",
       "รัน Supabase sync เพื่อตรวจให้ฐานข้อมูลอยู่สถานะล่าสุด",
       "คงหน้ารายละเอียด release notes เพื่อให้กดดูย้อนหลังได้จากเมนูแจ้งเตือน",
     ],
     highlightsEn: [
-      "Updated app version to V16.5 with refreshed runtime marker flow.",
+      "Updated app version to V16.6 with refreshed runtime marker flow.",
       "Expanded update notification text to clearly summarize this release scope.",
       "Published code to GitHub and deployed to Vercel production.",
       "Ran Supabase sync to confirm the database is up to date.",
@@ -102,7 +102,7 @@ export function getReleaseUpdateMessage(locale: string) {
 export function getReleaseUpdateDetail(locale: string) {
   return asLocale(locale) === "th"
     ? "รอบนี้อัปเดต: ปรับเวอร์ชันใหม่, อัปโค้ดขึ้น GitHub, ปล่อย Vercel, ตรวจ Supabase และปรับข้อความแจ้งเตือนให้อ่านง่ายขึ้น"
-    : "This round includes: new version bump, GitHub publish, Vercel production deploy, Supabase sync check, and clearer update notification text.";
+    : "This round includes: PIN + Face login toggle rollout, enroll/verify API + DB migration, GitHub publish, Vercel deploy, Supabase sync, and clearer update notification text.";
 }
 
 export function getReleaseHighlights(locale: string) {

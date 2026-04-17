@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { PinAction } from '@/lib/pin';
+import { FACE_VECTOR_LENGTH } from '@/lib/face-auth';
 
 export const registerSchema = z
  .object({
@@ -115,3 +116,28 @@ export const pinSetSchema = z
  message: 'PIN confirmation does not match',
  path: ['confirmPin'],
  });
+
+const faceVectorEntrySchema = z.number().finite().min(-1).max(1);
+
+export const faceSampleSchema = z.object({
+ vector: z.array(faceVectorEntrySchema).length(FACE_VECTOR_LENGTH),
+ quality: z.number().finite().min(0).max(1).optional(),
+ motionScore: z.number().finite().min(0).max(1).optional(),
+});
+
+export const faceEnrollSchema = z.object({
+ samples: z.array(faceSampleSchema).min(2).max(5),
+});
+
+export const faceVerifySchema = z.object({
+ pin: z.string().regex(/^\d{6}$/),
+ sample: faceSampleSchema,
+});
+
+export const faceToggleSchema = z.object({
+ enabled: z.boolean(),
+});
+
+export const faceRecoveryVerifySchema = z.object({
+ otp: z.string().regex(/^\d{6}$/),
+});
