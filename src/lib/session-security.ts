@@ -21,3 +21,13 @@ export function getSharedCookieOptions() {
 export function createActiveSessionToken() {
   return Date.now().toString(36) + "." + randomUUID();
 }
+
+export function isSupabaseAuthCookieName(name: string) {
+  return /^sb-[a-z0-9-]+-auth-token(?:\.\d+)?$/i.test(String(name ?? ""));
+}
+
+export function hasSupabaseAuthCookie(
+  input: Array<{ name?: string | null }> | ReadonlyArray<{ name?: string | null }>,
+) {
+  return input.some((item) => isSupabaseAuthCookieName(String(item.name ?? "")));
+}

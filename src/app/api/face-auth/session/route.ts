@@ -3,14 +3,22 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { verifyFacePinSessionToken } from "@/lib/face-auth";
-import { ACTIVE_SESSION_COOKIE, FACE_PIN_SESSION_COOKIE } from "@/lib/session-security";
+import { ACTIVE_SESSION_COOKIE, FACE_PIN_SESSION_COOKIE, hasSupabaseAuthCookie } from "@/lib/session-security";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
+  const { data: auth, error: authError } = await supabase.auth.getUser();
   if (!auth.user) {
+    const cookieStore = await cookies();
+    const recoverableAuthState = Boolean(authError && hasSupabaseAuthCookie(cookieStore.getAll()));
+    if (recoverableAuthState) {
+      return NextResponse.json(
+        { error: "Session synchronization in progress", recoverable: true },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

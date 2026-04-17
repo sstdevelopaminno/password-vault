@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import {
   ACTIVE_SESSION_COOKIE,
   getSharedCookieOptions,
+  hasSupabaseAuthCookie,
 } from "@/lib/session-security";
 
 const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
@@ -51,6 +52,14 @@ function forbiddenFor(request: NextRequest, message: string) {
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
+  const pathname = request.nextUrl.pathname;
+  const requiresUser = userPaths.some((path) => pathname.startsWith(path));
+  const requiresAdminPage = adminPaths.some((path) => pathname.startsWith(path));
+  const isApiPath = pathname.startsWith("/api/");
+  const requiresApiAuth = isApiPath && !publicApiPaths.has(pathname);
+  const requiresAdminApi = pathname.startsWith("/api/admin/") || pathname === "/api/metrics";
+  const needsAuth = requiresUser || requiresAdminPage || requiresApiAuth;
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -71,17 +80,18 @@ export async function proxy(request: NextRequest) {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-  const requiresUser = userPaths.some((path) => pathname.startsWith(path));
-  const requiresAdminPage = adminPaths.some((path) => pathname.startsWith(path));
-  const isApiPath = pathname.startsWith("/api/");
-  const requiresApiAuth = isApiPath && !publicApiPaths.has(pathname);
-  const requiresAdminApi = pathname.startsWith("/api/admin/") || pathname === "/api/metrics";
-  const needsAuth = requiresUser || requiresAdminPage || requiresApiAuth;
-
   if (needsAuth && !user) {
+    const hasSessionCookie = hasSupabaseAuthCookie(request.cookies.getAll());
+    const recoverableAuthState = Boolean(authError && hasSessionCookie);
+    if (recoverableAuthState) {
+      if (isApiPath) {
+        return apiError("Session synchronization in progress. Please retry.", 503);
+      }
+      return response;
+    }
     return unauthorizedFor(request, "Unauthorized");
   }
 

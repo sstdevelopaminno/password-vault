@@ -15,6 +15,7 @@ import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/li
 
 const POLL_MS = 5000;
 const ACCESS_CHECK_ART_URL = "https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/578899.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzU3ODg5OS5wbmciLCJpYXQiOjE3NzY0MTk5NjYsImV4cCI6MTgwNzk1NTk2Nn0.aE8IrA57M7-6CAyrX2XHTtJZwUFi0GV9dCnriyLPhw4";
+const MAX_UNAUTHORIZED_RETRIES = 6;
 
 function parseRetrySeconds(message: string) {
   const matched = String(message).match(/after\s+(\d+)\s*seconds?/i);
@@ -91,10 +92,26 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   const loadProfile = useCallback(async function (showErrorToast: boolean) {
     try {
       const res = await fetch("/api/profile/me", { cache: "no-store" });
+      const body = await res.json().catch(function () {
+        return {};
+      });
+      const errorText = String((body as { error?: string }).error ?? "").toLowerCase();
+      const recoverableError =
+        Boolean((body as { recoverable?: boolean }).recoverable) ||
+        errorText.includes("session synchronization") ||
+        errorText.includes("sync");
 
       if (res.status === 401) {
+        const online = typeof navigator === "undefined" ? true : navigator.onLine;
+        if (!online || recoverableError) {
+          window.setTimeout(function () {
+            void loadProfileRef.current(false);
+          }, 1500);
+          return;
+        }
+
         unauthorizedRef.current += 1;
-        if (unauthorizedRef.current >= 3) {
+        if (unauthorizedRef.current >= MAX_UNAUTHORIZED_RETRIES) {
           router.replace("/login");
           return;
         }
@@ -104,11 +121,22 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         return;
       }
 
-      unauthorizedRef.current = 0;
+      if (res.status === 503 || res.status === 504 || recoverableError) {
+        if (showErrorToast) {
+          showToast(
+            locale === "th"
+              ? "กำลังซิงก์เซสชันความปลอดภัย กรุณารอสักครู่"
+              : "Session synchronization in progress. Please wait.",
+            "error",
+          );
+        }
+        window.setTimeout(function () {
+          void loadProfileRef.current(false);
+        }, 1500);
+        return;
+      }
 
-      const body = await res.json().catch(function () {
-        return {};
-      });
+      unauthorizedRef.current = 0;
 
       if (!res.ok) {
         if (showErrorToast) {

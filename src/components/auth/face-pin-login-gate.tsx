@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { CameraAccessError, captureFaceSample, startCamera, stopCamera } from "@/lib/face-template";
+import { useI18n } from "@/i18n/provider";
 
 type FacePinLoginGateProps = {
   children?: React.ReactNode;
@@ -17,9 +18,11 @@ type FacePinLoginGateProps = {
 
 export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGateProps) {
   const router = useRouter();
+  const { locale } = useI18n();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const mountedRef = useRef(true);
+  const unauthorizedRef = useRef(0);
 
   const [checking, setChecking] = useState(true);
   const [required, setRequired] = useState(false);
@@ -36,24 +39,52 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
 
   const [error, setError] = useState("");
 
+  const recoverSessionOrRedirect = useCallback((retry: () => void) => {
+    unauthorizedRef.current += 1;
+    if (unauthorizedRef.current >= 4) {
+      router.replace("/login");
+      return;
+    }
+    setError(
+      locale === "th"
+        ? "กำลังซิงก์เซสชันความปลอดภัย กรุณารอสักครู่..."
+        : "Syncing secure session. Please wait...",
+    );
+    window.setTimeout(retry, 900 * unauthorizedRef.current);
+  }, [locale, router]);
+
+  const resetSessionRetry = useCallback(() => {
+    unauthorizedRef.current = 0;
+  }, []);
+
   const mapCameraError = useCallback((cameraError: unknown) => {
     if (cameraError instanceof CameraAccessError) {
       if (cameraError.code === "permission-denied") {
-        return "Camera permission is denied. Please allow access and retry, or continue with OTP fallback.";
+        return locale === "th"
+          ? "ไม่ได้รับสิทธิ์กล้อง กรุณาอนุญาตสิทธิ์แล้วลองใหม่ หรือใช้ OTP แทน"
+          : "Camera permission is denied. Please allow access and retry, or continue with OTP fallback.";
       }
       if (cameraError.code === "device-not-found") {
-        return "No front camera found on this device. Continue with OTP fallback.";
+        return locale === "th"
+          ? "ไม่พบกล้องหน้าบนอุปกรณ์นี้ กรุณาใช้ OTP แทน"
+          : "No front camera found on this device. Continue with OTP fallback.";
       }
       if (cameraError.code === "device-busy") {
-        return "Camera is busy in another app. Close other camera apps and retry, or use OTP fallback.";
+        return locale === "th"
+          ? "กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปกล้องอื่นแล้วลองใหม่ หรือใช้ OTP แทน"
+          : "Camera is busy in another app. Close other camera apps and retry, or use OTP fallback.";
       }
       if (cameraError.code === "not-supported") {
-        return "This device/browser does not support camera access. Continue with OTP fallback.";
+        return locale === "th"
+          ? "อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับการใช้งานกล้อง กรุณาใช้ OTP แทน"
+          : "This device/browser does not support camera access. Continue with OTP fallback.";
       }
     }
     if (cameraError instanceof Error && cameraError.message) return cameraError.message;
-    return "Unable to access camera. Continue with OTP fallback.";
-  }, []);
+    return locale === "th"
+      ? "ไม่สามารถเข้าถึงกล้องได้ กรุณาใช้ OTP แทน"
+      : "Unable to access camera. Continue with OTP fallback.";
+  }, [locale]);
 
   const stopCameraNow = useCallback(() => {
     if (videoRef.current) {
@@ -104,35 +135,39 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
         required?: boolean;
         verified?: boolean;
         error?: string;
+        recoverable?: boolean;
       };
 
-      if (response.status === 401) {
-        router.replace("/login");
+      if (response.status === 401 || response.status === 503 || Boolean(body.recoverable)) {
+        recoverSessionOrRedirect(() => {
+          void loadSession();
+        });
         return;
       }
 
       if (!response.ok) {
         setRequired(true);
         setVerified(false);
-        setError(String(body.error ?? "Unable to check status."));
+        setError(String(body.error ?? (locale === "th" ? "ไม่สามารถตรวจสอบสถานะได้" : "Unable to check status.")));
         return;
       }
 
       const nextRequired = Boolean(body.required);
       const nextVerified = Boolean(body.verified);
+      resetSessionRetry();
 
       setRequired(nextRequired);
       setVerified(!nextRequired || nextVerified);
     } catch {
       setRequired(true);
       setVerified(false);
-      setError("Network error. Please retry.");
+      setError(locale === "th" ? "เครือข่ายไม่เสถียร กรุณาลองใหม่" : "Network error. Please retry.");
     } finally {
       if (mountedRef.current) {
         setChecking(false);
       }
     }
-  }, [enabled, hasPin, router]);
+  }, [enabled, hasPin, locale, recoverSessionOrRedirect, resetSessionRetry]);
 
   const verifyNow = useCallback(async () => {
     if (loading || pin.length !== 6 || !videoRef.current || !cameraReady) return;
@@ -155,29 +190,33 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
       });
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;
+        recoverable?: boolean;
       };
 
-      if (response.status === 401) {
-        router.replace("/login");
+      if (response.status === 401 || response.status === 503 || Boolean(body.recoverable)) {
+        recoverSessionOrRedirect(() => {
+          void loadSession();
+        });
         return;
       }
 
       if (!response.ok) {
-        setError(String(body.error ?? "PIN + Face verification failed."));
+        setError(String(body.error ?? (locale === "th" ? "ยืนยัน PIN และใบหน้าไม่สำเร็จ" : "PIN + Face verification failed.")));
         return;
       }
 
+      resetSessionRetry();
       setVerified(true);
       setPin("");
       stopCameraNow();
     } catch {
-      setError("Network error. Please retry.");
+      setError(locale === "th" ? "เครือข่ายไม่เสถียร กรุณาลองใหม่" : "Network error. Please retry.");
     } finally {
       if (mountedRef.current) {
         setLoading(false);
       }
     }
-  }, [cameraReady, loading, pin, router, stopCameraNow]);
+  }, [cameraReady, loading, pin, locale, loadSession, recoverSessionOrRedirect, resetSessionRetry, stopCameraNow]);
 
   const requestRecoveryOtp = useCallback(async () => {
     if (otpRequestLoading || resendIn > 0) return;
@@ -192,31 +231,35 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;
         retryAfterSec?: number;
+        recoverable?: boolean;
       };
 
-      if (response.status === 401) {
-        router.replace("/login");
+      if (response.status === 401 || response.status === 503 || Boolean(body.recoverable)) {
+        recoverSessionOrRedirect(() => {
+          void loadSession();
+        });
         return;
       }
 
       if (!response.ok) {
-        setError(String(body.error ?? "Unable to request OTP."));
+        setError(String(body.error ?? (locale === "th" ? "ไม่สามารถขอ OTP ได้" : "Unable to request OTP.")));
         return;
       }
 
+      resetSessionRetry();
       setRecoveryOpen(true);
       const retryAfter = Number(body.retryAfterSec ?? 60);
       if (Number.isFinite(retryAfter) && retryAfter > 0) {
         setResendIn(retryAfter);
       }
     } catch {
-      setError("Network error. Please retry.");
+      setError(locale === "th" ? "เครือข่ายไม่เสถียร กรุณาลองใหม่" : "Network error. Please retry.");
     } finally {
       if (mountedRef.current) {
         setOtpRequestLoading(false);
       }
     }
-  }, [otpRequestLoading, resendIn, router]);
+  }, [locale, loadSession, otpRequestLoading, recoverSessionOrRedirect, resendIn, resetSessionRetry]);
 
   const verifyRecoveryOtp = useCallback(async () => {
     if (otpVerifyLoading || recoveryOtp.length !== 6) return;
@@ -231,30 +274,34 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
       });
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;
+        recoverable?: boolean;
       };
 
-      if (response.status === 401) {
-        router.replace("/login");
+      if (response.status === 401 || response.status === 503 || Boolean(body.recoverable)) {
+        recoverSessionOrRedirect(() => {
+          void loadSession();
+        });
         return;
       }
 
       if (!response.ok) {
-        setError(String(body.error ?? "Invalid OTP."));
+        setError(String(body.error ?? (locale === "th" ? "OTP ไม่ถูกต้อง" : "Invalid OTP.")));
         return;
       }
 
+      resetSessionRetry();
       setVerified(true);
       setRecoveryOtp("");
       setRecoveryOpen(false);
       stopCameraNow();
     } catch {
-      setError("Network error. Please retry.");
+      setError(locale === "th" ? "เครือข่ายไม่เสถียร กรุณาลองใหม่" : "Network error. Please retry.");
     } finally {
       if (mountedRef.current) {
         setOtpVerifyLoading(false);
       }
     }
-  }, [otpVerifyLoading, recoveryOtp, router, stopCameraNow]);
+  }, [locale, loadSession, otpVerifyLoading, recoverSessionOrRedirect, recoveryOtp, resetSessionRetry, stopCameraNow]);
 
   const signOutNow = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
@@ -303,9 +350,13 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 text-blue-600" />
               <div>
-                <h3 className="text-base font-semibold text-slate-900">Verify PIN + Face to continue</h3>
+                <h3 className="text-base font-semibold text-slate-900">
+                  {locale === "th" ? "ยืนยัน PIN + ใบหน้าเพื่อดำเนินการต่อ" : "Verify PIN + Face to continue"}
+                </h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  This account requires PIN and face verification after sign-in.
+                  {locale === "th"
+                    ? "บัญชีนี้ต้องยืนยัน PIN และใบหน้าหลังเข้าสู่ระบบ"
+                    : "This account requires PIN and face verification after sign-in."}
                 </p>
               </div>
             </div>
@@ -320,7 +371,7 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
               maxLength={6}
               value={pin}
               onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="6-digit PIN"
+              placeholder={locale === "th" ? "PIN 6 หลัก" : "6-digit PIN"}
             />
 
             {error ? <p className="text-xs text-rose-600">{error}</p> : null}
@@ -329,25 +380,29 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
               <Button variant="secondary" onClick={() => void startCameraNow()} disabled={loading}>
                 <span className="inline-flex items-center gap-2">
                   <Camera className="h-4 w-4" />
-                  Restart camera
+                  {locale === "th" ? "เริ่มกล้องใหม่" : "Restart camera"}
                 </span>
               </Button>
               <Button onClick={() => void verifyNow()} disabled={loading || pin.length !== 6 || !cameraReady}>
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
                     <Spinner />
-                    Verifying...
+                    {locale === "th" ? "กำลังยืนยัน..." : "Verifying..."}
                   </span>
                 ) : (
-                  "Verify PIN + Face"
+                  locale === "th" ? "ยืนยัน PIN + ใบหน้า" : "Verify PIN + Face"
                 )}
               </Button>
             </div>
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
-              <p className="text-xs font-semibold text-amber-900">Fallback when camera is unavailable</p>
+              <p className="text-xs font-semibold text-amber-900">
+                {locale === "th" ? "กรณีกล้องใช้งานไม่ได้" : "Fallback when camera is unavailable"}
+              </p>
               <p className="mt-1 text-[11px] text-amber-800">
-                Request email OTP to temporarily unlock this session.
+                {locale === "th"
+                  ? "ขอ OTP ทางอีเมลเพื่อปลดล็อกเซสชันชั่วคราว"
+                  : "Request email OTP to temporarily unlock this session."}
               </p>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <Button
@@ -358,12 +413,12 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
                   {otpRequestLoading ? (
                     <span className="inline-flex items-center gap-2">
                       <Spinner />
-                      Sending OTP...
+                      {locale === "th" ? "กำลังส่ง OTP..." : "Sending OTP..."}
                     </span>
                   ) : resendIn > 0 ? (
-                    `Resend in ${resendIn}s`
+                    locale === "th" ? `ส่งใหม่ใน ${resendIn} วินาที` : `Resend in ${resendIn}s`
                   ) : (
-                    "Request OTP"
+                    locale === "th" ? "ขอ OTP" : "Request OTP"
                   )}
                 </Button>
                 <Button
@@ -371,7 +426,7 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
                   onClick={() => setRecoveryOpen((value) => !value)}
                   disabled={otpVerifyLoading}
                 >
-                  Enter OTP
+                  {locale === "th" ? "กรอก OTP" : "Enter OTP"}
                 </Button>
               </div>
 
@@ -383,7 +438,7 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
                     maxLength={6}
                     value={recoveryOtp}
                     onChange={(event) => setRecoveryOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="6-digit OTP"
+                    placeholder={locale === "th" ? "OTP 6 หลัก" : "6-digit OTP"}
                   />
                   <Button
                     className="w-full"
@@ -393,10 +448,10 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
                     {otpVerifyLoading ? (
                       <span className="inline-flex items-center gap-2">
                         <Spinner />
-                        Verifying OTP...
+                        {locale === "th" ? "กำลังยืนยัน OTP..." : "Verifying OTP..."}
                       </span>
                     ) : (
-                      "Verify OTP and unlock"
+                      locale === "th" ? "ยืนยัน OTP และปลดล็อก" : "Verify OTP and unlock"
                     )}
                   </Button>
                 </div>
@@ -409,7 +464,7 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
               onClick={() => void signOutNow()}
               disabled={loading || otpRequestLoading || otpVerifyLoading}
             >
-              Sign out
+              {locale === "th" ? "ออกจากระบบ" : "Sign out"}
             </Button>
           </Card>
         </div>

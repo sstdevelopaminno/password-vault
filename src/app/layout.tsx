@@ -1,11 +1,17 @@
 import type { Metadata, Viewport } from 'next';
 import { createElement, type ReactNode } from 'react';
+import { Noto_Sans_Thai } from "next/font/google";
 import { Providers } from '@/app/providers';
 import { APP_ICON_192 } from '@/lib/pwa-runtime';
 import { getRuntimeBuildMarker } from '@/lib/runtime-build';
 import './globals.css';
 
 const runtimeBuildMarker = getRuntimeBuildMarker();
+const notoSansThai = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  display: "swap",
+  variable: "--font-noto-sans-thai",
+});
 
 export const metadata: Metadata = {
   title: 'Vault',
@@ -38,7 +44,7 @@ export default function RootLayout(props: { children: ReactNode }) {
     { lang: 'th' },
     createElement(
       'body',
-      null,
+      { className: notoSansThai.variable },
       createElement(Providers, { runtimeBuildMarker: runtimeBuildMarker }, props.children),
     ),
   );
