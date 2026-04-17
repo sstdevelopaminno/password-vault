@@ -13,12 +13,12 @@ Goal: use the same web codebase and distribute a real Android APK that users can
 - Keep `applicationId` / package name unchanged: `com.passwordvault.app`
 - Keep signing key unchanged across every release
 - Increase `versionCode` on every release
-- Update `versionName` to match your release (current baseline: `16.6.3`)
+- Update `versionName` to match your release (current baseline: `16.6.4`)
 
 This project already sets:
 - `android/app/build.gradle`
-  - `versionCode 16603`
-  - `versionName "16.6.3"`
+  - `versionCode 16604`
+  - `versionName "16.6.4"`
 
 Signing env for release output:
 - `ANDROID_RELEASE_KEYSTORE`
@@ -36,7 +36,7 @@ Signing env for release output:
 
 ## 3) Publish APK for user download
 Choose one channel:
-- Domain/CDN path: for example `https://password-vault-ivory.vercel.app/apk/vault-v16.6.3.apk`
+- Domain/CDN path: for example `https://password-vault-ivory.vercel.app/apk/vault-v16.6.4.apk`
 - GitHub Releases asset
 
 Then set environment values (see `.env.example`):

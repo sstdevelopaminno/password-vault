@@ -18,23 +18,23 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.6.3",
+    version: "V16.6.4",
     releasedOn: "2026-04-18",
-    titleTh: "อัปเดตเวอร์ชันใหม่และปล่อยระบบล่าสุด",
-    titleEn: "New Version Rollout and Production Refresh",
+    titleTh: "แก้ระบบแจ้งเตือน Android และเสถียรภาพสิทธิ์",
+    titleEn: "Android Notification Permission and Stability Fix",
     highlightsTh: [
-      "ปรับเวอร์ชันแอปเป็น V16.6 พร้อมอัปเดต marker สำหรับ runtime ใหม่",
-      "อัปเดตข้อความแจ้งเตือนให้ระบุชัดว่าในรอบนี้ปรับอะไรบ้าง",
-      "อัปโค้ดขึ้น GitHub และปล่อยขึ้น Vercel Production",
-      "รัน Supabase sync เพื่อตรวจให้ฐานข้อมูลอยู่สถานะล่าสุด",
-      "คงหน้ารายละเอียด release notes เพื่อให้กดดูย้อนหลังได้จากเมนูแจ้งเตือน",
+      "เพิ่ม native notification permission flow สำหรับ Android APK (Capacitor)",
+      "แก้ปุ่มขอสิทธิ์แจ้งเตือนให้รองรับทั้งโหมด Native และ Browser",
+      "เพิ่มสิทธิ์ Android 13+ (`POST_NOTIFICATIONS`) และ `VIBRATE`",
+      "เพิ่ม local-notification fallback เมื่อ web push ไม่รองรับใน WebView",
+      "อัปเดตโค้ดขึ้น GitHub พร้อม deploy Vercel และตรวจ Supabase ล่าสุด",
     ],
     highlightsEn: [
-      "Updated app version to V16.6 with refreshed runtime marker flow.",
-      "Expanded update notification text to clearly summarize this release scope.",
-      "Published code to GitHub and deployed to Vercel production.",
-      "Ran Supabase sync to confirm the database is up to date.",
-      "Kept release-notes history accessible directly from notifications.",
+      "Added native notification permission flow for Android APK (Capacitor).",
+      "Updated notification permission request to support both native and browser runtimes.",
+      "Added Android 13+ `POST_NOTIFICATIONS` and `VIBRATE` permissions.",
+      "Added local-notification fallback when web push is unavailable in WebView.",
+      "Published to GitHub, deployed on Vercel, and synced Supabase checks.",
     ],
   },
   {
@@ -101,8 +101,8 @@ export function getReleaseUpdateMessage(locale: string) {
 
 export function getReleaseUpdateDetail(locale: string) {
   return asLocale(locale) === "th"
-    ? "รอบนี้อัปเดต: ปรับเวอร์ชันใหม่, อัปโค้ดขึ้น GitHub, ปล่อย Vercel, ตรวจ Supabase และปรับข้อความแจ้งเตือนให้อ่านง่ายขึ้น"
-    : "This round includes: PIN + Face login toggle rollout, enroll/verify API + DB migration, GitHub publish, Vercel deploy, Supabase sync, and clearer update notification text.";
+    ? "รอบนี้อัปเดต: แก้สิทธิ์แจ้งเตือน Android Native, เพิ่ม fallback local notification, อัปโค้ดขึ้น GitHub, ปล่อย Vercel และตรวจ Supabase"
+    : "This round includes: Android native notification permission fixes, local-notification fallback, GitHub publish, Vercel deployment, and Supabase sync checks.";
 }
 
 export function getReleaseHighlights(locale: string) {

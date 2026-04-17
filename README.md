@@ -130,7 +130,7 @@ Detailed release steps and compatibility rules:
 
 ## GitHub Actions (1+2)
 - Auto release on tag: `.github/workflows/android-apk-release-on-tag.yml`
-  - push tag like `v16.6.3` -> build/sign APK + attach to GitHub Release
+  - push tag like `v16.6.4` -> build/sign APK + attach to GitHub Release
 - One-click production: `.github/workflows/android-one-click-prod.yml`
   - manual run -> optional lint/typecheck/build, APK sign, Supabase push, Vercel deploy, GitHub Release
 

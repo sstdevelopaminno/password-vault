@@ -54,6 +54,7 @@ export default function NotificationSettingsPage() {
     updateSettings,
     notify,
     browserPermission,
+    permissionSource,
     requestBrowserPermission,
   } = useHeadsUpNotifications();
 
@@ -111,6 +112,15 @@ export default function NotificationSettingsPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-3">
           <p className="text-sm font-semibold text-slate-800">
             {locale === "th" ? "สิทธิ์แจ้งเตือนระบบ" : "System notification permission"}
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            {permissionSource === "native"
+              ? locale === "th"
+                ? "โหมด Native (Android APK)"
+                : "Native runtime (Android APK)"
+              : locale === "th"
+                ? "โหมด Browser/Web Push"
+                : "Browser/Web Push runtime"}
           </p>
           <p className="mt-1 text-xs text-slate-500">{permissionLabel}</p>
           <Button

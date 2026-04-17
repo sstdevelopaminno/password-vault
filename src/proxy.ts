@@ -22,6 +22,7 @@ const publicApiPaths = new Set([
   "/api/auth/verify-reset-otp",
   "/api/auth/resend-signup-otp",
   "/api/auth/logout",
+  "/api/android-release",
   "/api/notes/reminders/process",
   "/api/notifications/push/process",
 ]);

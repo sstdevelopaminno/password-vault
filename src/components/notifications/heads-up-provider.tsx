@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { BellRing, ChevronDown, ChevronUp, ShieldAlert, X } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { APP_VERSION } from "@/lib/app-version";
+import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
 import {
   UPDATE_DETAILS_PATH,
   getReleaseUpdateDetail,
@@ -50,6 +51,7 @@ type HeadsUpContextValue = {
   settings: NotificationSettings;
   updateSettings: (patch: Partial<NotificationSettings>) => void;
   browserPermission: NotificationPermission | "unsupported";
+  permissionSource: "browser" | "native";
   requestBrowserPermission: () => Promise<NotificationPermission | "unsupported">;
 };
 
@@ -57,6 +59,7 @@ const SETTINGS_STORAGE_KEY = "pv_notification_settings_v1";
 const VERSION_SEEN_KEY = "pv_seen_app_version";
 const AUTO_PERMISSION_PROMPT_KEY = "pv_auto_permission_prompted_v1";
 const APP_NAME = "Vault";
+const APP_ICON = "/icons/icon-192.png";
 const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "").trim();
 const SWIPE_DISMISS_DISTANCE = 72;
 const SWIPE_MAX_OFFSET = 180;
@@ -76,6 +79,40 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 };
 
 const HeadsUpContext = createContext<HeadsUpContextValue | null>(null);
+
+function mapPermissionStateToNotificationPermission(state: string): NotificationPermission | "unsupported" {
+  const normalized = String(state ?? "").toLowerCase();
+  if (normalized === "granted") return "granted";
+  if (normalized === "denied") return "denied";
+  if (normalized === "prompt" || normalized === "prompt-with-rationale") return "default";
+  return "unsupported";
+}
+
+function isCapacitorNativeRuntime() {
+  if (typeof window === "undefined") return false;
+  const capabilities = detectRuntimeCapabilities();
+  return capabilities.isCapacitorNative;
+}
+
+async function checkNativeNotificationPermission(): Promise<NotificationPermission | "unsupported"> {
+  try {
+    const plugin = await import("@capacitor/local-notifications");
+    const result = await plugin.LocalNotifications.checkPermissions();
+    return mapPermissionStateToNotificationPermission(result.display);
+  } catch {
+    return "unsupported";
+  }
+}
+
+async function requestNativeNotificationPermission(): Promise<NotificationPermission | "unsupported"> {
+  try {
+    const plugin = await import("@capacitor/local-notifications");
+    const result = await plugin.LocalNotifications.requestPermissions();
+    return mapPermissionStateToNotificationPermission(result.display);
+  } catch {
+    return "unsupported";
+  }
+}
 
 function getInitialPermission(): NotificationPermission | "unsupported" {
   if (typeof window === "undefined" || typeof Notification === "undefined") {
@@ -148,6 +185,34 @@ function tone() {
 
 async function showSystemNotification(input: HeadsUpNotificationInput, settings: NotificationSettings) {
   if (typeof window === "undefined") return;
+  if (isCapacitorNativeRuntime()) {
+    try {
+      const plugin = await import("@capacitor/local-notifications");
+      const permission = await plugin.LocalNotifications.checkPermissions();
+      const mapped = mapPermissionStateToNotificationPermission(permission.display);
+      if (mapped !== "granted") return;
+      const id = Math.floor(Date.now() % 2_000_000_000);
+      await plugin.LocalNotifications.schedule({
+        notifications: [
+          {
+            id,
+            title: `${APP_NAME} - ${input.title}`,
+            body: input.message,
+            smallIcon: "ic_launcher",
+            largeIcon: APP_ICON,
+            actionTypeId: "OPEN_APP",
+            extra: {
+              href: input.href ?? "/home",
+              kind: input.kind,
+            },
+          },
+        ],
+      });
+      return;
+    } catch {
+      // ignore
+    }
+  }
   if (typeof Notification === "undefined") return;
   if (Notification.permission !== "granted") return;
 
@@ -184,6 +249,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
   const [items, setItems] = useState<HeadsUpNotificationItem[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [browserPermission, setBrowserPermission] = useState<NotificationPermission | "unsupported">(getInitialPermission);
+  const [permissionSource, setPermissionSource] = useState<"browser" | "native">("browser");
   const [settings, setSettings] = useState<NotificationSettings>(getInitialSettings);
   const [swipeOffsets, setSwipeOffsets] = useState<Record<string, number>>({});
   const [swipingId, setSwipingId] = useState<string | null>(null);
@@ -229,8 +295,42 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
+  const resolvePermissionState = useCallback(async () => {
+    if (typeof window === "undefined") {
+      setPermissionSource("browser");
+      setBrowserPermission("unsupported");
+      return "unsupported" as const;
+    }
+    if (isCapacitorNativeRuntime()) {
+      setPermissionSource("native");
+      const nativePermission = await checkNativeNotificationPermission();
+      setBrowserPermission(nativePermission);
+      return nativePermission;
+    }
+    setPermissionSource("browser");
+    if (typeof Notification === "undefined") {
+      setBrowserPermission("unsupported");
+      return "unsupported" as const;
+    }
+    const value = Notification.permission;
+    setBrowserPermission(value);
+    return value;
+  }, []);
+
   const requestBrowserPermission = useCallback(async () => {
-    if (typeof window === "undefined" || typeof Notification === "undefined") {
+    if (typeof window === "undefined") {
+      setPermissionSource("browser");
+      setBrowserPermission("unsupported");
+      return "unsupported" as const;
+    }
+    if (isCapacitorNativeRuntime()) {
+      setPermissionSource("native");
+      const nativeResult = await requestNativeNotificationPermission();
+      setBrowserPermission(nativeResult);
+      return nativeResult;
+    }
+    setPermissionSource("browser");
+    if (typeof Notification === "undefined") {
       setBrowserPermission("unsupported");
       return "unsupported" as const;
     }
@@ -240,8 +340,21 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
   }, []);
 
   useEffect(() => {
+    void resolvePermissionState();
     if (typeof window === "undefined") return;
-    if (typeof Notification === "undefined") return;
+    const refresh = () => {
+      void resolvePermissionState();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [resolvePermissionState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     if (browserPermission !== "default") return;
     if (!settings.enabled || !settings.tray) return;
     const prompted = window.localStorage.getItem(AUTO_PERMISSION_PROMPT_KEY);
@@ -255,6 +368,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
 
   const syncPushSubscription = useCallback(async () => {
     if (typeof window === "undefined") return;
+    if (isCapacitorNativeRuntime()) return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     if (!VAPID_PUBLIC_KEY) return;
     if (browserPermission !== "granted") return;
@@ -295,6 +409,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
 
   const removePushSubscription = useCallback(async () => {
     if (typeof window === "undefined") return;
+    if (isCapacitorNativeRuntime()) return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
     try {
@@ -455,6 +570,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (isCapacitorNativeRuntime()) return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
     const enabledForPush = settings.enabled && settings.tray;
@@ -470,6 +586,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (isCapacitorNativeRuntime()) return;
     if (!("serviceWorker" in navigator)) return;
 
     const onMessage = (event: MessageEvent) => {
@@ -497,15 +614,45 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
   }, [notify]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isCapacitorNativeRuntime()) return;
+
+    let cancelled = false;
+    let removeListener: (() => Promise<void> | void) | null = null;
+
+    void (async function attachListener() {
+      try {
+        const plugin = await import("@capacitor/local-notifications");
+        const handle = await plugin.LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
+          if (cancelled) return;
+          const href = String(event.notification.extra?.href ?? "/home");
+          window.location.assign(href);
+        });
+        removeListener = () => handle.remove();
+      } catch {
+        // ignore listener setup failures
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (removeListener) {
+        void removeListener();
+      }
+    };
+  }, []);
+
   const value = useMemo<HeadsUpContextValue>(
     () => ({
       notify,
       settings,
       updateSettings,
       browserPermission,
+      permissionSource,
       requestBrowserPermission,
     }),
-    [notify, settings, updateSettings, browserPermission, requestBrowserPermission],
+    [notify, settings, updateSettings, browserPermission, permissionSource, requestBrowserPermission],
   );
 
   return (
