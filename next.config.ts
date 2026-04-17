@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const packageVersion = String(process.env.npm_package_version ?? "0.1.0");
-const releaseVersion = packageVersion;
+const versionOverride = String(process.env.APP_VERSION_OVERRIDE ?? "").trim();
+const compactVersion = packageVersion.replace(/\.0$/, "");
+const releaseVersion = versionOverride || `V${compactVersion}`;
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
