@@ -71,6 +71,15 @@ function toRiskActionLabel(action: string, locale: 'th' | 'en') {
   return action;
 }
 
+function toSeverityLabel(severity: string | undefined, locale: 'th' | 'en') {
+  if (locale !== 'th') return String(severity ?? 'unknown').toUpperCase();
+  if (severity === 'low') return 'ต่ำ';
+  if (severity === 'medium') return 'ปานกลาง';
+  if (severity === 'high') return 'สูง';
+  if (severity === 'critical') return 'วิกฤต';
+  return 'ไม่ทราบ';
+}
+
 export default function RiskStatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -133,7 +142,7 @@ export default function RiskStatePage() {
 
     showToast(
       isThai
-        ? `ประเมินแล้ว: ${result.assessment.severity.toUpperCase()} (score ${result.assessment.score})`
+        ? `ประเมินแล้ว: ${toSeverityLabel(result.assessment.severity, 'th')} (คะแนน ${result.assessment.score})`
         : `Evaluated: ${result.assessment.severity.toUpperCase()} (score ${result.assessment.score})`,
       result.assessment.severity === 'low' ? 'success' : 'error',
     );
@@ -162,25 +171,25 @@ export default function RiskStatePage() {
             </p>
           </div>
           <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${severityBadgeClass(String(activeSeverity))}`}>
-            {String(activeSeverity).toUpperCase()} • {activeScore}
+            {toSeverityLabel(String(activeSeverity), locale)} • {activeScore}
           </span>
         </div>
 
         <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
           <div className='rounded-xl border border-slate-200 bg-slate-50 p-3'>
-            <p className='text-xs font-semibold text-slate-600'>{isThai ? 'Policy Active' : 'Policy Active'}</p>
+            <p className='text-xs font-semibold text-slate-600'>{isThai ? 'สถานะนโยบาย' : 'Policy Active'}</p>
             <p className='mt-1 text-sm font-semibold text-slate-800'>{state?.active ? (isThai ? 'ใช้งานอยู่' : 'Active') : (isThai ? 'ไม่ใช้งาน' : 'Inactive')}</p>
           </div>
           <div className='rounded-xl border border-slate-200 bg-slate-50 p-3'>
-            <p className='text-xs font-semibold text-slate-600'>{isThai ? 'Policy Expiry' : 'Policy Expiry'}</p>
+            <p className='text-xs font-semibold text-slate-600'>{isThai ? 'วันหมดอายุนโยบาย' : 'Policy Expiry'}</p>
             <p className='mt-1 text-sm font-semibold text-slate-800'>{toLocalDate(state?.policy?.expiresAt, locale)}</p>
           </div>
           <div className='rounded-xl border border-slate-200 bg-slate-50 p-3'>
-            <p className='text-xs font-semibold text-slate-600'>{isThai ? 'Latest Assessment' : 'Latest Assessment'}</p>
+            <p className='text-xs font-semibold text-slate-600'>{isThai ? 'การประเมินล่าสุด' : 'Latest Assessment'}</p>
             <p className='mt-1 text-sm font-semibold text-slate-800'>{toLocalDate(state?.latestAssessment?.createdAt, locale)}</p>
           </div>
           <div className='rounded-xl border border-slate-200 bg-slate-50 p-3'>
-            <p className='text-xs font-semibold text-slate-600'>{isThai ? 'Source / Trigger' : 'Source / Trigger'}</p>
+            <p className='text-xs font-semibold text-slate-600'>{isThai ? 'แหล่งที่มา / ตัวกระตุ้น' : 'Source / Trigger'}</p>
             <p className='mt-1 text-sm font-semibold text-slate-800'>
               {String(state?.latestAssessment?.source ?? '-')} / {String(state?.latestAssessment?.trigger ?? '-')}
             </p>
@@ -223,24 +232,28 @@ export default function RiskStatePage() {
       </Card>
 
       <Card className='space-y-3 rounded-[20px] p-4'>
-        <p className='text-sm font-semibold text-slate-800'>{isThai ? 'Play Integrity' : 'Play Integrity'}</p>
+        <p className='text-sm font-semibold text-slate-800'>Play Integrity</p>
         {state?.latestAssessment?.playIntegrity ? (
           <div className='space-y-2 text-sm text-slate-700'>
             <div className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2'>
-              status: {String(state.latestAssessment.playIntegrity.status ?? '-')} | verdict: {String(state.latestAssessment.playIntegrity.verdict ?? '-')}
+              {isThai ? 'สถานะ' : 'status'}: {String(state.latestAssessment.playIntegrity.status ?? '-')} | {isThai ? 'ผลตัดสิน' : 'verdict'}:{' '}
+              {String(state.latestAssessment.playIntegrity.verdict ?? '-')}
             </div>
             <div className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2'>
-              appRecognitionVerdict: {String(state.latestAssessment.playIntegrity.appRecognitionVerdict ?? '-')}
+              {isThai ? 'ผลยืนยันแอป' : 'appRecognitionVerdict'}: {String(state.latestAssessment.playIntegrity.appRecognitionVerdict ?? '-')}
             </div>
             <div className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2'>
-              deviceRecognitionVerdicts: {Array.isArray(state.latestAssessment.playIntegrity.deviceRecognitionVerdicts) ? state.latestAssessment.playIntegrity.deviceRecognitionVerdicts.join(', ') : '-'}
+              {isThai ? 'ผลยืนยันอุปกรณ์' : 'deviceRecognitionVerdicts'}:{' '}
+              {Array.isArray(state.latestAssessment.playIntegrity.deviceRecognitionVerdicts) ? state.latestAssessment.playIntegrity.deviceRecognitionVerdicts.join(', ') : '-'}
             </div>
             <div className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2'>
-              nonceMatched: {String(state.latestAssessment.playIntegrity.nonceMatched ?? '-')} | packageMatched: {String(state.latestAssessment.playIntegrity.packageMatched ?? '-')} | timestampFresh: {String(state.latestAssessment.playIntegrity.timestampFresh ?? '-')}
+              {isThai ? 'nonce ตรงกัน' : 'nonceMatched'}: {String(state.latestAssessment.playIntegrity.nonceMatched ?? '-')} | {isThai ? 'package ตรงกัน' : 'packageMatched'}:{' '}
+              {String(state.latestAssessment.playIntegrity.packageMatched ?? '-')} | {isThai ? 'เวลาอยู่ในเกณฑ์' : 'timestampFresh'}:{' '}
+              {String(state.latestAssessment.playIntegrity.timestampFresh ?? '-')}
             </div>
             {state.latestAssessment.playIntegrity.errorMessage ? (
               <div className='rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700'>
-                error: {state.latestAssessment.playIntegrity.errorMessage}
+                {isThai ? 'ข้อผิดพลาด' : 'error'}: {state.latestAssessment.playIntegrity.errorMessage}
               </div>
             ) : null}
           </div>
@@ -257,13 +270,13 @@ export default function RiskStatePage() {
           <div className='space-y-2'>
             {state.latestAssessment.riskFactors.map((factor, index) => (
               <div key={`${factor.code ?? 'factor'}-${index}`} className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800'>
-                {String(factor.code ?? '-')} ({String(factor.type ?? '-')}) • +{Number(factor.score ?? 0)}
+                {String(factor.code ?? '-')} ({isThai ? `ประเภท: ${String(factor.type ?? '-')}` : String(factor.type ?? '-')}) • +{Number(factor.score ?? 0)}
               </div>
             ))}
           </div>
         ) : (
           <div className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600'>
-            {isThai ? 'ไม่มี factor ล่าสุด' : 'No recent factors.'}
+            {isThai ? 'ไม่มีปัจจัยเสี่ยงล่าสุด' : 'No recent factors.'}
           </div>
         )}
       </Card>
@@ -271,11 +284,7 @@ export default function RiskStatePage() {
       <Card className={'space-y-2 rounded-[20px] p-4 ' + (guideMode || safeMode ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-slate-50')}>
         <p className='inline-flex items-center gap-2 text-sm font-semibold text-slate-800'>
           {state?.active ? <ShieldX className='h-4 w-4 text-rose-600' /> : <ShieldCheck className='h-4 w-4 text-emerald-600' />}
-          {safeMode
-            ? (isThai ? 'คำแนะนำโหมดปลอดภัย' : 'Safe Mode Guidance')
-            : isThai
-              ? (guideMode ? 'แนวทางแก้ไขแบบคลิกเดียว' : 'คำแนะนำ')
-              : (guideMode ? 'One-click Guidance' : 'Guidance')}
+          {safeMode ? (isThai ? 'คำแนะนำโหมดปลอดภัย' : 'Safe Mode Guidance') : isThai ? (guideMode ? 'แนวทางแก้ไขแบบคลิกเดียว' : 'คำแนะนำ') : (guideMode ? 'One-click Guidance' : 'Guidance')}
         </p>
         <p className='text-xs leading-5 text-slate-600'>
           {safeMode
@@ -283,7 +292,7 @@ export default function RiskStatePage() {
               ? 'โหมดปลอดภัยเหมาะสำหรับช่วงที่ระบบประเมินเป็น Critical เพื่อจำกัดการเข้าถึงข้อมูลอ่อนไหวชั่วคราวจนกว่าความเสี่ยงจะลดลง'
               : 'Safe mode is recommended while risk is Critical to temporarily limit access to sensitive data until risk decreases.')
             : isThai
-              ? 'ถ้าระบบขึ้น High/Critical ให้ถอนแอปเสี่ยง ปิด ADB/Developer Options และติดตั้งจาก Google Play เพื่อให้คะแนนความเสี่ยงลดลง'
+              ? 'ถ้าระบบขึ้น High/Critical ให้ถอนแอปเสี่ยง ปิด ADB/Developer Options และติดตั้งจาก Google Play เพื่อลดความเสี่ยง'
               : 'If status is High/Critical, remove risky apps, disable ADB/Developer Options, and install from Google Play to reduce risk.'}
         </p>
         {guideMode ? (
@@ -301,8 +310,8 @@ export default function RiskStatePage() {
           <div className='rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs text-slate-700'>
             <p className='font-semibold text-slate-800'>{isThai ? 'ขั้นตอน Safe Mode' : 'Safe mode steps'}</p>
             <ol className='mt-1 list-decimal space-y-1 pl-4'>
-              <li>{isThai ? 'หยุดการเปิด/คัดลอกข้อมูลสำคัญชั่วคราว' : 'Pause viewing/copying sensitive data temporarily.'}</li>
-              <li>{isThai ? 'หลีกเลี่ยงการซิงก์จนกว่าจะประเมินใหม่ผ่าน' : 'Avoid syncing until re-check passes.'}</li>
+              <li>{isThai ? 'หยุดเปิด/คัดลอกข้อมูลสำคัญชั่วคราว' : 'Pause viewing/copying sensitive data temporarily.'}</li>
+              <li>{isThai ? 'หลีกเลี่ยงการซิงก์จนกว่าจะตรวจซ้ำผ่าน' : 'Avoid syncing until re-check passes.'}</li>
               <li>{isThai ? 'จัดการแอปเสี่ยงและปิดโหมดนักพัฒนา' : 'Remove risky apps and disable developer options.'}</li>
               <li>{isThai ? 'ยืนยันตัวตนใหม่และกดตรวจซ้ำ' : 'Re-authenticate and run re-check.'}</li>
             </ol>

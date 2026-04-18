@@ -22,6 +22,8 @@ export type CapturedFaceSample = {
   quality: number;
 };
 
+const CAMERA_READY_TIMEOUT_MS = 4000;
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -53,6 +55,39 @@ function getCenteredSquare(video: HTMLVideoElement) {
   const sx = Math.floor((sourceWidth - size) / 2);
   const sy = Math.floor((sourceHeight - size) / 2);
   return { sx, sy, size };
+}
+
+function hasVideoFrame(video: HTMLVideoElement) {
+  return video.videoWidth > 0 && video.videoHeight > 0;
+}
+
+function waitForVideoFrame(video: HTMLVideoElement) {
+  if (hasVideoFrame(video)) return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    let timer: number | null = null;
+    const cleanup = () => {
+      video.removeEventListener("loadedmetadata", onReady);
+      video.removeEventListener("canplay", onReady);
+      video.removeEventListener("playing", onReady);
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+    };
+    const onReady = () => {
+      if (!hasVideoFrame(video)) return;
+      cleanup();
+      resolve();
+    };
+
+    video.addEventListener("loadedmetadata", onReady);
+    video.addEventListener("canplay", onReady);
+    video.addEventListener("playing", onReady);
+    timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Camera stream is not ready"));
+    }, CAMERA_READY_TIMEOUT_MS);
+  });
 }
 
 export function captureFaceSample(video: HTMLVideoElement): CapturedFaceSample {
@@ -141,7 +176,13 @@ export async function startCamera(video: HTMLVideoElement) {
   video.srcObject = stream;
   video.muted = true;
   video.playsInline = true;
-  await video.play();
+  video.autoplay = true;
+  try {
+    await video.play();
+  } catch {
+    // Some Android WebViews can return a transient play rejection before metadata is ready.
+  }
+  await waitForVideoFrame(video);
   return stream;
 }
 

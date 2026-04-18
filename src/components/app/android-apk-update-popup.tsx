@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 import { APP_VERSION } from "@/lib/app-version";
 import {
-  compareReleaseVersion,
+  compareReleaseByCodeOrVersion,
   getDefaultAndroidReleasePayload,
   type AndroidApkCompatibility,
   type AndroidApkRelease,
@@ -46,13 +46,20 @@ async function fetchReleaseFromApi() {
   }
 }
 
+function parseVersionCode(input: unknown) {
+  const numeric = Number(String(input ?? "").trim());
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return Math.floor(numeric);
+}
+
 export function AndroidApkUpdatePopup() {
   const { locale } = useI18n();
   const toast = useToast();
   const recommendedAndroidMajor = 10;
   const [open, setOpen] = useState(false);
   const [installing, setInstalling] = useState(false);
-  const [installedVersion, setInstalledVersion] = useState(APP_VERSION);
+  const [installedVersionName, setInstalledVersionName] = useState(APP_VERSION);
+  const [installedVersionCode, setInstalledVersionCode] = useState<number | null>(null);
   const [release, setRelease] = useState<AndroidApkRelease>(() => defaultRelease().release);
   const [compatibility, setCompatibility] = useState<AndroidApkCompatibility>(() => defaultRelease().compatibility);
   const capabilities = detectRuntimeCapabilities();
@@ -61,79 +68,92 @@ export function AndroidApkUpdatePopup() {
     return capabilities.isAndroid && !capabilities.isIos;
   }, [capabilities.isAndroid, capabilities.isIos]);
 
-  useEffect(function loadAndroidReleasePopupState() {
-    if (!popupEligible || typeof window === "undefined") return;
+  useEffect(
+    function loadAndroidReleasePopupState() {
+      if (!popupEligible || typeof window === "undefined") return;
 
-    let mounted = true;
-    let removeResumeListener: null | (() => void) = null;
+      let mounted = true;
+      let removeResumeListener: null | (() => void) = null;
 
-    const refreshPopupState = async () => {
-      const payload = await fetchReleaseFromApi();
-      let detectedInstalledVersion = APP_VERSION;
+      const refreshPopupState = async () => {
+        const payload = await fetchReleaseFromApi();
+        let detectedInstalledVersionName = APP_VERSION;
+        let detectedInstalledVersionCode: number | null = null;
+
+        if (capabilities.isCapacitorNative) {
+          try {
+            const { App } = await import("@capacitor/app");
+            const info = await App.getInfo();
+            const nativeVersion = String(info.version ?? "").trim();
+            if (nativeVersion) {
+              detectedInstalledVersionName = nativeVersion;
+            }
+            detectedInstalledVersionCode = parseVersionCode(info.build);
+          } catch {
+            // fallback to web runtime marker
+          }
+        }
+
+        if (!mounted) return;
+        const compareResult = compareReleaseByCodeOrVersion({
+          installedVersionName: detectedInstalledVersionName,
+          installedVersionCode: detectedInstalledVersionCode,
+          releaseVersionName: payload.release.versionName,
+          releaseVersionCode: payload.release.versionCode,
+        });
+
+        setRelease(payload.release);
+        setCompatibility(payload.compatibility);
+        setInstalledVersionName(detectedInstalledVersionName);
+        setInstalledVersionCode(detectedInstalledVersionCode);
+        setOpen(compareResult < 0);
+      };
+
+      void refreshPopupState();
+
+      const onVisibilityChange = function onVisibilityChange() {
+        if (document.visibilityState !== "visible") return;
+        void refreshPopupState();
+      };
+
+      document.addEventListener("visibilitychange", onVisibilityChange);
 
       if (capabilities.isCapacitorNative) {
-        try {
-          const { App } = await import("@capacitor/app");
-          const info = await App.getInfo();
-          const nativeVersion = String(info.version ?? "").trim();
-          if (nativeVersion) {
-            detectedInstalledVersion = nativeVersion;
-          }
-        } catch {
-          // fallback to web runtime version marker when native app info is unavailable
-        }
-      }
-
-      if (!mounted) return;
-      setRelease(payload.release);
-      setCompatibility(payload.compatibility);
-      setInstalledVersion(detectedInstalledVersion);
-      setOpen(compareReleaseVersion(detectedInstalledVersion, payload.release.versionName) < 0);
-    };
-
-    void refreshPopupState();
-
-    const onVisibilityChange = function onVisibilityChange() {
-      if (document.visibilityState !== "visible") return;
-      void refreshPopupState();
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    if (capabilities.isCapacitorNative) {
-      void import("@capacitor/app")
-        .then(async function ({ App }) {
-          const handle = await App.addListener("resume", function () {
-            void refreshPopupState();
+        void import("@capacitor/app")
+          .then(async function ({ App }) {
+            const handle = await App.addListener("resume", function () {
+              void refreshPopupState();
+            });
+            if (!mounted) {
+              void handle.remove();
+              return;
+            }
+            removeResumeListener = function () {
+              void handle.remove();
+            };
+          })
+          .catch(function () {
+            // ignore listener setup failure
           });
-          if (!mounted) {
-            void handle.remove();
-            return;
-          }
-          removeResumeListener = function () {
-            void handle.remove();
-          };
-        })
-        .catch(function () {
-          // ignore resume listener setup failures
-        });
-    }
-
-    return function cleanup() {
-      mounted = false;
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      if (removeResumeListener) {
-        removeResumeListener();
       }
-    };
-  }, [capabilities.isCapacitorNative, popupEligible]);
+
+      return function cleanup() {
+        mounted = false;
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        if (removeResumeListener) {
+          removeResumeListener();
+        }
+      };
+    },
+    [capabilities.isCapacitorNative, popupEligible],
+  );
 
   if (!popupEligible || !open) return null;
 
   const title = locale === "th" ? "ติดตั้งแอป Android เวอร์ชันล่าสุด" : "Install the latest Android app";
   const detail =
     locale === "th"
-      ? `พร้อมดาวน์โหลดเวอร์ชัน ${release.versionName} (versionCode ${release.versionCode})`
+      ? `พร้อมอัปเดตเป็นเวอร์ชัน ${release.versionName} (versionCode ${release.versionCode})`
       : `Version ${release.versionName} (versionCode ${release.versionCode}) is ready to install.`;
 
   const compatibilityText = compatibility.canInstallOverExisting
@@ -168,7 +188,7 @@ export function AndroidApkUpdatePopup() {
       if (!result) {
         toast.showToast(
           locale === "th"
-            ? "ไม่สามารถเริ่มการติดตั้งอัตโนมัติได้ กำลังเปิดลิงก์ดาวน์โหลดแทน"
+            ? "เริ่มตัวติดตั้งแบบ native ไม่สำเร็จ กำลังเปิดลิงก์ดาวน์โหลดแทน"
             : "Unable to start native installer flow. Opening download link instead.",
           "error",
         );
@@ -190,7 +210,7 @@ export function AndroidApkUpdatePopup() {
       setOpen(false);
       toast.showToast(
         locale === "th"
-          ? "เริ่มดาวน์โหลดแล้ว ระบบจะเปิดหน้าติดตั้งให้หลังดาวน์โหลดเสร็จ"
+          ? "เริ่มดาวน์โหลดแล้ว ระบบจะเปิดหน้าติดตั้งให้อัตโนมัติหลังดาวน์โหลดเสร็จ"
           : "Download started. Installer will open automatically after download completes.",
         "success",
       );
@@ -237,13 +257,15 @@ export function AndroidApkUpdatePopup() {
 
         <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-3">
           <p className="text-xs font-semibold text-slate-700">
-            {locale === "th" ? "ไฟล์ติดตั้งล่าสุด" : "Latest build package"}
+            {locale === "th" ? "แพ็กเกจติดตั้งล่าสุด" : "Latest build package"}
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
             {release.packageName} | {release.publishedAt}
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            {locale === "th" ? `เวอร์ชันที่ติดตั้งปัจจุบัน: ${installedVersion}` : `Installed version: ${installedVersion}`}
+            {locale === "th"
+              ? `เวอร์ชันที่ติดตั้งปัจจุบัน: ${installedVersionName}${installedVersionCode ? ` (${installedVersionCode})` : ""}`
+              : `Installed version: ${installedVersionName}${installedVersionCode ? ` (${installedVersionCode})` : ""}`}
           </p>
           <p className="mt-2 text-xs leading-5 text-slate-700">
             <span className="font-semibold">

@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { FACE_PIN_SESSION_TTL_SEC } from "@/lib/session-security";
 
 export const FACE_VECTOR_LENGTH = 256;
-export const FACE_MATCH_THRESHOLD = 0.8;
+export const FACE_MATCH_THRESHOLD = 0.74;
 export const FACE_MAX_FAILED_ATTEMPTS = 5;
 export const FACE_LOCK_MINUTES = 5;
 
@@ -81,6 +81,27 @@ export function cosineSimilarity(left: number[], right: number[]) {
     dot += left[index] * right[index];
   }
   return dot;
+}
+
+export function mirrorFaceVector(input: number[]) {
+  if (!Array.isArray(input) || input.length !== FACE_VECTOR_LENGTH) {
+    throw new Error("Invalid face vector length");
+  }
+
+  const side = Math.sqrt(FACE_VECTOR_LENGTH);
+  if (!Number.isInteger(side)) {
+    throw new Error("Unable to infer face vector dimensions");
+  }
+
+  const mirrored = new Array<number>(FACE_VECTOR_LENGTH);
+  for (let row = 0; row < side; row += 1) {
+    for (let col = 0; col < side; col += 1) {
+      const sourceIndex = row * side + (side - 1 - col);
+      mirrored[row * side + col] = Number(input[sourceIndex] ?? 0);
+    }
+  }
+
+  return normalizeFaceVector(mirrored);
 }
 
 export function bestFaceSimilarity(inputVector: number[], storedVectors: number[][]) {

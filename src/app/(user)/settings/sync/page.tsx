@@ -52,43 +52,79 @@ export default function SyncCenterPage() {
 
   const loadQueue = useCallback(async () => {
     setLoading(true);
-    const [queue, stats] = await Promise.all([getOfflineQueueItems(), getOfflineQueueSummary()]);
-    setItems(queue);
-    setSummary(stats);
-    setLoading(false);
-  }, []);
+    try {
+      const [queue, stats] = await Promise.all([getOfflineQueueItems(), getOfflineQueueSummary()]);
+      setItems(queue);
+      setSummary(stats);
+    } catch {
+      setItems([]);
+      setSummary({ total: 0, unlocked: 0, locked: 0 });
+      showToast(isThai ? "โหลดคิวออฟไลน์ไม่สำเร็จ" : "Failed to load offline queue", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [isThai, showToast]);
 
   useEffect(() => {
     void loadQueue();
   }, [loadQueue]);
 
   async function runSync() {
+    if (summary.locked > 0 && summary.unlocked === 0) {
+      showToast(
+        isThai ? "คิวถูกล็อกทั้งหมด กรุณาใส่ PIN เพื่อปลดล็อกก่อนซิงก์" : "All queued items are locked. Enter PIN to unlock before syncing.",
+        "error",
+      );
+      return;
+    }
+
     setSyncing(true);
-    const result = await flushOfflineQueue();
-    setSyncing(false);
-    setFailedIds(result.failedIds);
-    await loadQueue();
-    showToast(
-      isThai
-        ? `ซิงก์สำเร็จ ${result.processed} รายการ, ค้าง ${result.failed} รายการ`
-        : `Synced ${result.processed} item(s), ${result.failed} failed`,
-      result.failed > 0 ? 'error' : 'success',
-    );
+    try {
+      const result = await flushOfflineQueue();
+      setFailedIds(result.failedIds);
+      await loadQueue();
+
+      if (result.processed === 0 && result.failed === 0 && summary.locked > 0) {
+        showToast(
+          isThai
+            ? "ไม่พบรายการที่ปลดล็อกได้ในคิว กรุณาใส่ PIN แล้วลองใหม่"
+            : "No unlockable queue items found. Enter PIN and retry.",
+          "error",
+        );
+        return;
+      }
+
+      showToast(
+        isThai
+          ? `ซิงก์สำเร็จ ${result.processed} รายการ, ค้าง ${result.failed} รายการ`
+          : `Synced ${result.processed} item(s), ${result.failed} failed`,
+        result.failed > 0 ? 'error' : 'success',
+      );
+    } catch {
+      showToast(isThai ? "ซิงก์คิวไม่สำเร็จ" : "Unable to sync queue", "error");
+    } finally {
+      setSyncing(false);
+    }
   }
 
   async function runRetryFailedOnly() {
     if (failedIds.length === 0) return;
     setSyncing(true);
-    const result = await flushOfflineQueue({ onlyIds: failedIds });
-    setSyncing(false);
-    setFailedIds(result.failedIds);
-    await loadQueue();
-    showToast(
-      isThai
-        ? `ลองซ้ำสำเร็จ ${result.processed} รายการ, ค้าง ${result.failed} รายการ`
-        : `Retry synced ${result.processed} item(s), ${result.failed} still failed`,
-      result.failed > 0 ? 'error' : 'success',
-    );
+    try {
+      const result = await flushOfflineQueue({ onlyIds: failedIds });
+      setFailedIds(result.failedIds);
+      await loadQueue();
+      showToast(
+        isThai
+          ? `ลองซ้ำสำเร็จ ${result.processed} รายการ, ค้าง ${result.failed} รายการ`
+          : `Retry synced ${result.processed} item(s), ${result.failed} still failed`,
+        result.failed > 0 ? 'error' : 'success',
+      );
+    } catch {
+      showToast(isThai ? "ลองซ้ำไม่สำเร็จ" : "Retry failed", "error");
+    } finally {
+      setSyncing(false);
+    }
   }
 
   async function clearQueue() {
@@ -105,9 +141,28 @@ export default function SyncCenterPage() {
       showToast(isThai ? 'กรุณากรอก PIN 6 หลัก' : 'Please enter a 6-digit PIN', 'error');
       return;
     }
+    const before = await getOfflineQueueSummary();
     setOfflineEncryptionPassphrase(sanitized);
-    await loadQueue();
-    showToast(isThai ? 'ปลดล็อกคิวแล้ว ลองซิงก์อีกครั้ง' : 'Queue unlocked. Try syncing again.', 'success');
+    const [queue, after] = await Promise.all([getOfflineQueueItems(), getOfflineQueueSummary()]);
+    setItems(queue);
+    setSummary(after);
+
+    if (before.locked > 0 && after.locked < before.locked) {
+      showToast(isThai ? 'ปลดล็อกคิวแล้ว ลองซิงก์อีกครั้ง' : 'Queue unlocked. Try syncing again.', 'success');
+      return;
+    }
+
+    if (after.locked === 0) {
+      showToast(isThai ? 'ปลดล็อกคิวเรียบร้อย' : 'Queue unlocked.', 'success');
+      return;
+    }
+
+    showToast(
+      isThai
+        ? 'PIN ไม่ตรงกับคิวที่เข้ารหัสไว้ หรือยังมีรายการที่ยังปลดล็อกไม่ได้'
+        : 'PIN did not match the encrypted queue, or some records are still locked.',
+      'error',
+    );
   }
 
   async function runRecoverySelfTest() {

@@ -27,16 +27,16 @@ type AndroidApkReleasePayload = {
 };
 
 const rawVersionName = String(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION ?? "").trim();
-const rawVersionCode = Number(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION_CODE ?? "16607");
+const rawVersionCode = Number(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION_CODE ?? "16608");
 const rawDownloadUrl = String(process.env.NEXT_PUBLIC_ANDROID_APK_URL ?? "").trim();
 const rawPackageName = String(process.env.NEXT_PUBLIC_ANDROID_APK_PACKAGE_NAME ?? "").trim();
 const rawSigningKeySha256 = String(process.env.NEXT_PUBLIC_ANDROID_APK_SIGNING_SHA256 ?? "").trim();
 const rawPublishedAt = String(process.env.NEXT_PUBLIC_ANDROID_APK_PUBLISHED_AT ?? "").trim();
 
 export const DEFAULT_ANDROID_APK_RELEASE: AndroidApkRelease = {
-  versionName: rawVersionName || "16.6.7",
-  versionCode: Number.isFinite(rawVersionCode) && rawVersionCode > 0 ? Math.floor(rawVersionCode) : 16607,
-  downloadUrl: rawDownloadUrl || "https://password-vault-ivory.vercel.app/apk/vault-v16.6.7.apk",
+  versionName: rawVersionName || "16.6.8",
+  versionCode: Number.isFinite(rawVersionCode) && rawVersionCode > 0 ? Math.floor(rawVersionCode) : 16608,
+  downloadUrl: rawDownloadUrl || "https://password-vault-ivory.vercel.app/apk/vault-v16.6.8.apk",
   packageName: rawPackageName || DEFAULT_ANDROID_PACKAGE,
   signingKeySha256:
     rawSigningKeySha256 ||
@@ -56,20 +56,40 @@ function toComparableVersionParts(input: string) {
     .map((part) => Number.parseInt(part, 10))
     .filter((part) => Number.isFinite(part) && part >= 0);
 
-  if (!cleaned.length) return [0, 0, 0];
-  while (cleaned.length < 3) cleaned.push(0);
-  return cleaned.slice(0, 3);
+  if (!cleaned.length) return [0, 0, 0, 0];
+  while (cleaned.length < 4) cleaned.push(0);
+  return cleaned.slice(0, 4);
 }
 
 export function compareReleaseVersion(left: string, right: string) {
   const a = toComparableVersionParts(left);
   const b = toComparableVersionParts(right);
 
-  for (let index = 0; index < 3; index += 1) {
+  for (let index = 0; index < 4; index += 1) {
     if (a[index] > b[index]) return 1;
     if (a[index] < b[index]) return -1;
   }
   return 0;
+}
+
+export function compareReleaseByCodeOrVersion(input: {
+  installedVersionName?: string;
+  installedVersionCode?: number | null;
+  releaseVersionName: string;
+  releaseVersionCode?: number | null;
+}) {
+  const installedCode = Number(input.installedVersionCode);
+  const releaseCode = Number(input.releaseVersionCode);
+  const hasInstalledCode = Number.isFinite(installedCode) && installedCode > 0;
+  const hasReleaseCode = Number.isFinite(releaseCode) && releaseCode > 0;
+
+  if (hasInstalledCode && hasReleaseCode) {
+    if (installedCode > releaseCode) return 1;
+    if (installedCode < releaseCode) return -1;
+    return 0;
+  }
+
+  return compareReleaseVersion(String(input.installedVersionName ?? ""), input.releaseVersionName);
 }
 
 export function normalizeSigningFingerprint(input: string) {

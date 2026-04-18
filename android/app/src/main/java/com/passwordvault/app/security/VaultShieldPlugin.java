@@ -237,12 +237,19 @@ public class VaultShieldPlugin extends Plugin {
             }
 
             int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+            int reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
             if (statusIndex < 0) {
               return;
             }
 
             int status = cursor.getInt(statusIndex);
             if (status != DownloadManager.STATUS_SUCCESSFUL) {
+              if (reasonIndex >= 0) {
+                int reason = cursor.getInt(reasonIndex);
+                Log.e(TAG, "APK download failed. reason=" + reason);
+              } else {
+                Log.e(TAG, "APK download failed with status=" + status);
+              }
               return;
             }
           } finally {
@@ -251,14 +258,13 @@ public class VaultShieldPlugin extends Plugin {
 
           Uri apkUri = downloadManager.getUriForDownloadedFile(downloadId);
           if (apkUri == null) {
+            Log.e(TAG, "APK download completed but URI is null");
             return;
           }
 
-          Intent installIntent = new Intent(Intent.ACTION_VIEW);
-          installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-          installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-          installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-          context.startActivity(installIntent);
+          if (!openApkInstaller(context, apkUri)) {
+            Log.e(TAG, "No available activity can handle APK install intent");
+          }
         } catch (Exception error) {
           Log.e(TAG, "Failed to open APK installer", error);
         } finally {
@@ -287,6 +293,31 @@ public class VaultShieldPlugin extends Plugin {
     } finally {
       apkDownloadReceiver = null;
     }
+  }
+
+  private boolean openApkInstaller(Context context, Uri apkUri) {
+    Intent installIntent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+    installIntent.setData(apkUri);
+    installIntent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+    installIntent.putExtra(Intent.EXTRA_RETURN_RESULT, false);
+    installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+    if (installIntent.resolveActivity(context.getPackageManager()) != null) {
+      context.startActivity(installIntent);
+      return true;
+    }
+
+    Intent fallback = new Intent(Intent.ACTION_VIEW);
+    fallback.setDataAndType(apkUri, "application/vnd.android.package-archive");
+    fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+    if (fallback.resolveActivity(context.getPackageManager()) != null) {
+      context.startActivity(fallback);
+      return true;
+    }
+
+    return false;
   }
 
   @NonNull

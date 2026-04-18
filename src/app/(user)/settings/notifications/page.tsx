@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, ChevronLeft, ShieldAlert, Smartphone, UserCheck, Vault, Volume2, VolumeX, Vibrate } from "lucide-react";
+import { Bell, ChevronLeft } from "lucide-react";
 import { useHeadsUpNotifications } from "@/components/notifications/heads-up-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 import {
   UPDATE_DETAILS_PATH,
@@ -49,6 +50,7 @@ function ToggleRow(props: {
 
 export default function NotificationSettingsPage() {
   const { locale } = useI18n();
+  const { showToast } = useToast();
   const {
     settings,
     updateSettings,
@@ -56,24 +58,77 @@ export default function NotificationSettingsPage() {
     browserPermission,
     permissionSource,
     requestBrowserPermission,
+    openSystemNotificationSettings,
   } = useHeadsUpNotifications();
+
+  const isThai = locale === "th";
 
   const permissionLabel =
     browserPermission === "unsupported"
-      ? locale === "th"
-        ? "อุปกรณ์นี้ไม่รองรับ Browser Notification"
-        : "Browser notifications are not supported on this device."
+      ? isThai
+        ? "อุปกรณ์นี้ไม่รองรับการแจ้งเตือน"
+        : "Notifications are not supported on this device."
       : browserPermission === "granted"
-        ? locale === "th"
+        ? isThai
           ? "อนุญาตแล้ว"
           : "Granted"
         : browserPermission === "denied"
-          ? locale === "th"
+          ? isThai
             ? "ถูกบล็อก"
             : "Blocked"
-          : locale === "th"
-            ? "ยังไม่อนุญาต"
+          : isThai
+            ? "ยังไม่ได้อนุญาต"
             : "Not granted yet";
+
+  const permissionActionLabel =
+    browserPermission === "granted"
+      ? isThai
+        ? "อนุญาตแล้ว"
+        : "Already granted"
+      : browserPermission === "denied" && permissionSource === "native"
+        ? isThai
+          ? "เปิดหน้าตั้งค่าระบบ"
+          : "Open system settings"
+        : isThai
+          ? "ขอสิทธิ์แจ้งเตือน"
+          : "Request permission";
+
+  async function handlePermissionAction() {
+    if (browserPermission === "unsupported") return;
+
+    if (browserPermission === "denied" && permissionSource === "native") {
+      const opened = await openSystemNotificationSettings();
+      showToast(
+        opened
+          ? isThai
+            ? "เปิดหน้าตั้งค่าระบบแล้ว กรุณาอนุญาตการแจ้งเตือน"
+            : "System settings opened. Please allow notifications."
+          : isThai
+            ? "ไม่สามารถเปิดหน้าตั้งค่าระบบได้"
+            : "Unable to open system settings.",
+        opened ? "success" : "error",
+      );
+      return;
+    }
+
+    const result = await requestBrowserPermission();
+    if (result === "granted") {
+      showToast(isThai ? "อนุญาตการแจ้งเตือนแล้ว" : "Notification permission granted.", "success");
+      return;
+    }
+    if (result === "denied") {
+      showToast(
+        permissionSource === "browser"
+          ? isThai
+            ? "กรุณาเปิดสิทธิ์แจ้งเตือนจากการตั้งค่าเว็บไซต์ในเบราว์เซอร์"
+            : "Please enable notifications from browser site settings."
+          : isThai
+            ? "กรุณาอนุญาตสิทธิ์แจ้งเตือนในหน้าตั้งค่าระบบ"
+            : "Please allow notifications in system settings.",
+        "error",
+      );
+    }
+  }
 
   return (
     <section className="space-y-4 pb-24">
@@ -85,7 +140,7 @@ export default function NotificationSettingsPage() {
           <ChevronLeft className="h-4 w-4" />
         </Link>
         <h1 className="text-xl font-semibold text-slate-900">
-          {locale === "th" ? "การแจ้งเตือน" : "Notification Settings"}
+          {isThai ? "การแจ้งเตือน" : "Notification Settings"}
         </h1>
       </div>
 
@@ -93,32 +148,28 @@ export default function NotificationSettingsPage() {
         href={UPDATE_DETAILS_PATH}
         className="flex items-center justify-between rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 transition hover:bg-blue-100"
       >
-        <span>{locale === "th" ? "ดูรายละเอียดอัปเดตระบบล่าสุด" : "View latest update details"}</span>
+        <span>{isThai ? "ดูรายละเอียดอัปเดตล่าสุด" : "View latest update details"}</span>
         <ChevronLeft className="h-4 w-4 rotate-180" />
       </Link>
 
       <Card className="space-y-3">
         <ToggleRow
-          label={locale === "th" ? "อนุญาตการแจ้งเตือน" : "Allow notifications"}
-          description={
-            locale === "th"
-              ? "ปิดเพื่อหยุดทุกการแจ้งเตือนของแอป"
-              : "Turn off to stop all app notifications."
-          }
+          label={isThai ? "อนุญาตการแจ้งเตือน" : "Allow notifications"}
+          description={isThai ? "ปิดเพื่อหยุดทุกการแจ้งเตือนของแอป" : "Turn off to stop all app notifications."}
           enabled={settings.enabled}
           onToggle={() => updateSettings({ enabled: !settings.enabled })}
         />
 
         <div className="rounded-2xl border border-slate-200 bg-white p-3">
           <p className="text-sm font-semibold text-slate-800">
-            {locale === "th" ? "สิทธิ์แจ้งเตือนระบบ" : "System notification permission"}
+            {isThai ? "สิทธิ์แจ้งเตือนของระบบ" : "System notification permission"}
           </p>
           <p className="mt-1 text-[11px] text-slate-400">
             {permissionSource === "native"
-              ? locale === "th"
+              ? isThai
                 ? "โหมด Native (Android APK)"
                 : "Native runtime (Android APK)"
-              : locale === "th"
+              : isThai
                 ? "โหมด Browser/Web Push"
                 : "Browser/Web Push runtime"}
           </p>
@@ -126,48 +177,36 @@ export default function NotificationSettingsPage() {
           <Button
             className="mt-3 w-full"
             variant="secondary"
-            onClick={() => void requestBrowserPermission()}
-            disabled={browserPermission === "granted" || browserPermission === "unsupported"}
+            onClick={() => void handlePermissionAction()}
+            disabled={browserPermission === "unsupported" || browserPermission === "granted"}
           >
-            {locale === "th" ? "ขอสิทธิ์แจ้งเตือน" : "Request permission"}
+            {permissionActionLabel}
           </Button>
         </div>
       </Card>
 
       <Card className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-700">
-          {locale === "th" ? "รูปแบบการแจ้งเตือน" : "Notification behavior"}
+          {isThai ? "รูปแบบการแจ้งเตือน" : "Notification behavior"}
         </h2>
 
         <ToggleRow
-          label={locale === "th" ? "Heads-up Popup" : "Heads-up popup"}
-          description={
-            locale === "th"
-              ? "เด้งซ้อนบนหน้าจอขณะกำลังใช้งาน"
-              : "Floating popup over current screen."
-          }
+          label={isThai ? "Heads-up Popup" : "Heads-up popup"}
+          description={isThai ? "กล่องแจ้งเตือนลอยบนหน้าจอขณะใช้งาน" : "Floating popup over current screen."}
           enabled={settings.popup}
           onToggle={() => updateSettings({ popup: !settings.popup })}
         />
 
         <ToggleRow
-          label={locale === "th" ? "เสียงแจ้งเตือน" : "Notification sound"}
-          description={
-            locale === "th"
-              ? "เล่นเสียงเมื่อมีแจ้งเตือนใหม่"
-              : "Play sound for new notifications."
-          }
+          label={isThai ? "เสียงแจ้งเตือน" : "Notification sound"}
+          description={isThai ? "เล่นเสียงเมื่อมีแจ้งเตือนใหม่" : "Play sound for new notifications."}
           enabled={settings.sound}
           onToggle={() => updateSettings({ sound: !settings.sound })}
         />
 
         <ToggleRow
-          label={locale === "th" ? "การสั่น" : "Vibration"}
-          description={
-            locale === "th"
-              ? "สั่นเมื่อมีแจ้งเตือนสำคัญ"
-              : "Vibrate on important alerts."
-          }
+          label={isThai ? "การสั่น" : "Vibration"}
+          description={isThai ? "สั่นเมื่อมีแจ้งเตือนสำคัญ" : "Vibrate on important alerts."}
           enabled={settings.vibrate}
           onToggle={() => updateSettings({ vibrate: !settings.vibrate })}
         />
@@ -175,38 +214,26 @@ export default function NotificationSettingsPage() {
 
       <Card className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-700">
-          {locale === "th" ? "ช่องทางแสดงผล" : "Display channels"}
+          {isThai ? "ช่องทางแสดงผล" : "Display channels"}
         </h2>
 
         <ToggleRow
-          label={locale === "th" ? "Notification Tray" : "Notification tray"}
-          description={
-            locale === "th"
-              ? "แสดงบนแถบแจ้งเตือนของเครื่อง"
-              : "Show in OS notification tray."
-          }
+          label={isThai ? "Notification Tray" : "Notification tray"}
+          description={isThai ? "แสดงในแถบแจ้งเตือนของระบบ" : "Show in OS notification tray."}
           enabled={settings.tray}
           onToggle={() => updateSettings({ tray: !settings.tray })}
         />
 
         <ToggleRow
-          label={locale === "th" ? "Lock Screen" : "Lock screen"}
-          description={
-            locale === "th"
-              ? "แสดงบนหน้าจอล็อก (หากระบบรองรับ)"
-              : "Show on lock screen when supported."
-          }
+          label={isThai ? "Lock Screen" : "Lock screen"}
+          description={isThai ? "แสดงบนหน้าจอล็อก (ถ้าระบบรองรับ)" : "Show on lock screen when supported."}
           enabled={settings.lockScreen}
           onToggle={() => updateSettings({ lockScreen: !settings.lockScreen })}
         />
 
         <ToggleRow
-          label={locale === "th" ? "Notification Badge" : "Notification badge"}
-          description={
-            locale === "th"
-              ? "แสดงจุด/ตัวเลขบนไอคอนแอป"
-              : "Show app icon dot/badge."
-          }
+          label={isThai ? "Notification Badge" : "Notification badge"}
+          description={isThai ? "แสดงจุด/ตัวเลขบนไอคอนแอป" : "Show app icon dot/badge."}
           enabled={settings.badge}
           onToggle={() => updateSettings({ badge: !settings.badge })}
         />
@@ -214,45 +241,33 @@ export default function NotificationSettingsPage() {
 
       <Card className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-700">
-          {locale === "th" ? "หมวดหมู่การแจ้งเตือน" : "Notification categories"}
+          {isThai ? "หมวดหมู่การแจ้งเตือน" : "Notification categories"}
         </h2>
 
         <ToggleRow
-          label={locale === "th" ? "ระบบอัปเดต" : "System update"}
-          description={locale === "th" ? "เวอร์ชันใหม่ / ปรับปรุงระบบ" : "Version and update alerts."}
+          label={isThai ? "ระบบอัปเดต" : "System update"}
+          description={isThai ? "เวอร์ชันใหม่และอัปเดตระบบ" : "Version and update alerts."}
           enabled={settings.allowSystem}
           onToggle={() => updateSettings({ allowSystem: !settings.allowSystem })}
         />
 
         <ToggleRow
-          label={locale === "th" ? "ความปลอดภัย" : "Security alerts"}
-          description={
-            locale === "th"
-              ? "การโจมตี, ล็อกอินผิดปกติ, ความเสี่ยง"
-              : "Attack/suspicious activity alerts."
-          }
+          label={isThai ? "ความปลอดภัย" : "Security alerts"}
+          description={isThai ? "การเตือนพฤติกรรมเสี่ยงหรือผิดปกติ" : "Attack/suspicious activity alerts."}
           enabled={settings.allowSecurity}
           onToggle={() => updateSettings({ allowSecurity: !settings.allowSecurity })}
         />
 
         <ToggleRow
-          label={locale === "th" ? "ยืนยันตัวตน" : "Authentication"}
-          description={
-            locale === "th"
-              ? "เช่น เข้าสู่ระบบสำเร็จ"
-              : "For example login success."
-          }
+          label={isThai ? "การยืนยันตัวตน" : "Authentication"}
+          description={isThai ? "เช่น เข้าสู่ระบบสำเร็จ" : "For example login success."}
           enabled={settings.allowAuth}
           onToggle={() => updateSettings({ allowAuth: !settings.allowAuth })}
         />
 
         <ToggleRow
-          label={locale === "th" ? "ข้อมูลคลังรหัส" : "Vault activity"}
-          description={
-            locale === "th"
-              ? "เช่น คัดลอกรหัสผ่าน/ดูข้อมูลลับ"
-              : "For copied secrets and sensitive actions."
-          }
+          label={isThai ? "กิจกรรมคลังรหัส" : "Vault activity"}
+          description={isThai ? "เช่น คัดลอกรหัสผ่านหรือเข้าถึงข้อมูลสำคัญ" : "For copied secrets and sensitive actions."}
           enabled={settings.allowVault}
           onToggle={() => updateSettings({ allowVault: !settings.allowVault })}
         />
@@ -260,7 +275,7 @@ export default function NotificationSettingsPage() {
 
       <Card className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-700">
-          {locale === "th" ? "ทดสอบแจ้งเตือน" : "Test notifications"}
+          {isThai ? "ทดสอบการแจ้งเตือน" : "Test notifications"}
         </h2>
 
         <div className="grid grid-cols-2 gap-2">
@@ -278,7 +293,7 @@ export default function NotificationSettingsPage() {
             }
           >
             <Bell className="mr-1.5 h-4 w-4" />
-            {locale === "th" ? "ทดสอบระบบ" : "Test system"}
+            {isThai ? "ทดสอบระบบ" : "Test system"}
           </Button>
 
           <Button
@@ -287,74 +302,19 @@ export default function NotificationSettingsPage() {
             onClick={() =>
               notify({
                 kind: "security",
-                title: locale === "th" ? "ตรวจพบการพยายามโจมตี" : "Attack attempt detected",
-                message: locale === "th" ? "พบการลองรหัสผ่านซ้ำหลายครั้ง ระบบจำกัดการเข้าชั่วคราว" : "Multiple rapid sign-in attempts detected. Access was rate-limited.",
-                details: locale === "th" ? "ควรเปลี่ยนรหัสผ่านทันทีหากไม่ใช่คุณ" : "Change password immediately if this wasn't you.",
-                href: "/forgot-password",
-                persistent: true,
+                title: isThai ? "ตรวจพบการพยายามโจมตี" : "Attack attempt detected",
+                message: isThai
+                  ? "พบการพยายามเข้าสู่ระบบผิดปกติ ระบบจำกัดการเข้าถึงชั่วคราว"
+                  : "Multiple rapid sign-in attempts detected. Access was rate-limited.",
+                details: isThai
+                  ? "หากไม่ใช่คุณ แนะนำให้เปลี่ยนรหัสผ่านทันที"
+                  : "Change password immediately if this wasn't you.",
                 alsoSystem: true,
               })
             }
           >
-            <ShieldAlert className="mr-1.5 h-4 w-4" />
-            {locale === "th" ? "ทดสอบความปลอดภัย" : "Test security"}
+            {isThai ? "ทดสอบความปลอดภัย" : "Test security"}
           </Button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              notify({
-                kind: "auth",
-                title: locale === "th" ? "เข้าสู่ระบบสำเร็จ" : "Login successful",
-                message: locale === "th" ? "ยินดีต้อนรับกลับ" : "Welcome back!",
-                href: "/home",
-                alsoSystem: true,
-              })
-            }
-          >
-            <UserCheck className="mr-1.5 h-4 w-4" />
-            {locale === "th" ? "ทดสอบล็อกอิน" : "Test login"}
-          </Button>
-
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              notify({
-                kind: "vault",
-                title: locale === "th" ? "มีการคัดลอกรหัสผ่าน" : "Password copied",
-                message: locale === "th" ? "ตรวจพบการคัดลอกข้อมูลลับจากคลังรหัส" : "Sensitive data copied from vault.",
-                href: "/vault",
-                alsoSystem: true,
-              })
-            }
-          >
-            <Vault className="mr-1.5 h-4 w-4" />
-            {locale === "th" ? "ทดสอบคลังรหัส" : "Test vault"}
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-700">
-          {locale === "th" ? "สถานะการตั้งค่าปัจจุบัน" : "Current mode summary"}
-        </h3>
-        <div className="grid grid-cols-3 gap-2 text-xs text-slate-600">
-          <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-            <Smartphone className="mx-auto mb-1 h-4 w-4" />
-            {settings.popup ? (locale === "th" ? "Heads-up เปิด" : "Heads-up ON") : (locale === "th" ? "Heads-up ปิด" : "Heads-up OFF")}
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-            {settings.sound ? <Volume2 className="mx-auto mb-1 h-4 w-4" /> : <VolumeX className="mx-auto mb-1 h-4 w-4" />}
-            {settings.sound ? (locale === "th" ? "เสียงเปิด" : "Sound ON") : (locale === "th" ? "เสียงปิด" : "Sound OFF")}
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
-            <Vibrate className="mx-auto mb-1 h-4 w-4" />
-            {settings.vibrate ? (locale === "th" ? "สั่นเปิด" : "Vibrate ON") : (locale === "th" ? "สั่นปิด" : "Vibrate OFF")}
-          </div>
         </div>
       </Card>
     </section>

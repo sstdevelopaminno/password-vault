@@ -53,6 +53,7 @@ type HeadsUpContextValue = {
   browserPermission: NotificationPermission | "unsupported";
   permissionSource: "browser" | "native";
   requestBrowserPermission: () => Promise<NotificationPermission | "unsupported">;
+  openSystemNotificationSettings: () => Promise<boolean>;
 };
 
 const SETTINGS_STORAGE_KEY = "pv_notification_settings_v1";
@@ -337,6 +338,19 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
     const result = await Notification.requestPermission();
     setBrowserPermission(result);
     return result;
+  }, []);
+
+  const openSystemNotificationSettings = useCallback(async () => {
+    if (typeof window === "undefined") return false;
+    if (!isCapacitorNativeRuntime()) return false;
+
+    try {
+      const permission = await requestNativeNotificationPermission();
+      setBrowserPermission(permission);
+      return permission === "granted";
+    } catch {
+      return false;
+    }
   }, []);
 
   useEffect(() => {
@@ -651,8 +665,9 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
       browserPermission,
       permissionSource,
       requestBrowserPermission,
+      openSystemNotificationSettings,
     }),
-    [notify, settings, updateSettings, browserPermission, permissionSource, requestBrowserPermission],
+    [notify, settings, updateSettings, browserPermission, permissionSource, requestBrowserPermission, openSystemNotificationSettings],
   );
 
   return (

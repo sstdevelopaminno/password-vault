@@ -18,23 +18,21 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.6.7",
+    version: "V16.6.8",
     releasedOn: "2026-04-18",
-    titleTh: "Android One-tap Update Installer และ Vault Shield Hardening",
-    titleEn: "Android One-tap Update Installer and Vault Shield Hardening",
+    titleTh: "Android One-tap Update และ Vault Shield Hardening",
+    titleEn: "Android One-tap Update and Vault Shield Hardening",
     highlightsTh: [
-      "เพิ่ม flow อัปเดต Android แบบ one-tap: เริ่มดาวน์โหลดและเปิดตัวติดตั้งให้อัตโนมัติหลังดาวน์โหลดเสร็จ",
-      "เพิ่มการตรวจสิทธิ์ Unknown apps และพาผู้ใช้ไปหน้าอนุญาตโดยตรงเมื่อยังไม่เปิดสิทธิ์",
-      "ย้ำข้อจำกัดความปลอดภัยของ Android ว่ายังต้องกดยืนยันหน้าติดตั้งด้วยตัวผู้ใช้",
-      "รักษาระบบ Vault Shield Risk Response และหน้าจอ Risk State ให้ทำงานร่วมกับการอัปเดตเวอร์ชันใหม่",
-      "แก้ flow Supabase migration ให้รันจาก workdir ถูกต้องและยืนยันฐานข้อมูลล่าสุด",
+      "เพิ่ม flow อัปเดต Android แบบ one-tap: เริ่มดาวน์โหลดและเปิดตัวติดตั้งอัตโนมัติหลังดาวน์โหลดเสร็จ",
+      "เพิ่มการตรวจสิทธิ์ Unknown apps และพาผู้ใช้ไปหน้าตั้งค่าโดยตรง",
+      "เพิ่มความเสถียรของหน้า Risk State และการประเมินจาก Vault Shield + Play Integrity",
+      "ปรับปรุงความเสถียรของเมนูศูนย์ซิงก์ออฟไลน์และการกู้คืนคิว",
     ],
     highlightsEn: [
-      "Added one-tap Android update flow: start download and auto-open installer after completion.",
+      "Added one-tap Android update flow: download and auto-open installer after completion.",
       "Added Unknown apps permission check with direct navigation to the required settings page.",
-      "Clarified Android security constraint that user confirmation on installer screen is still required.",
-      "Kept Vault Shield Risk Response and Risk State flow aligned with the new release process.",
-      "Fixed Supabase migration workflow using the correct workdir and confirmed remote DB is up to date.",
+      "Improved Risk State and Vault Shield + Play Integrity runtime stability.",
+      "Improved Offline Sync Center reliability and queue recovery behavior.",
     ],
   },
   {
@@ -44,28 +42,24 @@ const RELEASE_HISTORY: ReleaseEntry[] = [
     titleEn: "Mobile/PWA Stability and Update Reliability",
     highlightsTh: [
       "ปรับความเสถียรระบบอัปเดตเวอร์ชันใหม่ พร้อมเคลียร์ runtime cache เก่าอย่างปลอดภัย",
-      "แก้พฤติกรรมแถบล่างบนมือถือและลดอาการ UI กระตุกจาก cache เก่า",
-      "เสริมเสถียรภาพการล็อกอินและการรีเช็ก runtime หลังอัปเดต",
-      "ตรวจความถูกต้อง i18n ไทย-อังกฤษในจุดใช้งานหลัก",
-      "เพิ่มหน้า release notes และลิงก์จากแจ้งเตือนเพื่อกดดูรายละเอียดอัปเดตได้ทันที",
+      "ลดอาการ UI กระตุกจาก cache เก่าในมือถือ",
+      "ปรับปรุงความครบถ้วนของ i18n ไทย/อังกฤษในจุดใช้งานสำคัญ",
     ],
     highlightsEn: [
       "Improved runtime update stability with safe stale-cache invalidation.",
-      "Fixed mobile bottom-bar behavior and reduced stale-cache UI glitches.",
-      "Hardened login flow and post-update runtime re-check reliability.",
+      "Reduced stale-cache UI glitches on mobile.",
       "Improved Thai/English i18n consistency on key user paths.",
-      "Added a dedicated release-notes page linked directly from update notifications.",
     ],
   },
   {
     version: "20.13.17",
     releasedOn: "2026-04-10",
-    titleTh: "รอบเสริมพื้นฐาน PWA และตรวจ QA มือถือ",
+    titleTh: "พื้นฐาน PWA และ Mobile QA",
     titleEn: "PWA Baseline and Mobile QA Round",
     highlightsTh: [
-      "ยกระดับ checklist ตรวจ runtime มือถือและพฤติกรรม cache",
+      "ยกระดับ checklist ตรวจ runtime บนมือถือและพฤติกรรม cache",
       "เพิ่มการตรวจความพร้อมโหมดติดตั้งแอปบน Android/iOS",
-      "ปรับการตรวจวัดและบันทึกสัญญาณ runtime เพื่อแก้ปัญหาได้เร็วขึ้น",
+      "เพิ่มข้อมูลวิเคราะห์ runtime สำหรับแก้ปัญหาได้เร็วขึ้น",
     ],
     highlightsEn: [
       "Expanded mobile runtime QA checklist and cache behavior checks.",
@@ -101,8 +95,8 @@ export function getReleaseUpdateMessage(locale: string) {
 
 export function getReleaseUpdateDetail(locale: string) {
   return asLocale(locale) === "th"
-    ? "รอบนี้อัปเดต: Android one-tap installer, ตรวจสิทธิ์ Unknown apps อัตโนมัติ, และเสริมความครบถ้วนของ Vault Shield + Risk State"
-    : "This round includes: Android one-tap installer flow, automatic Unknown apps permission guidance, and hardened Vault Shield + Risk State.";
+    ? "รอบนี้เพิ่มความเสถียรการอัปเดต Android, ปรับสิทธิ์ติดตั้ง APK และพัฒนา Vault Shield/Risk State ให้ทำงานต่อเนื่องมากขึ้น"
+    : "This round improves Android update stability, APK install permissions, and Vault Shield/Risk State reliability.";
 }
 
 export function getReleaseHighlights(locale: string) {

@@ -12,6 +12,7 @@ import {
   FACE_MAX_FAILED_ATTEMPTS,
   bestFaceSimilarity,
   createFacePinSessionToken,
+  mirrorFaceVector,
   normalizeFaceVector,
   parseStoredFaceTemplate,
 } from "@/lib/face-auth";
@@ -144,10 +145,14 @@ export async function POST(req: Request) {
   }
 
   let similarity = -1;
+  let matchMode: "direct" | "mirrored" = "direct";
   try {
     const template = parseStoredFaceTemplate(decryptText(String(biometric.data.template_encrypted)));
     const inputVector = normalizeFaceVector(parsed.data.sample.vector);
-    similarity = bestFaceSimilarity(inputVector, template.vectors);
+    const directSimilarity = bestFaceSimilarity(inputVector, template.vectors);
+    const mirroredSimilarity = bestFaceSimilarity(mirrorFaceVector(inputVector), template.vectors);
+    similarity = Math.max(directSimilarity, mirroredSimilarity);
+    matchMode = mirroredSimilarity > directSimilarity ? "mirrored" : "direct";
   } catch (error) {
     console.error("Failed to parse face template:", error);
     return NextResponse.json({ error: "Face template unavailable. Please enroll again." }, { status: 500 });
@@ -208,11 +213,13 @@ export async function POST(req: Request) {
     actor_user_id: auth.user.id,
     ip,
     similarity: Number(similarity.toFixed(4)),
+    match_mode: matchMode,
   }).catch(() => {});
 
   const response = NextResponse.json({
     ok: true,
     similarity: Number(similarity.toFixed(4)),
+    matchMode,
   });
   response.cookies.set({
     name: FACE_PIN_SESSION_COOKIE,

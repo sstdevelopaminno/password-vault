@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Camera, Trash2, ShieldCheck } from "lucide-react";
+import { Camera, ChevronLeft, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ type FaceConfigPayload = {
 export default function FaceLoginSettingsPage() {
   const { locale } = useI18n();
   const toast = useToast();
+  const isThai = locale === "th";
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -49,32 +50,44 @@ export default function FaceLoginSettingsPage() {
     return samples.reduce((sum, entry) => sum + entry.quality, 0) / samples.length;
   }, [samples]);
 
-  const mapCameraError = useCallback((error: unknown) => {
-    if (error instanceof CameraAccessError) {
-      if (error.code === "permission-denied") {
-        return locale === "th"
-          ? "ไม่อนุญาตการใช้กล้อง กรุณากด Allow ในเบราว์เซอร์หรือระบบ แล้วลองใหม่อีกครั้ง"
-          : "Camera permission is denied. Please allow camera access and retry.";
+  const mapCameraError = useCallback(
+    (error: unknown) => {
+      if (error instanceof CameraAccessError) {
+        if (error.code === "permission-denied") {
+          return isThai
+            ? "ไม่ได้รับสิทธิ์กล้อง กรุณาอนุญาตกล้องแล้วลองใหม่"
+            : "Camera permission is denied. Please allow camera access and retry.";
+        }
+        if (error.code === "device-not-found") {
+          return isThai ? "ไม่พบกล้องหน้าบนอุปกรณ์นี้" : "No front camera was found on this device.";
+        }
+        if (error.code === "device-busy") {
+          return isThai
+            ? "กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปกล้องอื่นแล้วลองใหม่"
+            : "Camera is busy in another app. Close other camera apps and retry.";
+        }
+        if (error.code === "not-supported") {
+          return isThai
+            ? "อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับการใช้งานกล้อง"
+            : "This device/browser does not support camera access.";
+        }
       }
-      if (error.code === "device-not-found") {
-        return locale === "th"
-          ? "ไม่พบกล้องด้านหน้าในอุปกรณ์นี้"
-          : "No front camera was found on this device.";
+
+      if (error instanceof Error && error.message) {
+        const message = String(error.message).toLowerCase();
+        if (message.includes("stream is not ready")) {
+          return isThai ? "สตรีมกล้องยังไม่พร้อม กรุณารอสักครู่แล้วลองใหม่" : "Camera stream is not ready yet. Please wait and retry.";
+        }
+        if (message.includes("unable to read camera frame")) {
+          return isThai ? "อ่านภาพจากกล้องไม่สำเร็จ กรุณาเริ่มกล้องใหม่" : "Unable to read camera frame. Please restart the camera.";
+        }
+        return error.message;
       }
-      if (error.code === "device-busy") {
-        return locale === "th"
-          ? "กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปกล้องอื่นแล้วลองใหม่"
-          : "Camera is busy in another app. Close other camera apps and retry.";
-      }
-      if (error.code === "not-supported") {
-        return locale === "th"
-          ? "อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับการใช้กล้อง"
-          : "This device/browser does not support camera access.";
-      }
-    }
-    if (error instanceof Error && error.message) return error.message;
-    return locale === "th" ? "ไม่สามารถเปิดกล้องได้" : "Unable to access camera.";
-  }, [locale]);
+
+      return isThai ? "ไม่สามารถเข้าถึงกล้องได้" : "Unable to access camera.";
+    },
+    [isThai],
+  );
 
   const stopCameraNow = useCallback(() => {
     if (videoRef.current) {
@@ -105,7 +118,7 @@ export default function FaceLoginSettingsPage() {
       const response = await fetch("/api/face-auth/config", { cache: "no-store" });
       const body = (await response.json().catch(() => ({}))) as FaceConfigPayload;
       if (!response.ok) {
-        toast.showToast(String(body.error ?? "Unable to load settings"), "error");
+        toast.showToast(String(body.error ?? (isThai ? "โหลดการตั้งค่าไม่สำเร็จ" : "Unable to load settings")), "error");
         return;
       }
 
@@ -116,11 +129,11 @@ export default function FaceLoginSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [isThai, toast]);
 
   const verifyPinAssertion = useCallback(async () => {
     if (pin.length !== 6) {
-      toast.showToast(locale === "th" ? "เธเธฃเธธเธ“เธฒเธเธฃเธญเธ PIN 6 เธซเธฅเธฑเธ" : "Please enter a 6-digit PIN.", "error");
+      toast.showToast(isThai ? "กรุณากรอก PIN 6 หลัก" : "Please enter a 6-digit PIN.", "error");
       return "";
     }
 
@@ -136,33 +149,37 @@ export default function FaceLoginSettingsPage() {
 
     if (!verifyResponse.ok || !verifyBody.assertionToken) {
       toast.showToast(
-        String(
-          verifyBody.error ??
-            (locale === "th" ? "PIN เนเธกเนเธ–เธนเธเธ•เนเธญเธเธซเธฃเธทเธญเธซเธกเธ”เธญเธฒเธขเธธ" : "PIN verification failed."),
-        ),
+        String(verifyBody.error ?? (isThai ? "PIN ไม่ถูกต้องหรือหมดอายุ" : "PIN verification failed.")),
         "error",
       );
       return "";
     }
 
     return String(verifyBody.assertionToken);
-  }, [locale, pin, toast]);
+  }, [isThai, pin, toast]);
 
   const captureSample = useCallback(() => {
     if (!cameraReady || !videoRef.current) {
-      toast.showToast(locale === "th" ? "เธเธฅเนเธญเธเธขเธฑเธเนเธกเนเธเธฃเนเธญเธก" : "Camera is not ready.", "error");
+      toast.showToast(isThai ? "กล้องยังไม่พร้อม" : "Camera is not ready.", "error");
       return;
     }
 
-    const sample = captureFaceSample(videoRef.current);
+    let sample: ReturnType<typeof captureFaceSample>;
+    try {
+      sample = captureFaceSample(videoRef.current);
+    } catch (error) {
+      toast.showToast(mapCameraError(error), "error");
+      return;
+    }
+
     const previous = samples[samples.length - 1];
     const similarity = previous ? cosineSimilarity(previous.vector, sample.vector) : 0;
     const motionScore = previous ? Number(Math.max(0, 1 - Math.max(-1, Math.min(1, similarity))).toFixed(4)) : 0;
 
     if (previous && similarity > 0.995) {
       toast.showToast(
-        locale === "th"
-          ? "เธเธฃเธธเธ“เธฒเธเธขเธฑเธเธกเธธเธกเธซเธเนเธฒเน€เธฅเนเธเธเนเธญเธขเธเนเธญเธเธเธฑเธเธ—เธถเธเธ•เธฑเธงเธญเธขเนเธฒเธเธ–เธฑเธ”เนเธ"
+        isThai
+          ? "กรุณาขยับมุมหน้าเล็กน้อยก่อนบันทึกตัวอย่างถัดไป"
           : "Please move your face slightly before capturing the next sample.",
         "error",
       );
@@ -177,18 +194,16 @@ export default function FaceLoginSettingsPage() {
 
     setSamples((current) => [...current, next].slice(0, 5));
     toast.showToast(
-      locale === "th"
-        ? `เธเธฑเธเธ—เธถเธเธ•เธฑเธงเธญเธขเนเธฒเธเนเธฅเนเธง ${samples.length + 1} เธฃเธฒเธขเธเธฒเธฃ`
-        : `Sample ${samples.length + 1} captured.`,
+      isThai ? `บันทึกตัวอย่างแล้ว ${samples.length + 1} รายการ` : `Sample ${samples.length + 1} captured.`,
       "success",
     );
-  }, [cameraReady, locale, samples, toast]);
+  }, [cameraReady, isThai, mapCameraError, samples, toast]);
 
   const enrollNow = useCallback(async () => {
     if (saving) return;
     if (samples.length < 2) {
       toast.showToast(
-        locale === "th" ? "เธ•เนเธญเธเธกเธตเธ•เธฑเธงเธญเธขเนเธฒเธเนเธเธซเธเนเธฒเธญเธขเนเธฒเธเธเนเธญเธข 2 เธเธฃเธฑเนเธ" : "At least 2 samples are required.",
+        isThai ? "ต้องมีตัวอย่างใบหน้าอย่างน้อย 2 ครั้ง" : "At least 2 samples are required.",
         "error",
       );
       return;
@@ -214,54 +229,54 @@ export default function FaceLoginSettingsPage() {
         return;
       }
 
-      toast.showToast(
-        locale === "th" ? "เธเธฑเธเธ—เธถเธ Face Login เธชเธณเน€เธฃเนเธ" : "Face login enrolled successfully.",
-        "success",
-      );
+      toast.showToast(isThai ? "บันทึก Face Login สำเร็จ" : "Face login enrolled successfully.", "success");
       setSamples([]);
       await loadConfig();
     } finally {
       setSaving(false);
     }
-  }, [loadConfig, locale, samples, saving, toast, verifyPinAssertion]);
+  }, [isThai, loadConfig, samples, saving, toast, verifyPinAssertion]);
 
-  const toggleFeature = useCallback(async (nextEnabled: boolean) => {
-    if (saving) return;
-    setSaving(true);
-    try {
-      const assertionToken = await verifyPinAssertion();
-      if (!assertionToken) return;
+  const toggleFeature = useCallback(
+    async (nextEnabled: boolean) => {
+      if (saving) return;
+      setSaving(true);
+      try {
+        const assertionToken = await verifyPinAssertion();
+        if (!assertionToken) return;
 
-      const response = await fetch("/api/face-auth/toggle", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-pin-assertion": assertionToken,
-        },
-        body: JSON.stringify({ enabled: nextEnabled }),
-      });
-      const body = (await response.json().catch(() => ({}))) as { error?: string };
+        const response = await fetch("/api/face-auth/toggle", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-pin-assertion": assertionToken,
+          },
+          body: JSON.stringify({ enabled: nextEnabled }),
+        });
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
 
-      if (!response.ok) {
-        toast.showToast(String(body.error ?? "Unable to update face login setting."), "error");
-        return;
+        if (!response.ok) {
+          toast.showToast(String(body.error ?? "Unable to update face login setting."), "error");
+          return;
+        }
+
+        setEnabled(nextEnabled);
+        toast.showToast(
+          nextEnabled
+            ? isThai
+              ? "เปิดใช้งาน Face Login แล้ว"
+              : "Face login enabled."
+            : isThai
+              ? "ปิดใช้งาน Face Login แล้ว"
+              : "Face login disabled.",
+          "success",
+        );
+      } finally {
+        setSaving(false);
       }
-
-      setEnabled(nextEnabled);
-      toast.showToast(
-        nextEnabled
-          ? locale === "th"
-            ? "เน€เธเธดเธ”เนเธเนเธเธฒเธ Face Login เนเธฅเนเธง"
-            : "Face login enabled."
-          : locale === "th"
-            ? "เธเธดเธ”เนเธเนเธเธฒเธ Face Login เนเธฅเนเธง"
-            : "Face login disabled.",
-        "success",
-      );
-    } finally {
-      setSaving(false);
-    }
-  }, [locale, saving, toast, verifyPinAssertion]);
+    },
+    [isThai, saving, toast, verifyPinAssertion],
+  );
 
   const removeEnrollment = useCallback(async () => {
     if (saving) return;
@@ -283,10 +298,7 @@ export default function FaceLoginSettingsPage() {
         return;
       }
 
-      toast.showToast(
-        locale === "th" ? "เธฅเธเธเนเธญเธกเธนเธฅ Face Login เนเธฅเนเธง" : "Face login data removed.",
-        "success",
-      );
+      toast.showToast(isThai ? "ลบข้อมูล Face Login แล้ว" : "Face login data removed.", "success");
       setEnabled(false);
       setEnrolled(false);
       setEnrolledAt("");
@@ -295,7 +307,7 @@ export default function FaceLoginSettingsPage() {
     } finally {
       setSaving(false);
     }
-  }, [loadConfig, locale, saving, toast, verifyPinAssertion]);
+  }, [isThai, loadConfig, saving, toast, verifyPinAssertion]);
 
   useEffect(() => {
     void loadConfig();
@@ -314,7 +326,7 @@ export default function FaceLoginSettingsPage() {
           <ChevronLeft className="h-4 w-4" />
         </Link>
         <h1 className="text-xl font-semibold text-slate-900">
-          {locale === "th" ? "Face Login + PIN" : "Face Login + PIN"}
+          {isThai ? "Face Login + PIN" : "Face Login + PIN"}
         </h1>
       </div>
 
@@ -326,29 +338,21 @@ export default function FaceLoginSettingsPage() {
         ) : (
           <>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm font-semibold text-slate-800">
-                {locale === "th" ? "เธชเธ–เธฒเธเธฐเธเธฒเธฃเน€เธเธดเธ”เนเธเนเธเธฒเธ" : "Feature status"}
-              </p>
+              <p className="text-sm font-semibold text-slate-800">{isThai ? "สถานะการใช้งาน" : "Feature status"}</p>
               <p className="mt-1 text-xs text-slate-500">
-                {enabled
-                  ? locale === "th"
-                    ? "เน€เธเธดเธ”เนเธเนเธเธฒเธเธญเธขเธนเน"
-                    : "Enabled"
-                  : locale === "th"
-                    ? "เธขเธฑเธเนเธกเนเน€เธเธดเธ”เนเธเนเธเธฒเธ"
-                    : "Disabled"}
+                {enabled ? (isThai ? "เปิดใช้งานอยู่" : "Enabled") : (isThai ? "ยังไม่เปิดใช้งาน" : "Disabled")}
               </p>
               {enrolledAt ? (
                 <p className="mt-1 text-[11px] text-slate-500">
-                  {locale === "th" ? "เธฅเธเธ—เธฐเน€เธเธตเธขเธเธฅเนเธฒเธชเธธเธ”: " : "Last enrolled: "}
-                  {new Date(enrolledAt).toLocaleString()}
+                  {isThai ? "ลงทะเบียนล่าสุด: " : "Last enrolled: "}
+                  {new Date(enrolledAt).toLocaleString(isThai ? "th-TH" : "en-US")}
                 </p>
               ) : null}
             </div>
 
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-500">
-                {locale === "th" ? "เธขเธทเธเธขเธฑเธเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธขเธ”เนเธงเธข PIN เธเนเธญเธเธเธฑเธเธ—เธถเธ" : "PIN confirmation is required for all changes"}
+                {isThai ? "ยืนยันความปลอดภัยด้วย PIN ก่อนบันทึก/เปลี่ยนค่า" : "PIN confirmation is required for all changes"}
               </p>
               <Input
                 type="password"
@@ -356,31 +360,23 @@ export default function FaceLoginSettingsPage() {
                 maxLength={6}
                 value={pin}
                 onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder={locale === "th" ? "PIN 6 เธซเธฅเธฑเธ" : "6-digit PIN"}
+                placeholder={isThai ? "PIN 6 หลัก" : "6-digit PIN"}
               />
               {!hasPin ? (
                 <p className="text-xs text-rose-600">
-                  {locale === "th"
-                    ? "เธเธฑเธเธเธตเธเธตเนเธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธ PIN เธเธฃเธธเธ“เธฒเธ•เธฑเนเธ PIN เนเธเน€เธกเธเธน Settings เธเนเธญเธ"
+                  {isThai
+                    ? "บัญชีนี้ยังไม่ได้ตั้ง PIN กรุณาตั้ง PIN ในเมนู Settings ก่อน"
                     : "This account does not have a PIN yet. Set PIN in Settings first."}
                 </p>
               ) : null}
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant={enabled ? "default" : "secondary"}
-                disabled={saving || !hasPin || !enrolled}
-                onClick={() => void toggleFeature(true)}
-              >
-                {locale === "th" ? "เน€เธเธดเธ”เนเธเนเธเธฒเธ" : "Enable"}
+              <Button variant={enabled ? "default" : "secondary"} disabled={saving || !hasPin || !enrolled} onClick={() => void toggleFeature(true)}>
+                {isThai ? "เปิดใช้งาน" : "Enable"}
               </Button>
-              <Button
-                variant={!enabled ? "default" : "secondary"}
-                disabled={saving || !hasPin}
-                onClick={() => void toggleFeature(false)}
-              >
-                {locale === "th" ? "เธเธดเธ”เนเธเนเธเธฒเธ" : "Disable"}
+              <Button variant={!enabled ? "default" : "secondary"} disabled={saving || !hasPin} onClick={() => void toggleFeature(false)}>
+                {isThai ? "ปิดใช้งาน" : "Disable"}
               </Button>
             </div>
 
@@ -392,64 +388,53 @@ export default function FaceLoginSettingsPage() {
               <Button variant="secondary" onClick={() => void startCameraNow()} disabled={saving}>
                 <span className="inline-flex items-center gap-2">
                   <Camera className="h-4 w-4" />
-                  {locale === "th" ? "เน€เธเธดเธ”เธเธฅเนเธญเธ" : "Start camera"}
+                  {isThai ? "เริ่มกล้อง" : "Start camera"}
                 </span>
               </Button>
               <Button onClick={captureSample} disabled={saving || !cameraReady}>
-                {locale === "th" ? "เธเธฑเธเธ—เธถเธเธ•เธฑเธงเธญเธขเนเธฒเธ" : "Capture sample"}
+                {isThai ? "บันทึกตัวอย่าง" : "Capture sample"}
               </Button>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
               <p>
-                {locale === "th" ? "เธ•เธฑเธงเธญเธขเนเธฒเธเธ—เธตเนเธเธฑเธเธ—เธถเธ: " : "Captured samples: "}
+                {isThai ? "จำนวนตัวอย่าง: " : "Captured samples: "}
                 {samples.length}
               </p>
               <p>
-                {locale === "th" ? "เธเธธเธ“เธ เธฒเธเน€เธเธฅเธตเนเธข: " : "Average quality: "}
+                {isThai ? "คุณภาพเฉลี่ย: " : "Average quality: "}
                 {sampleQuality.toFixed(2)}
               </p>
               <p>
-                {locale === "th"
-                  ? "เนเธเธฐเธเธณเนเธซเนเธเธฑเธเธ—เธถเธ 2-3 เธเธฃเธฑเนเธ เนเธฅเธฐเธเธขเธฑเธเธกเธธเธกเธซเธเนเธฒเน€เธฅเนเธเธเนเธญเธขเธ—เธธเธเธเธฃเธฑเนเธ"
+                {isThai
+                  ? "แนะนำให้บันทึก 2-3 ครั้ง และขยับมุมหน้าเล็กน้อยในแต่ละครั้ง"
                   : "Capture 2-3 samples and move your face slightly between captures."}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <Button
-                onClick={() => void enrollNow()}
-                disabled={saving || !hasPin || samples.length < 2}
-              >
+              <Button onClick={() => void enrollNow()} disabled={saving || !hasPin || samples.length < 2}>
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
                     <Spinner />
-                    {locale === "th" ? "เธเธณเธฅเธฑเธเธเธฑเธเธ—เธถเธ..." : "Saving..."}
+                    {isThai ? "กำลังบันทึก..." : "Saving..."}
                   </span>
-                ) : locale === "th" ? (
-                  "เธฅเธเธ—เธฐเน€เธเธตเธขเธ Face"
+                ) : isThai ? (
+                  "ลงทะเบียน Face"
                 ) : (
                   "Enroll face"
                 )}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setSamples([])}
-                disabled={saving || samples.length === 0}
-              >
-                {locale === "th" ? "เธฅเนเธฒเธเธ•เธฑเธงเธญเธขเนเธฒเธ" : "Clear samples"}
+              <Button variant="secondary" onClick={() => setSamples([])} disabled={saving || samples.length === 0}>
+                {isThai ? "ล้างตัวอย่าง" : "Clear samples"}
               </Button>
             </div>
 
             {enrolled ? (
-              <Button
-                variant="destructive"
-                onClick={() => void removeEnrollment()}
-                disabled={saving || !hasPin}
-              >
+              <Button variant="destructive" onClick={() => void removeEnrollment()} disabled={saving || !hasPin}>
                 <span className="inline-flex items-center gap-2">
                   <Trash2 className="h-4 w-4" />
-                  {locale === "th" ? "เธฅเธเธเนเธญเธกเธนเธฅ Face Login" : "Delete face login data"}
+                  {isThai ? "ลบข้อมูล Face Login" : "Delete face login data"}
                 </span>
               </Button>
             ) : null}
@@ -458,12 +443,12 @@ export default function FaceLoginSettingsPage() {
               <p className="font-semibold">
                 <span className="inline-flex items-center gap-1">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  {locale === "th" ? "เธเนเธญเธกเธนเธฅเธ—เธตเนเธเธฑเธ”เน€เธเนเธ" : "Stored data"}
+                  {isThai ? "การจัดเก็บข้อมูลใบหน้า" : "Stored data"}
                 </span>
               </p>
               <p className="mt-1">
-                {locale === "th"
-                  ? "เธฃเธฐเธเธเน€เธเนเธเน€เธเธเธฒเธฐ face template เนเธเธเน€เธเนเธฒเธฃเธซเธฑเธช เนเธกเนเน€เธเนเธเธ เธฒเธเธ–เนเธฒเธขเธ•เนเธเธเธเธฑเธ"
+                {isThai
+                  ? "ระบบเก็บเฉพาะ face template แบบเข้ารหัส และไม่เก็บภาพใบหน้าต้นฉบับ"
                   : "Only encrypted face templates are stored. Raw face photos are not persisted."}
               </p>
             </div>
@@ -473,4 +458,3 @@ export default function FaceLoginSettingsPage() {
     </section>
   );
 }
-

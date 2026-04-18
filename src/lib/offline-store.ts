@@ -113,6 +113,25 @@ function idbDelete(storeName: string, key: IDBValidKey): Promise<void> {
   });
 }
 
+function idbClear(storeName: string): Promise<void> {
+  return openDb().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      const tx = db.transaction(storeName, "readwrite");
+      const store = tx.objectStore(storeName);
+      const req = store.clear();
+      req.onsuccess = function () {
+        resolve();
+      };
+      req.onerror = function () {
+        reject(req.error);
+      };
+      tx.oncomplete = function () {
+        db.close();
+      };
+    });
+  });
+}
+
 function idbGetAll<T>(storeName: string): Promise<T[]> {
   return openDb().then(function (db) {
     return new Promise(function (resolve, reject) {
@@ -267,13 +286,16 @@ export async function listOfflineQueue(): Promise<OfflineQueueItem[]> {
   const items = await idbGetAll<EncryptedPayload>(QUEUE_STORE).catch(function () {
     return [];
   });
-  const results: OfflineQueueItem[] = [];
-  for (const item of items) {
-    const decoded = await decryptPayload<OfflineQueueItem>(item).catch(function () {
-      return null;
-    });
-    if (decoded) results.push(decoded);
-  }
+  const decodedItems = await Promise.all(
+    items.map(function (item) {
+      return decryptPayload<OfflineQueueItem>(item).catch(function () {
+        return null;
+      });
+    }),
+  );
+  const results = decodedItems.filter(function (item): item is OfflineQueueItem {
+    return Boolean(item);
+  });
   return results.sort(function (a, b) {
     return a.createdAt.localeCompare(b.createdAt);
   });
@@ -283,13 +305,14 @@ export async function getOfflineQueueStats() {
   const records = await idbGetAll<EncryptedPayload>(QUEUE_STORE).catch(function () {
     return [];
   });
-  let unlocked = 0;
-  for (const record of records) {
-    const decoded = await decryptPayload<OfflineQueueItem>(record).catch(function () {
-      return null;
-    });
-    if (decoded) unlocked += 1;
-  }
+  const decodedItems = await Promise.all(
+    records.map(function (record) {
+      return decryptPayload<OfflineQueueItem>(record).catch(function () {
+        return null;
+      });
+    }),
+  );
+  const unlocked = decodedItems.filter(Boolean).length;
   return {
     total: records.length,
     unlocked: unlocked,
@@ -302,10 +325,7 @@ export async function removeOfflineQueueItem(id: string) {
 }
 
 export async function clearOfflineQueue() {
-  const items = await listOfflineQueue();
-  for (const item of items) {
-    await removeOfflineQueueItem(item.id);
-  }
+  await idbClear(QUEUE_STORE);
 }
 
 export function setOfflineEncryptionPassphrase(passphrase: string) {
