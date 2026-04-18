@@ -154,13 +154,10 @@ export function AndroidApkUpdatePopup() {
     setOpen(false);
 
     if (capabilities.isCapacitorNative) {
-      try {
-        const { Browser } = await import("@capacitor/browser");
-        await Browser.open({ url: release.downloadUrl });
-        return;
-      } catch {
-        // fallback below
-      }
+      // Prefer direct navigation for APK payload so Android package installer can
+      // handle the file instead of keeping it inside an in-app browser tab.
+      window.location.href = release.downloadUrl;
+      return;
     }
 
     window.location.assign(release.downloadUrl);
@@ -272,4 +269,3 @@ export function AndroidApkUpdatePopup() {
     </div>
   );
 }
-

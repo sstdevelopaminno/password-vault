@@ -34,6 +34,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: "/apk/:path*",
+        headers: [
+          { key: "Content-Disposition", value: "attachment" },
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: securityHeaders,
       },

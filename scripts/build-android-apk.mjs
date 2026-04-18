@@ -114,6 +114,17 @@ function findBuildToolsExecutable(androidSdkRoot, executableName) {
   return "";
 }
 
+function readPackageVersion() {
+  try {
+    const packageJsonPath = path.join(projectRoot, "package.json");
+    const raw = readFileSync(packageJsonPath, "utf8");
+    const parsed = JSON.parse(raw);
+    return String(parsed.version || "").trim();
+  } catch {
+    return "";
+  }
+}
+
 loadLocalEnvFile();
 const javaHome = findJavaHome();
 if (!javaHome) {
@@ -147,7 +158,10 @@ runStep(gradleCommand, ["assembleRelease"], { cwd: path.join(projectRoot, "andro
 
 const releaseDir = path.join(projectRoot, "android", "app", "build", "outputs", "apk", "release");
 const unsignedApk = path.join(releaseDir, "app-release-unsigned.apk");
+const alignedApk = path.join(releaseDir, "app-release-aligned.apk");
 const signedApk = path.join(releaseDir, "app-release.apk");
+const packageVersion = readPackageVersion();
+const publicApkPath = packageVersion ? path.join(projectRoot, "public", "apk", `vault-v${packageVersion}.apk`) : "";
 
 if (!existsSync(unsignedApk)) {
   console.error(`Unsigned APK not found: ${unsignedApk}`);
@@ -160,17 +174,29 @@ const keystorePath = process.env.ANDROID_RELEASE_KEYSTORE
 const keyAlias = process.env.ANDROID_RELEASE_KEY_ALIAS ?? "";
 const storePassword = process.env.ANDROID_RELEASE_STORE_PASSWORD ?? "";
 const keyPassword = process.env.ANDROID_RELEASE_KEY_PASSWORD ?? "";
+const allowUnsignedRelease = String(process.env.ANDROID_ALLOW_UNSIGNED_RELEASE ?? "false").toLowerCase() === "true";
 
 if (keystorePath && keyAlias && storePassword && keyPassword) {
   const apksignerExecutable = findBuildToolsExecutable(androidSdkRoot, process.platform === "win32" ? "apksigner.bat" : "apksigner");
+  const zipalignExecutable = findBuildToolsExecutable(androidSdkRoot, process.platform === "win32" ? "zipalign.exe" : "zipalign");
   if (!apksignerExecutable) {
     console.error("apksigner not found under Android SDK build-tools.");
+    process.exit(1);
+  }
+  if (!zipalignExecutable) {
+    console.error("zipalign not found under Android SDK build-tools.");
     process.exit(1);
   }
   if (!existsSync(keystorePath)) {
     console.error(`Keystore not found: ${keystorePath}`);
     process.exit(1);
   }
+
+  runStep(
+    zipalignExecutable,
+    ["-f", "-p", "4", unsignedApk, alignedApk],
+    { cwd: projectRoot, env },
+  );
 
   runStep(
     apksignerExecutable,
@@ -184,16 +210,34 @@ if (keystorePath && keyAlias && storePassword && keyPassword) {
       `pass:${storePassword}`,
       "--key-pass",
       `pass:${keyPassword}`,
+      "--v1-signing-enabled",
+      "true",
+      "--v2-signing-enabled",
+      "true",
+      "--v3-signing-enabled",
+      "true",
       "--out",
       signedApk,
-      unsignedApk,
+      alignedApk,
     ],
     { cwd: projectRoot, env },
   );
 
-  runStep(apksignerExecutable, ["verify", "--verbose", signedApk], { cwd: projectRoot, env });
+  runStep(apksignerExecutable, ["verify", "--verbose", "--print-certs", signedApk], { cwd: projectRoot, env });
   console.log(`Signed APK ready: ${signedApk}`);
+
+  if (publicApkPath) {
+    copyFileSync(signedApk, publicApkPath);
+    console.log(`Copied signed APK to public download path: ${publicApkPath}`);
+  }
 } else {
+  if (!allowUnsignedRelease) {
+    console.error("Release signing secrets are missing. Refusing to produce unsigned release APK.");
+    console.error("Set ANDROID_RELEASE_KEYSTORE, ANDROID_RELEASE_KEY_ALIAS, ANDROID_RELEASE_STORE_PASSWORD, ANDROID_RELEASE_KEY_PASSWORD");
+    console.error("or set ANDROID_ALLOW_UNSIGNED_RELEASE=true only for local testing.");
+    process.exit(1);
+  }
+
   copyFileSync(unsignedApk, signedApk);
-  console.log(`Signing secrets not set; copied unsigned build to: ${signedApk}`);
+  console.log(`Signing secrets not set; copied unsigned build for local test only: ${signedApk}`);
 }
