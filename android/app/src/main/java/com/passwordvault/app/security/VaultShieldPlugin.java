@@ -2,15 +2,23 @@ package com.passwordvault.app.security;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.app.DownloadManager;
+import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.Settings;
+import android.util.Log;
+import android.webkit.URLUtil;
 
 import androidx.annotation.NonNull;
 
@@ -38,6 +46,89 @@ import java.util.TimeZone;
 
 @CapacitorPlugin(name = "VaultShield")
 public class VaultShieldPlugin extends Plugin {
+  private static final String TAG = "VaultShieldPlugin";
+  private BroadcastReceiver apkDownloadReceiver;
+  private long pendingApkDownloadId = -1L;
+
+  @PluginMethod
+  public void installApkUpdate(PluginCall call) {
+    Context context = getContext();
+    String downloadUrl = String.valueOf(call.getString("downloadUrl", "")).trim();
+    if (downloadUrl.isEmpty()) {
+      call.reject("downloadUrl is required");
+      return;
+    }
+
+    if (!downloadUrl.startsWith("http://") && !downloadUrl.startsWith("https://")) {
+      call.reject("downloadUrl must use http/https");
+      return;
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      boolean canInstall = context.getPackageManager().canRequestPackageInstalls();
+      if (!canInstall) {
+        try {
+          Intent settingsIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+          settingsIntent.setData(Uri.parse("package:" + context.getPackageName()));
+          settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+          context.startActivity(settingsIntent);
+
+          JSObject payload = new JSObject();
+          payload.put("status", "permission_required");
+          payload.put("requiresUserAction", true);
+          payload.put("settingsOpened", true);
+          payload.put("message", "Allow install unknown apps, then tap update again.");
+          call.resolve(payload);
+          return;
+        } catch (Exception error) {
+          call.reject("Unable to open unknown apps settings: " + error.getMessage());
+          return;
+        }
+      }
+    }
+
+    DownloadManager downloadManager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+    if (downloadManager == null) {
+      call.reject("DownloadManager is unavailable");
+      return;
+    }
+
+    String requestedFileName = String.valueOf(call.getString("fileName", "")).trim();
+    String fileName = requestedFileName.isEmpty() ? URLUtil.guessFileName(downloadUrl, null, "application/vnd.android.package-archive") : requestedFileName;
+    if (fileName.isEmpty()) {
+      fileName = "vault-update-" + System.currentTimeMillis() + ".apk";
+    }
+    if (!fileName.endsWith(".apk")) {
+      fileName = fileName + ".apk";
+    }
+
+    String title = String.valueOf(call.getString("title", "Vault update")).trim();
+    String description = String.valueOf(call.getString("description", "Downloading update package")).trim();
+
+    try {
+      DownloadManager.Request request = new DownloadManager.Request(Uri.parse(downloadUrl));
+      request.setAllowedOverMetered(true);
+      request.setAllowedOverRoaming(true);
+      request.setMimeType("application/vnd.android.package-archive");
+      request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+      request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+      request.setTitle(title);
+      request.setDescription(description);
+
+      long downloadId = downloadManager.enqueue(request);
+      registerApkDownloadReceiver(downloadManager);
+      pendingApkDownloadId = downloadId;
+
+      JSObject payload = new JSObject();
+      payload.put("status", "downloading");
+      payload.put("downloadId", downloadId);
+      payload.put("fileName", fileName);
+      payload.put("requiresUserAction", true);
+      call.resolve(payload);
+    } catch (Exception error) {
+      call.reject("Unable to start APK download: " + error.getMessage());
+    }
+  }
 
   @PluginMethod
   public void collectSignals(PluginCall call) {
@@ -112,6 +203,89 @@ public class VaultShieldPlugin extends Plugin {
       result.put("playIntegrityError", error.getMessage());
       call.resolve(result);
       return;
+    }
+  }
+
+  private void registerApkDownloadReceiver(DownloadManager downloadManager) {
+    Context context = getContext();
+    unregisterApkDownloadReceiver();
+
+    apkDownloadReceiver = new BroadcastReceiver() {
+      @Override
+      public void onReceive(Context receiverContext, Intent intent) {
+        if (intent == null || !DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) {
+          return;
+        }
+
+        long downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L);
+        if (downloadId <= 0L || downloadId != pendingApkDownloadId) {
+          return;
+        }
+
+        pendingApkDownloadId = -1L;
+        try {
+          DownloadManager.Query query = new DownloadManager.Query();
+          query.setFilterById(downloadId);
+          Cursor cursor = downloadManager.query(query);
+          if (cursor == null) {
+            return;
+          }
+
+          try {
+            if (!cursor.moveToFirst()) {
+              return;
+            }
+
+            int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+            if (statusIndex < 0) {
+              return;
+            }
+
+            int status = cursor.getInt(statusIndex);
+            if (status != DownloadManager.STATUS_SUCCESSFUL) {
+              return;
+            }
+          } finally {
+            cursor.close();
+          }
+
+          Uri apkUri = downloadManager.getUriForDownloadedFile(downloadId);
+          if (apkUri == null) {
+            return;
+          }
+
+          Intent installIntent = new Intent(Intent.ACTION_VIEW);
+          installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+          installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+          installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+          context.startActivity(installIntent);
+        } catch (Exception error) {
+          Log.e(TAG, "Failed to open APK installer", error);
+        } finally {
+          unregisterApkDownloadReceiver();
+        }
+      }
+    };
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      context.registerReceiver(apkDownloadReceiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED);
+      return;
+    }
+
+    context.registerReceiver(apkDownloadReceiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+  }
+
+  private void unregisterApkDownloadReceiver() {
+    if (apkDownloadReceiver == null) {
+      return;
+    }
+
+    try {
+      getContext().unregisterReceiver(apkDownloadReceiver);
+    } catch (Exception ignored) {
+      // no-op
+    } finally {
+      apkDownloadReceiver = null;
     }
   }
 
@@ -313,5 +487,11 @@ public class VaultShieldPlugin extends Plugin {
     SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
     formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
     return formatter.format(new Date());
+  }
+
+  @Override
+  protected void handleOnDestroy() {
+    unregisterApkDownloadReceiver();
+    super.handleOnDestroy();
   }
 }

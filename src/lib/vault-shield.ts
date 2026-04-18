@@ -33,8 +33,25 @@ export type VaultShieldCollectOptions = {
   playIntegrityCloudProjectNumber?: number;
 };
 
+export type VaultShieldInstallApkOptions = {
+  downloadUrl: string;
+  title?: string;
+  description?: string;
+  fileName?: string;
+};
+
+export type VaultShieldInstallApkResult = {
+  status?: "downloading" | "permission_required" | string;
+  downloadId?: number;
+  fileName?: string;
+  requiresUserAction?: boolean;
+  settingsOpened?: boolean;
+  message?: string;
+};
+
 type VaultShieldPlugin = {
   collectSignals(options?: VaultShieldCollectOptions): Promise<VaultShieldSignals>;
+  installApkUpdate(options: VaultShieldInstallApkOptions): Promise<VaultShieldInstallApkResult>;
 };
 
 const nativePlugin = registerPlugin<VaultShieldPlugin>("VaultShield");
@@ -111,6 +128,22 @@ export async function collectVaultShieldSignals(
     });
   } catch (error) {
     console.error("VaultShield collectSignals failed:", error);
+    return null;
+  }
+}
+
+export async function installAndroidApkUpdate(
+  options: VaultShieldInstallApkOptions,
+): Promise<VaultShieldInstallApkResult | null> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return null;
+  }
+
+  try {
+    return await nativePlugin.installApkUpdate(options);
+  } catch (error) {
+    console.error("VaultShield installApkUpdate failed:", error);
     return null;
   }
 }

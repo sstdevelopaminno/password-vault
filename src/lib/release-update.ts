@@ -18,23 +18,23 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.6.6",
+    version: "V16.6.7",
     releasedOn: "2026-04-18",
-    titleTh: "Vault Shield Risk Response และ One-click Remediation",
-    titleEn: "Vault Shield Risk Response and One-click Remediation",
+    titleTh: "Android One-tap Update Installer และ Vault Shield Hardening",
+    titleEn: "Android One-tap Update Installer and Vault Shield Hardening",
     highlightsTh: [
-      "ผูก Play Integrity จริงเข้ากับ risk engine และบันทึกผล verification ลง risk-state",
-      "เพิ่มหน้า Settings > Risk State สำหรับตรวจ severity, policy actions และ Play Integrity",
-      "เพิ่ม banner แจ้งเตือนบนหน้า Home เมื่อความเสี่ยงเป็น High/Critical",
-      "เพิ่มปุ่ม remediation แบบ context-aware (Safe Mode, Re-auth, Review Sync) พร้อม One-click guidance",
-      "ปรับข้อความแจ้งเตือนอัปเดตระบบให้สะท้อนฟีเจอร์ด้านความปลอดภัยรอบล่าสุด",
+      "เพิ่ม flow อัปเดต Android แบบ one-tap: เริ่มดาวน์โหลดและเปิดตัวติดตั้งให้อัตโนมัติหลังดาวน์โหลดเสร็จ",
+      "เพิ่มการตรวจสิทธิ์ Unknown apps และพาผู้ใช้ไปหน้าอนุญาตโดยตรงเมื่อยังไม่เปิดสิทธิ์",
+      "ย้ำข้อจำกัดความปลอดภัยของ Android ว่ายังต้องกดยืนยันหน้าติดตั้งด้วยตัวผู้ใช้",
+      "รักษาระบบ Vault Shield Risk Response และหน้าจอ Risk State ให้ทำงานร่วมกับการอัปเดตเวอร์ชันใหม่",
+      "แก้ flow Supabase migration ให้รันจาก workdir ถูกต้องและยืนยันฐานข้อมูลล่าสุด",
     ],
     highlightsEn: [
-      "Integrated real Play Integrity verification into the risk engine and risk-state metadata.",
-      "Added Settings > Risk State to inspect severity, policy actions, and Play Integrity details.",
-      "Added Home risk banner for High/Critical risk conditions.",
-      "Added context-aware remediation actions (Safe Mode, Re-auth, Review Sync) with one-click guidance.",
-      "Updated system update messaging to reflect the latest security hardening release.",
+      "Added one-tap Android update flow: start download and auto-open installer after completion.",
+      "Added Unknown apps permission check with direct navigation to the required settings page.",
+      "Clarified Android security constraint that user confirmation on installer screen is still required.",
+      "Kept Vault Shield Risk Response and Risk State flow aligned with the new release process.",
+      "Fixed Supabase migration workflow using the correct workdir and confirmed remote DB is up to date.",
     ],
   },
   {
@@ -101,8 +101,8 @@ export function getReleaseUpdateMessage(locale: string) {
 
 export function getReleaseUpdateDetail(locale: string) {
   return asLocale(locale) === "th"
-    ? "รอบนี้อัปเดต: Vault Shield Risk Response, Play Integrity verification จริง, Home risk banner และ One-click remediation guidance"
-    : "This round includes: Vault Shield Risk Response, real Play Integrity verification, Home risk banner, and one-click remediation guidance.";
+    ? "รอบนี้อัปเดต: Android one-tap installer, ตรวจสิทธิ์ Unknown apps อัตโนมัติ, และเสริมความครบถ้วนของ Vault Shield + Risk State"
+    : "This round includes: Android one-tap installer flow, automatic Unknown apps permission guidance, and hardened Vault Shield + Risk State.";
 }
 
 export function getReleaseHighlights(locale: string) {

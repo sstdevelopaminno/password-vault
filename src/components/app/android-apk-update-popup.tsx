@@ -13,6 +13,7 @@ import {
   type AndroidApkRelease,
 } from "@/lib/android-apk-release";
 import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
+import { installAndroidApkUpdate } from "@/lib/vault-shield";
 
 type AndroidReleaseApiPayload = {
   ok?: boolean;
@@ -50,6 +51,7 @@ export function AndroidApkUpdatePopup() {
   const toast = useToast();
   const recommendedAndroidMajor = 10;
   const [open, setOpen] = useState(false);
+  const [installing, setInstalling] = useState(false);
   const [installedVersion, setInstalledVersion] = useState(APP_VERSION);
   const [release, setRelease] = useState<AndroidApkRelease>(() => defaultRelease().release);
   const [compatibility, setCompatibility] = useState<AndroidApkCompatibility>(() => defaultRelease().compatibility);
@@ -143,6 +145,7 @@ export function AndroidApkUpdatePopup() {
       : "Package/signing mismatch detected. Uninstall old app before reinstalling.";
 
   const installClick = async function installClick() {
+    if (installing) return;
     if (!release.downloadUrl) {
       toast.showToast(
         locale === "th" ? "ยังไม่ได้ตั้งค่าลิงก์ดาวน์โหลด APK" : "APK download URL is not configured yet.",
@@ -151,15 +154,51 @@ export function AndroidApkUpdatePopup() {
       return;
     }
 
-    setOpen(false);
+    setInstalling(true);
 
     if (capabilities.isCapacitorNative) {
-      // Prefer direct navigation for APK payload so Android package installer can
-      // handle the file instead of keeping it inside an in-app browser tab.
-      window.location.href = release.downloadUrl;
+      const result = await installAndroidApkUpdate({
+        downloadUrl: release.downloadUrl,
+        title: locale === "th" ? `Vault อัปเดต ${release.versionName}` : `Vault update ${release.versionName}`,
+        description: locale === "th" ? "กำลังดาวน์โหลดแพ็กเกจอัปเดต" : "Downloading update package",
+        fileName: `vault-v${release.versionName}.apk`,
+      });
+
+      setInstalling(false);
+      if (!result) {
+        toast.showToast(
+          locale === "th"
+            ? "ไม่สามารถเริ่มการติดตั้งอัตโนมัติได้ กำลังเปิดลิงก์ดาวน์โหลดแทน"
+            : "Unable to start native installer flow. Opening download link instead.",
+          "error",
+        );
+        setOpen(false);
+        window.location.assign(release.downloadUrl);
+        return;
+      }
+
+      if (result.status === "permission_required") {
+        toast.showToast(
+          locale === "th"
+            ? "กรุณาอนุญาต 'ติดตั้งแอปที่ไม่รู้จัก' แล้วกดอัปเดตอีกครั้ง"
+            : "Please allow install unknown apps for this app, then tap update again.",
+          "error",
+        );
+        return;
+      }
+
+      setOpen(false);
+      toast.showToast(
+        locale === "th"
+          ? "เริ่มดาวน์โหลดแล้ว ระบบจะเปิดหน้าติดตั้งให้หลังดาวน์โหลดเสร็จ"
+          : "Download started. Installer will open automatically after download completes.",
+        "success",
+      );
       return;
     }
 
+    setOpen(false);
+    setInstalling(false);
     window.location.assign(release.downloadUrl);
   };
 
@@ -247,10 +286,17 @@ export function AndroidApkUpdatePopup() {
           <p className="mt-1">{compatibilityText}</p>
         </div>
 
+        <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-600">
+          {locale === "th"
+            ? "หมายเหตุ: Android ต้องให้ผู้ใช้ยืนยันหน้าติดตั้งเองตามนโยบายความปลอดภัยของระบบ"
+            : "Note: Android requires user confirmation on the installer screen for security."}
+        </div>
+
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button
             type="button"
             variant="secondary"
+            disabled={installing}
             onClick={function laterClick() {
               setOpen(false);
             }}
@@ -258,10 +304,14 @@ export function AndroidApkUpdatePopup() {
             {locale === "th" ? "ภายหลัง" : "Later"}
           </Button>
 
-          <Button type="button" onClick={() => void installClick()}>
+          <Button type="button" onClick={() => void installClick()} disabled={installing}>
             <span className="inline-flex items-center gap-2">
               <Download className="h-4 w-4" />
-              {locale === "th" ? "ดาวน์โหลดและติดตั้ง" : "Download & install"}
+              {installing
+                ? (locale === "th" ? "กำลังเริ่มติดตั้ง..." : "Starting installer...")
+                : locale === "th"
+                  ? "อัปเดตแบบคลิกเดียว"
+                  : "One-tap update"}
             </span>
           </Button>
         </div>
