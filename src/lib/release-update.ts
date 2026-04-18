@@ -18,32 +18,34 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.6.8",
+    version: "V16.6.9",
     releasedOn: "2026-04-18",
-    titleTh: "Android One-tap Update และ Vault Shield Hardening",
+    titleTh: "อัปเดต Android แบบแตะครั้งเดียว และปรับปรุง Vault Shield",
     titleEn: "Android One-tap Update and Vault Shield Hardening",
     highlightsTh: [
-      "เพิ่ม flow อัปเดต Android แบบ one-tap: เริ่มดาวน์โหลดและเปิดตัวติดตั้งอัตโนมัติหลังดาวน์โหลดเสร็จ",
-      "เพิ่มการตรวจสิทธิ์ Unknown apps และพาผู้ใช้ไปหน้าตั้งค่าโดยตรง",
-      "เพิ่มความเสถียรของหน้า Risk State และการประเมินจาก Vault Shield + Play Integrity",
-      "ปรับปรุงความเสถียรของเมนูศูนย์ซิงก์ออฟไลน์และการกู้คืนคิว",
+      "ปรับ flow อัปเดต Android แบบ one-tap: ดาวน์โหลดและเปิดตัวติดตั้งอัตโนมัติหลังดาวน์โหลดเสร็จ",
+      "เพิ่มการตรวจสิทธิ์ติดตั้งจาก Unknown apps พร้อมพาไปหน้าตั้งค่าที่ต้องใช้",
+      "ปรับเสถียรภาพหน้า Risk State และการประเมินจาก Vault Shield + Play Integrity",
+      "ปรับปรุงความเสถียรเมนูศูนย์ซิงก์ออฟไลน์และการกู้คืนคิว",
+      "แก้ปัญหาข้อความภาษาไทยเพี้ยนในจุดสำคัญของระบบ",
     ],
     highlightsEn: [
       "Added one-tap Android update flow: download and auto-open installer after completion.",
-      "Added Unknown apps permission check with direct navigation to the required settings page.",
+      "Added Unknown apps permission check with direct navigation to required settings.",
       "Improved Risk State and Vault Shield + Play Integrity runtime stability.",
       "Improved Offline Sync Center reliability and queue recovery behavior.",
+      "Fixed Thai text encoding issues in key user flows.",
     ],
   },
   {
-    version: "21.14.18",
+    version: "V16.6.8",
     releasedOn: "2026-04-17",
-    titleTh: "เสถียรภาพ Mobile/PWA และระบบอัปเดต",
+    titleTh: "เพิ่มเสถียรภาพ Mobile/PWA และระบบอัปเดต",
     titleEn: "Mobile/PWA Stability and Update Reliability",
     highlightsTh: [
-      "ปรับความเสถียรระบบอัปเดตเวอร์ชันใหม่ พร้อมเคลียร์ runtime cache เก่าอย่างปลอดภัย",
-      "ลดอาการ UI กระตุกจาก cache เก่าในมือถือ",
-      "ปรับปรุงความครบถ้วนของ i18n ไทย/อังกฤษในจุดใช้งานสำคัญ",
+      "ปรับความเสถียรระบบอัปเดตเวอร์ชัน พร้อมเคลียร์ stale cache แบบปลอดภัย",
+      "ลดอาการหน้า UI กระตุกจาก cache เก่าบนมือถือ",
+      "ปรับปรุงความครบถ้วนของ i18n ไทย/อังกฤษบนเส้นทางใช้งานหลัก",
     ],
     highlightsEn: [
       "Improved runtime update stability with safe stale-cache invalidation.",
@@ -52,14 +54,14 @@ const RELEASE_HISTORY: ReleaseEntry[] = [
     ],
   },
   {
-    version: "20.13.17",
+    version: "V16.6.7",
     releasedOn: "2026-04-10",
-    titleTh: "พื้นฐาน PWA และ Mobile QA",
+    titleTh: "พื้นฐาน PWA และรอบทดสอบ Mobile QA",
     titleEn: "PWA Baseline and Mobile QA Round",
     highlightsTh: [
-      "ยกระดับ checklist ตรวจ runtime บนมือถือและพฤติกรรม cache",
+      "ขยาย checklist ตรวจ runtime บนมือถือและพฤติกรรม cache",
       "เพิ่มการตรวจความพร้อมโหมดติดตั้งแอปบน Android/iOS",
-      "เพิ่มข้อมูลวิเคราะห์ runtime สำหรับแก้ปัญหาได้เร็วขึ้น",
+      "เพิ่มข้อมูลวิเคราะห์ runtime เพื่อแก้ปัญหาได้เร็วขึ้น",
     ],
     highlightsEn: [
       "Expanded mobile runtime QA checklist and cache behavior checks.",
@@ -95,8 +97,8 @@ export function getReleaseUpdateMessage(locale: string) {
 
 export function getReleaseUpdateDetail(locale: string) {
   return asLocale(locale) === "th"
-    ? "รอบนี้เพิ่มความเสถียรการอัปเดต Android, ปรับสิทธิ์ติดตั้ง APK และพัฒนา Vault Shield/Risk State ให้ทำงานต่อเนื่องมากขึ้น"
-    : "This round improves Android update stability, APK install permissions, and Vault Shield/Risk State reliability.";
+    ? "รอบนี้ปรับปรุงเสถียรภาพการอัปเดต Android, สิทธิ์ติดตั้ง APK, และความน่าเชื่อถือของ Vault Shield/Risk State ให้ทำงานต่อเนื่องมากขึ้น"
+    : "This release improves Android update stability, APK install permissions, and Vault Shield/Risk State reliability.";
 }
 
 export function getReleaseHighlights(locale: string) {

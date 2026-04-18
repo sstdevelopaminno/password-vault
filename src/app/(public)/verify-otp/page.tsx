@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Suspense,
-  createElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { Card } from "@/components/ui/card";
@@ -22,14 +13,9 @@ import { useI18n } from "@/i18n/provider";
 
 function parseRetrySeconds(message: string) {
   const matched = String(message).match(/after\s+(\d+)\s*seconds?/i);
-  if (!matched) {
-    return 0;
-  }
+  if (!matched) return 0;
   const seconds = Number(matched[1]);
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    return 0;
-  }
-  return seconds;
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
 }
 
 function mapVerifyError(message: unknown, locale: string) {
@@ -49,11 +35,11 @@ function mapVerifyError(message: unknown, locale: string) {
 }
 
 function VerifyOtpContent() {
-  const h = createElement;
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
   const { t, locale } = useI18n();
+  const isThai = locale === "th";
 
   const [otp, setOtp] = useState("");
   const [email, setEmail] = useState(() => searchParams.get("email") ?? "");
@@ -62,32 +48,18 @@ function VerifyOtpContent() {
   const [resendIn, setResendIn] = useState(0);
   const autoSubmittedOtpRef = useRef("");
 
-  useEffect(
-    function () {
-      if (resendIn === 0) {
-        return;
-      }
-      const timer = window.setInterval(function () {
-        setResendIn(function (value) {
-          if (value <= 0) {
-            return 0;
-          }
-          return value - 1;
-        });
-      }, 1000);
-      return function () {
-        window.clearInterval(timer);
-      };
-    },
-    [resendIn],
-  );
+  useEffect(() => {
+    if (resendIn === 0) return;
+    const timer = window.setInterval(() => {
+      setResendIn((value) => (value <= 0 ? 0 : value - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendIn]);
 
   const submitOtp = useCallback(
-    async function (event?: Pick<FormEvent<HTMLFormElement>, "preventDefault">) {
+    async (event?: Pick<FormEvent<HTMLFormElement>, "preventDefault">) => {
       event?.preventDefault();
-      if (loading || otp.length !== 6) {
-        return;
-      }
+      if (loading || otp.length !== 6) return;
 
       setLoading(true);
       try {
@@ -100,30 +72,24 @@ function VerifyOtpContent() {
         if (res.ok) {
           autoSubmittedOtpRef.current = "";
           showToast(
-            locale === "th"
-              ? "ยืนยัน OTP สำเร็จ กำลังรออนุมัติอัตโนมัติ"
-              : "OTP verified. Waiting for auto approval",
+            isThai ? "ยืนยัน OTP สำเร็จ เข้าสู่ระบบเรียบร้อยแล้ว" : "OTP verified. Signed in successfully.",
             "success",
           );
           router.push("/home");
           return;
         }
 
-        const body = (await res.json().catch(function () {
-          return {};
-        })) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         showToast(mapVerifyError(body.error, locale), "error");
       } finally {
         setLoading(false);
       }
     },
-    [email, loading, locale, otp, router, showToast],
+    [email, isThai, loading, locale, otp, router, showToast],
   );
 
   const resendOtp = useCallback(async () => {
-    if (resendLoading || resendIn !== 0) {
-      return;
-    }
+    if (resendLoading || resendIn !== 0) return;
 
     setResendLoading(true);
     try {
@@ -133,15 +99,11 @@ function VerifyOtpContent() {
         body: JSON.stringify({ email }),
       });
 
-      const body = (await res.json().catch(function () {
-        return {};
-      })) as { error?: string; retryAfterSec?: number };
+      const body = (await res.json().catch(() => ({}))) as { error?: string; retryAfterSec?: number };
 
       if (!res.ok) {
         const retry = parseRetrySeconds(String(body.error ?? ""));
-        if (retry > 0) {
-          setResendIn(retry);
-        }
+        if (retry > 0) setResendIn(retry);
         showToast(mapVerifyError(body.error, locale), "error");
         return;
       }
@@ -151,113 +113,95 @@ function VerifyOtpContent() {
         setResendIn(retryAfter);
       }
 
-      showToast(
-        locale === "th" ? "ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล" : "OTP resent. Please check your inbox",
-        "success",
-      );
+      showToast(isThai ? "ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล" : "OTP resent. Please check your inbox.", "success");
     } finally {
       setResendLoading(false);
     }
-  }, [email, locale, resendIn, resendLoading, showToast]);
+  }, [email, isThai, locale, resendIn, resendLoading, showToast]);
 
-  useEffect(
-    function () {
-      if (loading) {
-        return;
-      }
-      if (otp.length !== 6) {
-        autoSubmittedOtpRef.current = "";
-        return;
-      }
-      if (otp === autoSubmittedOtpRef.current) {
-        return;
-      }
-      autoSubmittedOtpRef.current = otp;
-      void submitOtp();
-    },
-    [loading, otp, submitOtp],
+  useEffect(() => {
+    if (loading) return;
+    if (otp.length !== 6) {
+      autoSubmittedOtpRef.current = "";
+      return;
+    }
+    if (otp === autoSubmittedOtpRef.current) return;
+    autoSubmittedOtpRef.current = otp;
+    void submitOtp();
+  }, [loading, otp, submitOtp]);
+
+  return (
+    <MobileShell>
+      <main className="flex flex-1 items-center px-5 py-8">
+        <Card className="w-full space-y-4 animate-slide-up">
+          <h1 className="text-xl font-semibold">{t("verifyOtp.title")}</h1>
+
+          <form className="space-y-4" onSubmit={submitOtp}>
+            <Input
+              type="email"
+              placeholder={t("verifyOtp.email")}
+              value={email}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+              required
+            />
+
+            <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={t("otpInput.ariaLabel")} />
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => void resendOtp()}
+                disabled={resendLoading || resendIn !== 0}
+              >
+                {resendLoading
+                  ? isThai
+                    ? "กำลังส่ง OTP..."
+                    : "Sending OTP..."
+                  : resendIn !== 0
+                    ? isThai
+                      ? `ขอใหม่ใน ${resendIn} วินาที`
+                      : `Resend in ${resendIn}s`
+                    : isThai
+                      ? "ส่ง OTP ใหม่"
+                      : "Resend OTP"}
+              </Button>
+
+              <Button className="w-full" disabled={loading || otp.length !== 6}>
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner />
+                    {t("verifyOtp.verifying")}
+                  </span>
+                ) : (
+                  t("verifyOtp.verify")
+                )}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </main>
+    </MobileShell>
   );
-
-  const submitLabel = loading
-    ? h(
-        "span",
-        { className: "inline-flex items-center gap-2" },
-        h(Spinner, null),
-        t("verifyOtp.verifying"),
-      )
-    : t("verifyOtp.verify");
-
-  const resendDisabled = resendLoading || resendIn !== 0;
-  const resendLabel = resendLoading
-    ? (locale === "th" ? "กำลังส่ง OTP..." : "Sending OTP...")
-    : resendIn !== 0
-      ? (locale === "th" ? "ขอใหม่ใน " + String(resendIn) + " วินาที" : "Resend in " + String(resendIn) + "s")
-      : (locale === "th" ? "ส่ง OTP ใหม่" : "Resend OTP");
-
-  const form = h(
-    "form",
-    { className: "space-y-4", onSubmit: submitOtp },
-    h(Input, {
-      type: "email",
-      placeholder: t("verifyOtp.email"),
-      value: email,
-      onChange: function (e: ChangeEvent<HTMLInputElement>) {
-        setEmail(e.target.value);
-      },
-      required: true,
-    }),
-    h(OtpInput, {
-      value: otp,
-      onChange: function (next: string) {
-        setOtp(next);
-      },
-      length: 6,
-      ariaLabel: t("otpInput.ariaLabel"),
-    }),
-    h(
-      "div",
-      { className: "grid grid-cols-2 gap-2" },
-      h(
-        Button,
-        {
-          variant: "secondary",
-          type: "button",
-          onClick: function () {
-            void resendOtp();
-          },
-          disabled: resendDisabled,
-        },
-        resendLabel,
-      ),
-      h(Button, { className: "w-full", disabled: loading ? true : otp.length !== 6 }, submitLabel),
-    ),
-  );
-
-  const card = h(
-    Card,
-    { className: "w-full space-y-4 animate-slide-up" },
-    h("h1", { className: "text-xl font-semibold" }, t("verifyOtp.title")),
-    form,
-  );
-
-  return h(MobileShell, null, h("main", { className: "flex flex-1 items-center px-5 py-8" }, card));
 }
 
 export default function VerifyOtpPage() {
-  const h = createElement;
-  const fallback = h(
-    MobileShell,
-    null,
-    h(
-      "main",
-      { className: "flex flex-1 items-center px-5 py-8" },
-      h(
-        Card,
-        { className: "w-full space-y-4 animate-slide-up" },
-        h("h1", { className: "text-xl font-semibold" }, "Verify OTP"),
-        h("div", { className: "flex items-center justify-center py-4" }, h(Spinner, null)),
-      ),
-    ),
+  return (
+    <Suspense
+      fallback={
+        <MobileShell>
+          <main className="flex flex-1 items-center px-5 py-8">
+            <Card className="w-full space-y-4 animate-slide-up">
+              <h1 className="text-xl font-semibold">Verify OTP</h1>
+              <div className="flex items-center justify-center py-4">
+                <Spinner />
+              </div>
+            </Card>
+          </main>
+        </MobileShell>
+      }
+    >
+      <VerifyOtpContent />
+    </Suspense>
   );
-  return h(Suspense, { fallback }, h(VerifyOtpContent, null));
 }
