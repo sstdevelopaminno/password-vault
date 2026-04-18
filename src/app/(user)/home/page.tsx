@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { BellRing, BookText, KeyRound, Laptop2, LifeBuoy, Megaphone, ShieldCheck, Smartphone, UsersRound, Wifi, X } from 'lucide-react';
+import { ArrowRight, BellRing, BookText, KeyRound, Laptop2, LifeBuoy, Megaphone, ShieldAlert, ShieldCheck, Smartphone, UsersRound, Wifi, X } from 'lucide-react';
 import { TopQuickActions } from '@/components/layout/top-quick-actions';
 import { useI18n } from '@/i18n/provider';
 import { versionLabel } from '@/lib/app-version';
@@ -11,6 +11,22 @@ import { UPDATE_DETAILS_PATH } from '@/lib/release-update';
 
 const LOGO_URL = '/icons/vault-logo.png';
 const NOTICE_READ_STORAGE_KEY = 'pv_home_notice_read_v1';
+
+type HomeRiskState = {
+ ok?: boolean;
+ active?: boolean;
+ policy?: {
+ severity?: 'low' | 'medium' | 'high' | 'critical';
+ score?: number;
+ actions?: string[];
+ } | null;
+ latestAssessment?: {
+ severity?: 'low' | 'medium' | 'high' | 'critical' | string;
+ score?: number;
+ } | null;
+};
+
+type HomeRiskActionKind = 'safe_mode' | 'reauth' | 'sync_review' | null;
 
 function clamp(value: number, min: number, max: number) {
  return Math.max(min, Math.min(max, value));
@@ -26,9 +42,28 @@ function formatStorage(bytes: number) {
  return String(Math.max(0, Math.floor(bytes))) + ' B';
 }
 
+function toRiskActionLabel(action: string, locale: 'th' | 'en') {
+ if (action === 'notify_user') return locale === 'th' ? 'แจ้งเตือนผู้ใช้' : 'Notify user';
+ if (action === 'limit_sensitive_actions') return locale === 'th' ? 'จำกัดฟังก์ชันสำคัญ' : 'Limit sensitive actions';
+ if (action === 'force_reauth') return locale === 'th' ? 'บังคับยืนยันตัวตนใหม่' : 'Force re-authentication';
+ if (action === 'suggest_uninstall_risky_apps') return locale === 'th' ? 'แนะนำให้ถอนแอปเสี่ยง' : 'Suggest uninstall risky apps';
+ if (action === 'block_sync') return locale === 'th' ? 'บล็อกการซิงก์' : 'Block sync';
+ if (action === 'block_sensitive_data') return locale === 'th' ? 'บล็อกข้อมูลอ่อนไหว' : 'Block sensitive data';
+ if (action === 'lock_vault_temporarily') return locale === 'th' ? 'ล็อก Vault ชั่วคราว' : 'Temporarily lock Vault';
+ return action;
+}
+
+function resolvePrimaryRiskAction(actions: string[]): HomeRiskActionKind {
+ if (actions.includes('lock_vault_temporarily')) return 'safe_mode';
+ if (actions.includes('force_reauth')) return 'reauth';
+ if (actions.includes('block_sync')) return 'sync_review';
+ return null;
+}
+
 export default function HomePage() {
  const router = useRouter();
  const { locale } = useI18n();
+ const isThai = locale === 'th';
  const [itemCount, setItemCount] = useState(0);
  const [noteCount, setNoteCount] = useState(0);
  const [teamKeyCount, setTeamKeyCount] = useState(0);
@@ -37,6 +72,8 @@ export default function HomePage() {
  const [stabilityScore, setStabilityScore] = useState(84);
  const [showNoticePanel, setShowNoticePanel] = useState(false);
  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
+ const [riskState, setRiskState] = useState<HomeRiskState | null>(null);
+ const [riskActionBusy, setRiskActionBusy] = useState(false);
  const [noticeRead, setNoticeRead] = useState(() => {
  if (typeof window === 'undefined') return false;
  return window.localStorage.getItem(NOTICE_READ_STORAGE_KEY) === '1';
@@ -97,6 +134,31 @@ export default function HomePage() {
  window.localStorage.setItem(NOTICE_READ_STORAGE_KEY, noticeRead ? '1' : '0');
  }, [noticeRead]);
 
+ useEffect(() => {
+ let mounted = true;
+ const controller = new AbortController();
+
+ async function loadRiskState() {
+ const response = await fetch('/api/security/risk-state', {
+ method: 'GET',
+ cache: 'no-store',
+ signal: controller.signal,
+ }).catch(() => null);
+
+ if (!mounted || !response) return;
+ const body = (await response.json().catch(() => ({}))) as HomeRiskState;
+ if (!response.ok) return;
+ setRiskState(body);
+ }
+
+ void loadRiskState();
+
+ return () => {
+ mounted = false;
+ controller.abort();
+ };
+ }, []);
+
  const securityLabel = useMemo(() => {
  if (locale === 'th') return securityScore > 79 ? '\u0e14\u0e35' : '\u0e1b\u0e32\u0e19\u0e01\u0e25\u0e32\u0e07';
  return securityScore > 79 ? 'Good' : 'Moderate';
@@ -132,6 +194,49 @@ export default function HomePage() {
  ];
  }, [locale, securityLabel, securityScore, storagePercent, versionText]);
  const noticeUnreadCount = noticeRead ? 0 : noticeItems.length;
+ const riskSeverity = String(riskState?.policy?.severity ?? riskState?.latestAssessment?.severity ?? 'low').toLowerCase();
+ const riskScore = Number(riskState?.policy?.score ?? riskState?.latestAssessment?.score ?? 0);
+ const riskActions = Array.isArray(riskState?.policy?.actions) ? riskState?.policy?.actions : [];
+ const showRiskBanner = riskSeverity === 'high' || riskSeverity === 'critical';
+ const primaryRiskAction = resolvePrimaryRiskAction(riskActions);
+ const riskToneClass = riskSeverity === 'critical'
+ ? 'border-rose-300 bg-rose-50 text-rose-800'
+ : 'border-orange-300 bg-orange-50 text-orange-800';
+ const riskTitle = riskSeverity === 'critical'
+ ? (isThai ? 'ตรวจพบความเสี่ยงระดับวิกฤต' : 'Critical Risk Detected')
+ : (isThai ? 'ตรวจพบความเสี่ยงระดับสูง' : 'High Risk Detected');
+ const riskDetail = isThai
+ ? `Vault Shield ประเมินเป็น ${riskSeverity.toUpperCase()} (คะแนน ${riskScore}) ระบบอาจจำกัดการเข้าถึงข้อมูลสำคัญจนกว่าจะแก้ไขความเสี่ยง`
+ : `Vault Shield reports ${riskSeverity.toUpperCase()} risk (score ${riskScore}). Sensitive access may be restricted until remediation is completed.`;
+ const riskActionSummary = riskActions.map((action) => toRiskActionLabel(action, locale)).join(', ');
+ const primaryRiskActionLabel = primaryRiskAction === 'safe_mode'
+ ? (isThai ? 'เปิด Safe Mode' : 'Open Safe Mode')
+ : primaryRiskAction === 'reauth'
+ ? (isThai ? 'ยืนยันตัวตนใหม่' : 'Re-auth now')
+ : primaryRiskAction === 'sync_review'
+ ? (isThai ? 'ตรวจสอบการซิงก์' : 'Review Sync')
+ : null;
+
+ async function handlePrimaryRiskAction() {
+ if (!primaryRiskAction || riskActionBusy) return;
+ setRiskActionBusy(true);
+ try {
+ if (primaryRiskAction === 'safe_mode') {
+ router.push('/settings/risk-state?guide=1&safe=1');
+ return;
+ }
+
+ if (primaryRiskAction === 'sync_review') {
+ router.push('/settings/sync');
+ return;
+ }
+
+ await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
+ router.push('/login?risk=reauth');
+ } finally {
+ setRiskActionBusy(false);
+ }
+ }
 
  const connectedItems = useMemo(() => {
  return [
@@ -193,6 +298,48 @@ export default function HomePage() {
  </div>
  </div>
  </div>
+
+ {showRiskBanner ? (
+ <div className={`rounded-[20px] border px-4 py-3 ${riskToneClass}`} role='status' aria-live='polite'>
+ <div className='flex items-start justify-between gap-3'>
+ <div className='min-w-0'>
+ <p className='inline-flex items-center gap-2 text-sm font-semibold'>
+ <ShieldAlert className='h-4 w-4' />
+ {riskTitle}
+ </p>
+ <p className='mt-1 text-xs leading-5'>
+ {riskDetail}
+ </p>
+ {riskActions.length > 0 ? (
+ <p className='mt-2 text-[11px] leading-5 opacity-90'>
+ {isThai ? 'มาตรการที่กำลังบังคับใช้:' : 'Active actions:'} {riskActionSummary}
+ </p>
+ ) : null}
+ </div>
+ <div className='flex shrink-0 flex-col items-stretch gap-2 sm:min-w-[190px]'>
+ {primaryRiskActionLabel ? (
+ <button
+ type='button'
+ onClick={() => void handlePrimaryRiskAction()}
+ disabled={riskActionBusy}
+ className='inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-current/30 bg-white px-3 text-[12px] font-semibold transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70'
+ >
+ {riskActionBusy ? (isThai ? 'กำลังดำเนินการ...' : 'Working...') : primaryRiskActionLabel}
+ <ArrowRight className='h-3.5 w-3.5' />
+ </button>
+ ) : null}
+ <button
+ type='button'
+ onClick={() => router.push('/settings/risk-state?guide=1')}
+ className='inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-current/30 bg-white/80 px-3 text-[12px] font-semibold transition hover:bg-white'
+ >
+ {isThai ? 'แนวทางแก้ไขทันที' : 'One-click guidance'}
+ <ArrowRight className='h-3.5 w-3.5' />
+ </button>
+ </div>
+ </div>
+ </div>
+ ) : null}
 
  <div className='rounded-[24px] bg-white/70 px-2 py-2 backdrop-blur-sm'>
  <div className='grid grid-cols-2 gap-2'>

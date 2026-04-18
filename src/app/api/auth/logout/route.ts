@@ -7,6 +7,7 @@ import {
   FACE_PIN_SESSION_COOKIE,
   getSharedCookieOptions,
 } from "@/lib/session-security";
+import { clearVaultRiskPolicyCookie } from "@/lib/vault-risk-policy";
 
 export async function POST() {
   const supabase = await createClient();
@@ -59,6 +60,7 @@ export async function POST() {
     ...getSharedCookieOptions(),
     maxAge: 0,
   });
+  clearVaultRiskPolicyCookie(response);
 
   return response;
 }

@@ -18,23 +18,23 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.6.4",
+    version: "V16.6.6",
     releasedOn: "2026-04-18",
-    titleTh: "แก้ระบบแจ้งเตือน Android และเสถียรภาพสิทธิ์",
-    titleEn: "Android Notification Permission and Stability Fix",
+    titleTh: "Vault Shield Risk Response และ One-click Remediation",
+    titleEn: "Vault Shield Risk Response and One-click Remediation",
     highlightsTh: [
-      "เพิ่ม native notification permission flow สำหรับ Android APK (Capacitor)",
-      "แก้ปุ่มขอสิทธิ์แจ้งเตือนให้รองรับทั้งโหมด Native และ Browser",
-      "เพิ่มสิทธิ์ Android 13+ (`POST_NOTIFICATIONS`) และ `VIBRATE`",
-      "เพิ่ม local-notification fallback เมื่อ web push ไม่รองรับใน WebView",
-      "อัปเดตโค้ดขึ้น GitHub พร้อม deploy Vercel และตรวจ Supabase ล่าสุด",
+      "ผูก Play Integrity จริงเข้ากับ risk engine และบันทึกผล verification ลง risk-state",
+      "เพิ่มหน้า Settings > Risk State สำหรับตรวจ severity, policy actions และ Play Integrity",
+      "เพิ่ม banner แจ้งเตือนบนหน้า Home เมื่อความเสี่ยงเป็น High/Critical",
+      "เพิ่มปุ่ม remediation แบบ context-aware (Safe Mode, Re-auth, Review Sync) พร้อม One-click guidance",
+      "ปรับข้อความแจ้งเตือนอัปเดตระบบให้สะท้อนฟีเจอร์ด้านความปลอดภัยรอบล่าสุด",
     ],
     highlightsEn: [
-      "Added native notification permission flow for Android APK (Capacitor).",
-      "Updated notification permission request to support both native and browser runtimes.",
-      "Added Android 13+ `POST_NOTIFICATIONS` and `VIBRATE` permissions.",
-      "Added local-notification fallback when web push is unavailable in WebView.",
-      "Published to GitHub, deployed on Vercel, and synced Supabase checks.",
+      "Integrated real Play Integrity verification into the risk engine and risk-state metadata.",
+      "Added Settings > Risk State to inspect severity, policy actions, and Play Integrity details.",
+      "Added Home risk banner for High/Critical risk conditions.",
+      "Added context-aware remediation actions (Safe Mode, Re-auth, Review Sync) with one-click guidance.",
+      "Updated system update messaging to reflect the latest security hardening release.",
     ],
   },
   {
@@ -101,8 +101,8 @@ export function getReleaseUpdateMessage(locale: string) {
 
 export function getReleaseUpdateDetail(locale: string) {
   return asLocale(locale) === "th"
-    ? "รอบนี้อัปเดต: แก้สิทธิ์แจ้งเตือน Android Native, เพิ่ม fallback local notification, อัปโค้ดขึ้น GitHub, ปล่อย Vercel และตรวจ Supabase"
-    : "This round includes: Android native notification permission fixes, local-notification fallback, GitHub publish, Vercel deployment, and Supabase sync checks.";
+    ? "รอบนี้อัปเดต: Vault Shield Risk Response, Play Integrity verification จริง, Home risk banner และ One-click remediation guidance"
+    : "This round includes: Vault Shield Risk Response, real Play Integrity verification, Home risk banner, and one-click remediation guidance.";
 }
 
 export function getReleaseHighlights(locale: string) {

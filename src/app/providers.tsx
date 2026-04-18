@@ -2,6 +2,7 @@
 
 import { createElement, useEffect, type ReactNode } from 'react';
 import { HeadsUpNotificationProvider } from '@/components/notifications/heads-up-provider';
+import { VaultRiskSentinel } from '@/components/security/vault-risk-sentinel';
 import { ToastProvider } from '@/components/ui/toast';
 import { I18nProvider } from '@/i18n/provider';
 import { OutageProvider } from '@/lib/outage-detector';
@@ -363,7 +364,12 @@ export function Providers(props: ProvidersProps) {
       createElement(
         OutageProvider,
         null,
-        createElement(HeadsUpNotificationProvider, null, props.children),
+        createElement(
+          HeadsUpNotificationProvider,
+          null,
+          createElement(VaultRiskSentinel),
+          props.children,
+        ),
       ),
     ),
   );

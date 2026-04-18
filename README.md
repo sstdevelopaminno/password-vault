@@ -89,6 +89,7 @@ supabase/
 - Encrypted vault CRUD (AES-256-GCM)
 - Admin dashboard + approvals + user management + view user vault (PIN) + audit logs
 - Mobile-first UI: bottom nav, FAB, bottom sheet, OTP slots, PIN modal (6-digit), toasts/spinner
+- Vault Shield (Android APK): native risk scan + risk score + response matrix enforcement
 
 ## Supabase Schema + RLS
 - Tables: `profiles`, `vault_items`, `approval_requests`, `otp_requests`, `audit_logs`, `sessions_security`
@@ -112,6 +113,13 @@ Use `.env.example` and set:
 - `OTP_EMAIL_FROM`
 - `OTP_APP_NAME`
 - `OPENAI_API_KEY`
+- `NEXT_PUBLIC_VAULT_SHIELD_SUSPICIOUS_PACKAGES`
+- `NEXT_PUBLIC_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER`
+- `PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER`
+- `PLAY_INTEGRITY_PACKAGE_NAME`
+- `PLAY_INTEGRITY_SERVICE_ACCOUNT_EMAIL`
+- `PLAY_INTEGRITY_SERVICE_ACCOUNT_PRIVATE_KEY`
+- `PLAY_INTEGRITY_ALLOWED_TOKEN_AGE_SEC`
 
 ## Run
 ```bash
@@ -127,6 +135,13 @@ npm run apk:android:release
 
 Detailed release steps and compatibility rules:
 - `docs/android-apk-release-guide.md`
+
+## Vault Shield API
+- `POST /api/security/risk-evaluate`
+  - Input: device/app/network risk snapshot (from Android native plugin + runtime context)
+  - Output: `score`, `severity`, `actions`, and policy TTL for response handling
+- `GET /api/security/risk-state`
+  - Returns active policy and latest assessed risk details (including Play Integrity verdict)
 
 ## GitHub Actions (1+2)
 - Auto release on tag: `.github/workflows/android-apk-release-on-tag.yml`
