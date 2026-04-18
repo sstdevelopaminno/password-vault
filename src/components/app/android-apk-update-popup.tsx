@@ -5,9 +5,8 @@ import { Download, ShieldCheck, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
+import { APP_VERSION } from "@/lib/app-version";
 import {
-  ANDROID_APK_PROMPT_SEEN_KEY,
-  ANDROID_APK_PROMPT_SNOOZE_KEY,
   compareReleaseVersion,
   getDefaultAndroidReleasePayload,
   type AndroidApkCompatibility,
@@ -20,8 +19,6 @@ type AndroidReleaseApiPayload = {
   release?: AndroidApkRelease;
   compatibility?: AndroidApkCompatibility;
 };
-
-const POPUP_SNOOZE_MS = 6 * 60 * 60 * 1000;
 
 function defaultRelease(): { release: AndroidApkRelease; compatibility: AndroidApkCompatibility } {
   const fallback = getDefaultAndroidReleasePayload();
@@ -53,42 +50,81 @@ export function AndroidApkUpdatePopup() {
   const toast = useToast();
   const recommendedAndroidMajor = 10;
   const [open, setOpen] = useState(false);
+  const [installedVersion, setInstalledVersion] = useState(APP_VERSION);
   const [release, setRelease] = useState<AndroidApkRelease>(() => defaultRelease().release);
   const [compatibility, setCompatibility] = useState<AndroidApkCompatibility>(() => defaultRelease().compatibility);
   const capabilities = detectRuntimeCapabilities();
 
   const popupEligible = useMemo(function isPopupEligible() {
-    return capabilities.isAndroid && !capabilities.isIos && !capabilities.isCapacitorNative;
-  }, [capabilities.isAndroid, capabilities.isCapacitorNative, capabilities.isIos]);
+    return capabilities.isAndroid && !capabilities.isIos;
+  }, [capabilities.isAndroid, capabilities.isIos]);
 
   useEffect(function loadAndroidReleasePopupState() {
     if (!popupEligible || typeof window === "undefined") return;
 
     let mounted = true;
-    void fetchReleaseFromApi().then(function (payload) {
+    let removeResumeListener: null | (() => void) = null;
+
+    const refreshPopupState = async () => {
+      const payload = await fetchReleaseFromApi();
+      let detectedInstalledVersion = APP_VERSION;
+
+      if (capabilities.isCapacitorNative) {
+        try {
+          const { App } = await import("@capacitor/app");
+          const info = await App.getInfo();
+          const nativeVersion = String(info.version ?? "").trim();
+          if (nativeVersion) {
+            detectedInstalledVersion = nativeVersion;
+          }
+        } catch {
+          // fallback to web runtime version marker when native app info is unavailable
+        }
+      }
+
       if (!mounted) return;
       setRelease(payload.release);
       setCompatibility(payload.compatibility);
+      setInstalledVersion(detectedInstalledVersion);
+      setOpen(compareReleaseVersion(detectedInstalledVersion, payload.release.versionName) < 0);
+    };
 
-      const snoozeUntil = Number(window.localStorage.getItem(ANDROID_APK_PROMPT_SNOOZE_KEY) ?? "0");
-      if (Number.isFinite(snoozeUntil) && snoozeUntil > Date.now()) {
-        setOpen(false);
-        return;
-      }
+    void refreshPopupState();
 
-      const seenVersion = String(window.localStorage.getItem(ANDROID_APK_PROMPT_SEEN_KEY) ?? "").trim();
-      if (seenVersion && compareReleaseVersion(seenVersion, payload.release.versionName) >= 0) {
-        setOpen(false);
-        return;
-      }
+    const onVisibilityChange = function onVisibilityChange() {
+      if (document.visibilityState !== "visible") return;
+      void refreshPopupState();
+    };
 
-      setOpen(true);
-    });
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    if (capabilities.isCapacitorNative) {
+      void import("@capacitor/app")
+        .then(async function ({ App }) {
+          const handle = await App.addListener("resume", function () {
+            void refreshPopupState();
+          });
+          if (!mounted) {
+            void handle.remove();
+            return;
+          }
+          removeResumeListener = function () {
+            void handle.remove();
+          };
+        })
+        .catch(function () {
+          // ignore resume listener setup failures
+        });
+    }
 
     return function cleanup() {
       mounted = false;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (removeResumeListener) {
+        removeResumeListener();
+      }
     };
-  }, [popupEligible]);
+  }, [capabilities.isCapacitorNative, popupEligible]);
 
   if (!popupEligible || !open) return null;
 
@@ -100,11 +136,35 @@ export function AndroidApkUpdatePopup() {
 
   const compatibilityText = compatibility.canInstallOverExisting
     ? locale === "th"
-      ? "ตรวจสอบแล้ว: package name และ signing key ตรงกัน สามารถกดอัปเดตทับแอปเดิมได้ทันที"
-      : "Verified: package name and signing key match. You can install over the existing app."
+      ? "ตรวจสอบแล้ว: package และ signing key ตรงกัน สามารถอัปเดตทับแอปเดิมได้ทันที"
+      : "Verified: package and signing key match. You can install over the existing app."
     : locale === "th"
-      ? "พบความต่างของ package/signing key ควรถอนการติดตั้งเวอร์ชันเดิมก่อนลงใหม่"
+      ? "พบความต่างของ package/signing key ควรถอนเวอร์ชันเดิมก่อนติดตั้งใหม่"
       : "Package/signing mismatch detected. Uninstall old app before reinstalling.";
+
+  const installClick = async function installClick() {
+    if (!release.downloadUrl) {
+      toast.showToast(
+        locale === "th" ? "ยังไม่ได้ตั้งค่าลิงก์ดาวน์โหลด APK" : "APK download URL is not configured yet.",
+        "error",
+      );
+      return;
+    }
+
+    setOpen(false);
+
+    if (capabilities.isCapacitorNative) {
+      try {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url: release.downloadUrl });
+        return;
+      } catch {
+        // fallback below
+      }
+    }
+
+    window.location.assign(release.downloadUrl);
+  };
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center px-4" role="dialog" aria-modal="true">
@@ -113,8 +173,6 @@ export function AndroidApkUpdatePopup() {
         aria-label={locale === "th" ? "ปิด" : "Close"}
         className="absolute inset-0 bg-slate-900/35 backdrop-blur-[2px]"
         onClick={function closePopup() {
-          const nextSnooze = Date.now() + POPUP_SNOOZE_MS;
-          window.localStorage.setItem(ANDROID_APK_PROMPT_SNOOZE_KEY, String(nextSnooze));
           setOpen(false);
         }}
       />
@@ -125,8 +183,6 @@ export function AndroidApkUpdatePopup() {
           aria-label={locale === "th" ? "ปิด" : "Close"}
           className="absolute right-3 top-3 rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
           onClick={function closePopup() {
-            const nextSnooze = Date.now() + POPUP_SNOOZE_MS;
-            window.localStorage.setItem(ANDROID_APK_PROMPT_SNOOZE_KEY, String(nextSnooze));
             setOpen(false);
           }}
         >
@@ -148,7 +204,10 @@ export function AndroidApkUpdatePopup() {
             {locale === "th" ? "ไฟล์ติดตั้งล่าสุด" : "Latest build package"}
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            {release.packageName} • {release.publishedAt}
+            {release.packageName} | {release.publishedAt}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            {locale === "th" ? `เวอร์ชันที่ติดตั้งปัจจุบัน: ${installedVersion}` : `Installed version: ${installedVersion}`}
           </p>
           <p className="mt-2 text-xs leading-5 text-slate-700">
             <span className="font-semibold">
@@ -164,13 +223,13 @@ export function AndroidApkUpdatePopup() {
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-700">
             {locale === "th"
-              ? `รองรับตั้งแต่ Android 7.0+ (API 24) • แนะนำ Android ${recommendedAndroidMajor}+ เพื่อความเสถียรสูง`
-              : `Supports Android 7.0+ (API 24) • Android ${recommendedAndroidMajor}+ recommended for high stability`}
+              ? `รองรับตั้งแต่ Android 7.0+ (API 24), แนะนำ Android ${recommendedAndroidMajor}+ เพื่อความเสถียรสูง`
+              : `Supports Android 7.0+ (API 24), Android ${recommendedAndroidMajor}+ recommended for high stability.`}
           </p>
           {typeof capabilities.androidMajorVersion === "number" && capabilities.androidMajorVersion < recommendedAndroidMajor ? (
             <p className="mt-1 text-xs leading-5 text-amber-700">
               {locale === "th"
-                ? `เครื่องนี้เป็น Android ${capabilities.androidMajorVersion} อาจมีข้อจำกัดบางส่วน แนะนำอัปเดตระบบ`
+                ? `เครื่องนี้เป็น Android ${capabilities.androidMajorVersion}; อาจมีข้อจำกัดบางส่วน`
                 : `This device is Android ${capabilities.androidMajorVersion}; some limitations may apply.`}
             </p>
           ) : null}
@@ -196,33 +255,13 @@ export function AndroidApkUpdatePopup() {
             type="button"
             variant="secondary"
             onClick={function laterClick() {
-              const nextSnooze = Date.now() + POPUP_SNOOZE_MS;
-              window.localStorage.setItem(ANDROID_APK_PROMPT_SNOOZE_KEY, String(nextSnooze));
               setOpen(false);
             }}
           >
             {locale === "th" ? "ภายหลัง" : "Later"}
           </Button>
 
-          <Button
-            type="button"
-            onClick={function installClick() {
-              if (!release.downloadUrl) {
-                toast.showToast(
-                  locale === "th"
-                    ? "ยังไม่ได้ตั้งค่าลิงก์ดาวน์โหลด APK"
-                    : "APK download URL is not configured yet.",
-                  "error",
-                );
-                return;
-              }
-
-              window.localStorage.setItem(ANDROID_APK_PROMPT_SEEN_KEY, release.versionName);
-              window.localStorage.removeItem(ANDROID_APK_PROMPT_SNOOZE_KEY);
-              setOpen(false);
-              window.location.assign(release.downloadUrl);
-            }}
-          >
+          <Button type="button" onClick={() => void installClick()}>
             <span className="inline-flex items-center gap-2">
               <Download className="h-4 w-4" />
               {locale === "th" ? "ดาวน์โหลดและติดตั้ง" : "Download & install"}
@@ -233,3 +272,4 @@ export function AndroidApkUpdatePopup() {
     </div>
   );
 }
+

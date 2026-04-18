@@ -34,9 +34,9 @@ const rawSigningKeySha256 = String(process.env.NEXT_PUBLIC_ANDROID_APK_SIGNING_S
 const rawPublishedAt = String(process.env.NEXT_PUBLIC_ANDROID_APK_PUBLISHED_AT ?? "").trim();
 
 export const DEFAULT_ANDROID_APK_RELEASE: AndroidApkRelease = {
-  versionName: rawVersionName || "16.6.4",
-  versionCode: Number.isFinite(rawVersionCode) && rawVersionCode > 0 ? Math.floor(rawVersionCode) : 16604,
-  downloadUrl: rawDownloadUrl || "https://password-vault-ivory.vercel.app/apk/vault-v16.6.4.apk",
+  versionName: rawVersionName || "16.6.5",
+  versionCode: Number.isFinite(rawVersionCode) && rawVersionCode > 0 ? Math.floor(rawVersionCode) : 16605,
+  downloadUrl: rawDownloadUrl || "https://password-vault-ivory.vercel.app/apk/vault-v16.6.5.apk",
   packageName: rawPackageName || DEFAULT_ANDROID_PACKAGE,
   signingKeySha256:
     rawSigningKeySha256 ||

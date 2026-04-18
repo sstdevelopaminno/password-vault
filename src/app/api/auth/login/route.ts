@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
+import { resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
+import { bindActiveSession, getActiveSessionMetadataToken } from "@/lib/active-session";
 import {
   ACTIVE_SESSION_COOKIE,
   FACE_PIN_SESSION_COOKIE,
@@ -33,24 +34,6 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
       clearTimeout(timer);
     }
   }
-}
-
-async function bindActiveSession(userId: string, appMetadata: unknown) {
-  const admin = createAdminClient();
-  const token = createActiveSessionToken();
-  const nextMetadata =
-    appMetadata && typeof appMetadata === "object"
-      ? { ...(appMetadata as Record<string, unknown>) }
-      : ({} as Record<string, unknown>);
-
-  nextMetadata.pv_active_session = token;
-  nextMetadata.pv_active_updated_at = new Date().toISOString();
-
-  const { error } = await admin.auth.admin.updateUserById(userId, {
-    app_metadata: nextMetadata,
-  });
-
-  return { token, error };
 }
 
 export async function POST(req: Request) {
@@ -133,12 +116,7 @@ export async function POST(req: Request) {
     }
 
     const binding = await bindActiveSession(user.id, user.app_metadata);
-    const metadataToken =
-      user.app_metadata &&
-      typeof user.app_metadata === "object" &&
-      typeof (user.app_metadata as Record<string, unknown>).pv_active_session === "string"
-        ? String((user.app_metadata as Record<string, unknown>).pv_active_session)
-        : "";
+    const metadataToken = getActiveSessionMetadataToken(user.app_metadata);
     if (binding.error) {
       console.error("Active session binding failed in login, fallback to metadata token:", binding.error.message);
     }

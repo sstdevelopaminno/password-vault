@@ -4,9 +4,9 @@ const BUILD_MARKER = buildValue ? buildValue : 'dev';
 const STATIC_CACHE_NAME = 'pv-static-' + BUILD_MARKER;  
 const PAGE_CACHE_NAME = 'pv-pages-' + BUILD_MARKER;  
 const CACHE_PREFIXES = ['pv-static-', 'pv-pages-'];  
-const APP_SHELL = ['/offline.html', '/login', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png'];  
-const NAVIGATION_NETWORK_TIMEOUT_MS = 7000;
-const SAFE_PAGE_CACHE_PATHS = ['/', '/login', '/register', '/forgot-password', '/verify-otp', '/offline.html'];
+const APP_SHELL = ['/', '/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png'];  
+const NAVIGATION_NETWORK_TIMEOUT_MS = 15000;
+const SAFE_PAGE_CACHE_PATHS = ['/', '/offline.html'];
   
 async function cleanupOldCaches() {  
   const keys = await caches.keys();  
@@ -104,7 +104,11 @@ async function offlineNavigationResponse(request) {
   }
   const offline = await caches.match('/offline.html');  
   if (offline) return offline;  
-  return caches.match('/login');  
+  return new Response('Offline', {
+    status: 503,
+    statusText: 'Offline',
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });  
 }  
   
 self.addEventListener('install', function (event) {  

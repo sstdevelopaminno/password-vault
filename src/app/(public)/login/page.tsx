@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
+import {
+  getNativeOAuthRedirectUrl,
+  getWebOAuthRedirectUrl,
+  mapNativeCallbackToWebPath,
+} from "@/lib/sso";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { useHeadsUpNotifications } from "@/components/notifications/heads-up-provider";
 import { Button } from "@/components/ui/button";
@@ -23,6 +30,7 @@ type LoginResponse = {
 
 const LOGIN_TIMEOUT_MS = 12_000;
 const LOGIN_RETRY_DELAY_MS = 350;
+const GOOGLE_SSO_ENABLED = String(process.env.NEXT_PUBLIC_AUTH_SSO_GOOGLE_ENABLED ?? "true").trim() !== "false";
 
 function mapLoginError(input: {
   message: unknown;
@@ -150,8 +158,83 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const flowNotes = [t("register.createdPending")];
+
+  useEffect(() => {
+    let disposed = false;
+
+    const restoreExistingSession = async (attempt: number) => {
+      try {
+        const response = await fetch("/api/profile/me", { cache: "no-store" });
+        const body = (await response.json().catch(function () {
+          return {};
+        })) as {
+          recoverable?: boolean;
+        };
+
+        if (disposed) {
+          return;
+        }
+
+        if (response.ok) {
+          router.replace("/home");
+          return;
+        }
+
+        const isRecoverable = response.status === 503 || Boolean(body.recoverable);
+        if (isRecoverable && attempt < 5) {
+          window.setTimeout(function () {
+            void restoreExistingSession(attempt + 1);
+          }, 500 * (attempt + 1));
+        }
+      } catch {
+        // ignore bootstrap session probe errors on login screen
+      }
+    };
+
+    void restoreExistingSession(0);
+
+    return () => {
+      disposed = true;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const runtime = detectRuntimeCapabilities();
+    if (!runtime.isCapacitorNative) return;
+
+    let removeListener: null | (() => void) = null;
+
+    const setupNativeSsoListener = async () => {
+      try {
+        const [{ App }, { Browser }] = await Promise.all([import("@capacitor/app"), import("@capacitor/browser")]);
+        const handle = await App.addListener("appUrlOpen", (event) => {
+          const targetPath = mapNativeCallbackToWebPath(String(event.url ?? ""), window.location.origin);
+          if (!targetPath) return;
+
+          void Browser.close().catch(() => {});
+          router.replace(targetPath);
+        });
+
+        removeListener = () => {
+          void handle.remove();
+        };
+      } catch (nativeError) {
+        console.error("Failed to initialize native OAuth listener:", nativeError);
+      }
+    };
+
+    void setupNativeSsoListener();
+
+    return () => {
+      if (removeListener) {
+        removeListener();
+      }
+    };
+  }, [router]);
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -227,7 +310,51 @@ export default function LoginPage() {
     });
 
     setLoading(false);
-    router.push("/home");
+    router.replace("/home");
+  }
+
+  async function signInWithGoogle() {
+    if (loading || googleLoading) {
+      return;
+    }
+
+    setGoogleLoading(true);
+
+    try {
+      const supabase = createClient();
+      const runtime = detectRuntimeCapabilities();
+      const options = runtime.isCapacitorNative
+        ? { redirectTo: getNativeOAuthRedirectUrl(), skipBrowserRedirect: true as const, queryParams: { prompt: "select_account" } }
+        : { redirectTo: getWebOAuthRedirectUrl(window.location.origin), skipBrowserRedirect: true as const, queryParams: { prompt: "select_account" } };
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options,
+      });
+
+      if (error || !data?.url) {
+        throw new Error(error?.message || "Unable to start Google sign-in.");
+      }
+
+      if (runtime.isCapacitorNative) {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url: data.url });
+        return;
+      }
+
+      window.location.assign(data.url);
+    } catch (error) {
+      showToast(
+        mapLoginError({
+          message: error instanceof Error ? error.message : "Unable to start Google sign-in.",
+          locale,
+          fallback: t("login.failed"),
+        }),
+        "error",
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
   }
 
   function handleEmailChange(event: ChangeEvent<HTMLInputElement>) {
@@ -305,6 +432,18 @@ export default function LoginPage() {
                 t("login.signIn")
               )}
             </Button>
+
+            {GOOGLE_SSO_ENABLED ? (
+              <Button
+                className="w-full"
+                type="button"
+                variant="secondary"
+                disabled={loading || googleLoading}
+                onClick={() => void signInWithGoogle()}
+              >
+                {googleLoading ? "Connecting Google..." : "Continue with Google"}
+              </Button>
+            ) : null}
           </form>
 
           <div className="hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4 text-sm text-slate-600">

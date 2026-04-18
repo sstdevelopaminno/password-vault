@@ -8,6 +8,7 @@ import {
 
 const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
 const userPaths = ["/home", "/vault", "/org-shared", "/settings", "/requests", "/help-center"];
+const authEntryPaths = ["/login"];
 
 const publicApiPaths = new Set([
   "/api/auth/login",
@@ -56,6 +57,7 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const requiresUser = userPaths.some((path) => pathname.startsWith(path));
   const requiresAdminPage = adminPaths.some((path) => pathname.startsWith(path));
+  const isAuthEntryPath = authEntryPaths.some((path) => pathname === path);
   const isApiPath = pathname.startsWith("/api/");
   const requiresApiAuth = isApiPath && !publicApiPaths.has(pathname);
   const requiresAdminApi = pathname.startsWith("/api/admin/") || pathname === "/api/metrics";
@@ -94,6 +96,10 @@ export async function proxy(request: NextRequest) {
       return response;
     }
     return unauthorizedFor(request, "Unauthorized");
+  }
+
+  if (isAuthEntryPath && user) {
+    return NextResponse.redirect(new URL("/home", request.url));
   }
 
   if (needsAuth && user) {
@@ -136,6 +142,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/login",
     "/home/:path*",
     "/vault/:path*",
     "/org-shared/:path*",
