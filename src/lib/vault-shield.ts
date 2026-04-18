@@ -49,9 +49,15 @@ export type VaultShieldInstallApkResult = {
   message?: string;
 };
 
+export type VaultShieldCameraPermissionResult = {
+  status?: "granted" | "denied" | "denied_permanently" | string;
+};
+
 type VaultShieldPlugin = {
   collectSignals(options?: VaultShieldCollectOptions): Promise<VaultShieldSignals>;
   installApkUpdate(options: VaultShieldInstallApkOptions): Promise<VaultShieldInstallApkResult>;
+  requestCameraPermission(): Promise<VaultShieldCameraPermissionResult>;
+  openAppSettings(): Promise<{ opened?: boolean }>;
 };
 
 const nativePlugin = registerPlugin<VaultShieldPlugin>("VaultShield");
@@ -145,5 +151,39 @@ export async function installAndroidApkUpdate(
   } catch (error) {
     console.error("VaultShield installApkUpdate failed:", error);
     return null;
+  }
+}
+
+export async function requestVaultShieldCameraPermission(): Promise<"granted" | "denied" | "denied_permanently" | "unknown"> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return "unknown";
+  }
+
+  try {
+    const result = await nativePlugin.requestCameraPermission();
+    const status = String(result?.status ?? "").toLowerCase();
+    if (status === "granted" || status === "denied" || status === "denied_permanently") {
+      return status;
+    }
+    return "unknown";
+  } catch (error) {
+    console.error("VaultShield requestCameraPermission failed:", error);
+    return "unknown";
+  }
+}
+
+export async function openVaultShieldAppSettings(): Promise<boolean> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return false;
+  }
+
+  try {
+    const result = await nativePlugin.openAppSettings();
+    return Boolean(result?.opened);
+  } catch (error) {
+    console.error("VaultShield openAppSettings failed:", error);
+    return false;
   }
 }

@@ -165,8 +165,8 @@ export async function resolveProfileForAuthUser(input: {
       id: input.userId,
       email: normalizedEmail,
       full_name: fallbackName,
-      role: "pending",
-      status: "pending_approval",
+      role: "user",
+      status: "active",
     })
     .select(AUTH_PROFILE_SELECT_COLUMNS)
     .maybeSingle();

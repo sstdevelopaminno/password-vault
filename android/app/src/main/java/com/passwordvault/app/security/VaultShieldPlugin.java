@@ -1,5 +1,6 @@
 package com.passwordvault.app.security;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.BroadcastReceiver;
@@ -27,7 +28,10 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import com.google.android.play.core.integrity.IntegrityManager;
 import com.google.android.play.core.integrity.IntegrityManagerFactory;
 import com.google.android.play.core.integrity.IntegrityServiceException;
@@ -44,11 +48,74 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
 
-@CapacitorPlugin(name = "VaultShield")
+@CapacitorPlugin(
+  name = "VaultShield",
+  permissions = {
+    @Permission(alias = "camera", strings = { Manifest.permission.CAMERA })
+  }
+)
 public class VaultShieldPlugin extends Plugin {
   private static final String TAG = "VaultShieldPlugin";
   private BroadcastReceiver apkDownloadReceiver;
   private long pendingApkDownloadId = -1L;
+
+  @PluginMethod
+  public void requestCameraPermission(PluginCall call) {
+    PermissionState state = getPermissionState("camera");
+    if (state == PermissionState.GRANTED) {
+      JSObject payload = new JSObject();
+      payload.put("status", "granted");
+      call.resolve(payload);
+      return;
+    }
+
+    requestPermissionForAlias("camera", call, "cameraPermissionCallback");
+  }
+
+  @PermissionCallback
+  private void cameraPermissionCallback(PluginCall call) {
+    if (call == null) {
+      return;
+    }
+
+    PermissionState state = getPermissionState("camera");
+    JSObject payload = new JSObject();
+    if (state == PermissionState.GRANTED) {
+      payload.put("status", "granted");
+      call.resolve(payload);
+      return;
+    }
+
+    boolean permanentlyDenied = false;
+    try {
+      if (getActivity() != null) {
+        permanentlyDenied =
+          !getActivity().shouldShowRequestPermissionRationale(Manifest.permission.CAMERA);
+      }
+    } catch (Exception ignored) {
+      permanentlyDenied = false;
+    }
+
+    payload.put("status", permanentlyDenied ? "denied_permanently" : "denied");
+    call.resolve(payload);
+  }
+
+  @PluginMethod
+  public void openAppSettings(PluginCall call) {
+    Context context = getContext();
+    try {
+      Intent settingsIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+      settingsIntent.setData(Uri.fromParts("package", context.getPackageName(), null));
+      settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      context.startActivity(settingsIntent);
+
+      JSObject payload = new JSObject();
+      payload.put("opened", true);
+      call.resolve(payload);
+    } catch (Exception error) {
+      call.reject("Unable to open app settings: " + error.getMessage());
+    }
+  }
 
   @PluginMethod
   public void installApkUpdate(PluginCall call) {

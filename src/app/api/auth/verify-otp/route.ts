@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     .from("profiles")
     .update({
       email_verified_at: new Date().toISOString(),
-      status: "pending_approval",
+      status: "active",
       role: profile.role === "pending" ? "user" : profile.role,
       email: String(user.email ?? normalizedEmail).toLowerCase(),
     })
@@ -65,24 +65,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
   }
 
-  const { data: pendingRequest } = await admin
-    .from("approval_requests")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("request_status", "pending")
-    .maybeSingle();
-
-  if (!pendingRequest?.id) {
-    await admin.from("approval_requests").insert({
-      user_id: user.id,
-      request_status: "pending",
-    });
-  }
-
   return NextResponse.json({
     ok: true,
-    pendingApproval: true,
-    message: "OTP verified. Your account is waiting for admin approval.",
+    pendingApproval: false,
+    approved: true,
+    agreementRequired: true,
+    message: "OTP verified. Your account is now active.",
   });
 }
 

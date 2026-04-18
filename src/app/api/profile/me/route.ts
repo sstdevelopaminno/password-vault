@@ -39,7 +39,7 @@ export async function GET() {
   });
   const profile = resolved.profile;
 
-  let status = String(profile.status ?? "pending_approval");
+  let status = String(profile.status ?? "active");
   const role = String(profile.role ?? "pending");
   const emailVerifiedAt = profile.email_verified_at
     ? String(profile.email_verified_at)
@@ -47,11 +47,11 @@ export async function GET() {
       ? String(auth.user.email_confirmed_at)
       : "";
   if (isPendingStatus(status)) {
-    status = "pending_approval";
+    status = "active";
   }
 
   const needsOtpVerification = !emailVerifiedAt;
-  const pendingApproval = !needsOtpVerification && status !== "active";
+  const pendingApproval = false;
   const hasPin = Boolean(profile.pin_hash);
   const faceAuthEnabled = Boolean(profile.face_auth_enabled);
   const faceEnrolledAt = profile.face_enrolled_at ? String(profile.face_enrolled_at) : null;

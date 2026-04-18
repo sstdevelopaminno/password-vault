@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
     }
 
-    let status = String(profile.status ?? "pending_approval");
+    let status = String(profile.status ?? "active");
     const role = String(profile.role ?? "pending");
     const emailVerifiedAt = profile.email_verified_at
       ? String(profile.email_verified_at)
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
         ? String(user.email_confirmed_at)
         : "";
     if (isPendingStatus(status)) {
-      status = "pending_approval";
+      status = "active";
     }
 
     const binding = await bindActiveSession(user.id, user.app_metadata);
@@ -123,7 +123,7 @@ export async function POST(req: Request) {
     const activeCookieToken = binding.error ? metadataToken || createActiveSessionToken() : binding.token;
 
     const needsOtpVerification = !emailVerifiedAt;
-    const pendingApproval = !needsOtpVerification && status !== "active";
+    const pendingApproval = false;
 
     const response = NextResponse.json({
       ok: true,

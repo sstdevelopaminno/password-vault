@@ -49,7 +49,7 @@ export const messages = {
       otpSent: "ส่ง OTP ไปที่อีเมลแล้ว",
       failedSendOtp: "ส่ง OTP ไม่สำเร็จ",
       failedRegister: "สมัครใช้งานไม่สำเร็จ",
-      createdPending: "ยืนยัน OTP สำเร็จ เข้าสู่ระบบได้แล้ว ระบบจะอนุมัติอัตโนมัติภายใน 1-2 นาที",
+      createdPending: "ยืนยัน OTP สำเร็จ บัญชีพร้อมใช้งานทันที",
     },
     forgotPassword: {
       title: "ลืมรหัสผ่าน",
@@ -217,7 +217,7 @@ export const messages = {
       otpSent: "OTP sent to your email",
       failedSendOtp: "Failed to send OTP",
       failedRegister: "Registration failed",
-      createdPending: "OTP verified. You can log in now. Auto-approval will complete in 1-2 minutes.",
+      createdPending: "OTP verified. Your account is active immediately.",
     },
     forgotPassword: {
       title: "Forgot password",

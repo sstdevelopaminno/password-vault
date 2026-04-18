@@ -1,3 +1,5 @@
+import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
+import { requestVaultShieldCameraPermission } from "@/lib/vault-shield";
 export const FACE_CAPTURE_SIZE = 16;
 
 export type CameraAccessErrorCode =
@@ -139,9 +141,20 @@ export async function startCamera(video: HTMLVideoElement) {
     throw new CameraAccessError("not-supported", "Camera API is not supported on this device.");
   }
 
-  let stream: MediaStream;
+  const runtime = detectRuntimeCapabilities();
+  if (runtime.isCapacitorNative && runtime.isAndroid) {
+    const permission = await requestVaultShieldCameraPermission();
+    if (permission === "denied" || permission === "denied_permanently") {
+      throw new CameraAccessError(
+        "permission-denied",
+        "Camera permission denied. Please allow camera access in app settings and retry.",
+      );
+    }
+  }
+
+  let stream: MediaStream | null = null;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: "user",
         width: { ideal: 640 },
@@ -150,7 +163,22 @@ export async function startCamera(video: HTMLVideoElement) {
       audio: false,
     });
   } catch (error) {
-    if (error instanceof DOMException) {
+    // Fallback for Android devices that reject strict facingMode constraints.
+    if (error instanceof DOMException && (error.name === "NotFoundError" || error.name === "OverconstrainedError")) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 640 },
+          },
+          audio: false,
+        });
+      } catch (fallbackError) {
+        error = fallbackError;
+      }
+    }
+
+    if (!stream && error instanceof DOMException) {
       if (error.name === "NotAllowedError" || error.name === "SecurityError") {
         throw new CameraAccessError(
           "permission-denied",
@@ -170,7 +198,10 @@ export async function startCamera(video: HTMLVideoElement) {
         );
       }
     }
-    throw new CameraAccessError("unknown", "Unable to start camera stream.");
+
+    if (!stream) {
+      throw new CameraAccessError("unknown", "Unable to start camera stream.");
+    }
   }
 
   video.srcObject = stream;

@@ -109,23 +109,9 @@ export async function POST(req: Request) {
           id: userId,
           email: normalizedEmail,
           full_name: fullName,
-          role: "pending",
-          status: "pending_approval",
+          role: "user",
+          status: "active",
         });
-
-        const { data: pendingRequest } = await admin
-          .from("approval_requests")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("request_status", "pending")
-          .maybeSingle();
-
-        if (!pendingRequest?.id) {
-          await admin.from("approval_requests").insert({
-            user_id: userId,
-            request_status: "pending",
-          });
-        }
       }
 
       return NextResponse.json({
@@ -171,7 +157,7 @@ export async function POST(req: Request) {
       .from("profiles")
       .update({
         email_verified_at: new Date().toISOString(),
-        status: "pending_approval",
+        status: "active",
         role: resolved.profile.role === "pending" ? "user" : resolved.profile.role,
         email: String(user.email ?? normalizedEmail).toLowerCase(),
       })
@@ -181,24 +167,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
     }
 
-    const { data: pendingRequest } = await admin
-      .from("approval_requests")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("request_status", "pending")
-      .maybeSingle();
-
-    if (!pendingRequest?.id) {
-      await admin.from("approval_requests").insert({
-        user_id: user.id,
-        request_status: "pending",
-      });
-    }
-
     return NextResponse.json({
       ok: true,
-      approved: false,
-      message: "OTP verified. You can log in after an administrator approves your account.",
+      approved: true,
+      agreementRequired: true,
+      message: "OTP verified. Your account is now active and signed in.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";

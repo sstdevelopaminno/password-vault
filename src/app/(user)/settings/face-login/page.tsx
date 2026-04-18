@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 import { CameraAccessError, captureFaceSample, cosineSimilarity, startCamera, stopCamera } from "@/lib/face-template";
+import { openVaultShieldAppSettings } from "@/lib/vault-shield";
 
 type FaceSampleState = {
   vector: number[];
@@ -36,6 +37,7 @@ export default function FaceLoginSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false);
 
   const [hasPin, setHasPin] = useState(false);
   const [enabled, setEnabled] = useState(false);
@@ -106,8 +108,10 @@ export default function FaceLoginSettingsPage() {
       const stream = await startCamera(videoRef.current);
       streamRef.current = stream;
       setCameraReady(true);
+      setCameraPermissionDenied(false);
     } catch (error) {
       setCameraReady(false);
+      setCameraPermissionDenied(error instanceof CameraAccessError && error.code === "permission-denied");
       toast.showToast(mapCameraError(error), "error");
     }
   }, [mapCameraError, stopCameraNow, toast]);
@@ -168,6 +172,7 @@ export default function FaceLoginSettingsPage() {
     try {
       sample = captureFaceSample(videoRef.current);
     } catch (error) {
+      setCameraPermissionDenied(error instanceof CameraAccessError && error.code === "permission-denied");
       toast.showToast(mapCameraError(error), "error");
       return;
     }
@@ -198,6 +203,16 @@ export default function FaceLoginSettingsPage() {
       "success",
     );
   }, [cameraReady, isThai, mapCameraError, samples, toast]);
+
+  const openAppSettingsNow = useCallback(async () => {
+    const opened = await openVaultShieldAppSettings();
+    toast.showToast(
+      opened
+        ? (isThai ? "เปิดหน้าตั้งค่าแอปแล้ว กรุณาอนุญาตกล้อง" : "App settings opened. Please allow camera permission.")
+        : (isThai ? "ไม่สามารถเปิดหน้าตั้งค่าแอปได้" : "Unable to open app settings."),
+      opened ? "success" : "error",
+    );
+  }, [isThai, toast]);
 
   const enrollNow = useCallback(async () => {
     if (saving) return;
@@ -395,6 +410,12 @@ export default function FaceLoginSettingsPage() {
                 {isThai ? "บันทึกตัวอย่าง" : "Capture sample"}
               </Button>
             </div>
+
+            {cameraPermissionDenied ? (
+              <Button variant="secondary" className="w-full" onClick={() => void openAppSettingsNow()}>
+                {isThai ? "เปิดการตั้งค่าแอปเพื่ออนุญาตกล้อง" : "Open app settings for camera permission"}
+              </Button>
+            ) : null}
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
               <p>

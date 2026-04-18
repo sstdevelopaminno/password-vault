@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TERMS_ACK_STORAGE_KEY = "pv_terms_ack_v1";
+const TERMS_ACK_VERSION = "2026-04-18";
 
 function isValidEmail(value: string) {
   return EMAIL_PATTERN.test(value);
@@ -52,10 +54,10 @@ function mapRegisterError(message: unknown, locale: "th" | "en", fallback: strin
     return locale === "th" ? "ขอ OTP บ่อยเกินไป กรุณารอสักครู่" : "OTP rate limited. Please wait.";
   }
   if (lower.includes("unable to send otp right now")) {
-    return locale === "th" ? "ยังไม่สามารถส่ง OTP ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง" : "Unable to send OTP right now. Please try again shortly.";
+    return locale === "th" ? "ยังไม่สามารถส่ง OTP ได้ในขณะนี้ กรุณาลองใหม่" : "Unable to send OTP right now. Please try again.";
   }
   if (lower.includes("otp delivery service unavailable")) {
-    return locale === "th" ? "ระบบส่ง OTP ยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้ง" : "OTP delivery service unavailable. Please try again shortly.";
+    return locale === "th" ? "ระบบส่ง OTP ยังไม่พร้อมใช้งาน กรุณาลองใหม่" : "OTP delivery service unavailable. Please try again.";
   }
 
   return text || fallback;
@@ -68,17 +70,23 @@ function mapRegisterSuccess(message: unknown, locale: "th" | "en", fallback: str
   if (lower.includes("otp sent")) {
     return locale === "th" ? "ส่ง OTP ไปที่อีเมลแล้ว" : "OTP sent to your email";
   }
-  if (lower.includes("waiting for admin approval")) {
-    return locale === "th" ? "สมัครสำเร็จแล้ว กรุณารอผู้ดูแลอนุมัติ" : "Signup complete. Waiting for admin approval.";
+  if (lower.includes("account is now active")) {
+    return locale === "th" ? "ยืนยัน OTP สำเร็จ บัญชีพร้อมใช้งานแล้ว" : "OTP verified. Account is active.";
   }
 
   return text || fallback;
+}
+
+function hasAcceptedTerms() {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(TERMS_ACK_STORAGE_KEY) === TERMS_ACK_VERSION;
 }
 
 export default function RegisterPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { t, locale } = useI18n();
+  const isThai = locale === "th";
 
   const [form, setForm] = useState({
     fullName: "",
@@ -91,6 +99,7 @@ export default function RegisterPage() {
   const [resendIn, setResendIn] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [agreementOpen, setAgreementOpen] = useState(false);
 
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
@@ -147,7 +156,7 @@ export default function RegisterPage() {
         setEmailExists(exists);
         setEmailInlineError(
           exists
-            ? locale === "th"
+            ? isThai
               ? "อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น"
               : "This email is already registered. Please use another email."
             : "",
@@ -168,30 +177,26 @@ export default function RegisterPage() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [emailFormatValid, locale, normalizedEmail, otpSent]);
+  }, [emailFormatValid, isThai, normalizedEmail, otpSent]);
 
   function validateBeforeOtp() {
     if (!allRequiredFilled) {
-      return locale === "th"
-        ? "กรุณากรอกข้อมูลให้ครบทุกช่องก่อนขอ OTP"
-        : "Please fill in all fields before requesting OTP.";
+      return isThai ? "กรุณากรอกข้อมูลให้ครบก่อนขอ OTP" : "Please fill in all fields before requesting OTP.";
     }
     if (!emailFormatValid) {
-      return locale === "th" ? "รูปแบบอีเมลไม่ถูกต้อง" : "Invalid email format.";
+      return isThai ? "รูปแบบอีเมลไม่ถูกต้อง" : "Invalid email format.";
     }
     if (form.password.length < 8) {
-      return locale === "th" ? "รหัสผ่านต้องอย่างน้อย 8 ตัวอักษร" : "Password must be at least 8 characters.";
+      return isThai ? "รหัสผ่านต้องอย่างน้อย 8 ตัวอักษร" : "Password must be at least 8 characters.";
     }
     if (passwordMismatch) {
-      return locale === "th" ? "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน" : "Passwords do not match.";
+      return isThai ? "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน" : "Passwords do not match.";
     }
     if (emailExists) {
-      return locale === "th"
-        ? "อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น"
-        : "This email is already registered. Please use another email.";
+      return isThai ? "อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น" : "This email is already registered. Please use another email.";
     }
     if (emailChecking) {
-      return locale === "th" ? "กำลังตรวจสอบอีเมล กรุณารอสักครู่" : "Checking email. Please wait.";
+      return isThai ? "กำลังตรวจสอบอีเมล กรุณารอสักครู่" : "Checking email. Please wait.";
     }
     return "";
   }
@@ -234,9 +239,9 @@ export default function RegisterPage() {
       const waitSec = apiRetry > 0 ? apiRetry : parsedRetry > 0 ? parsedRetry : 60;
 
       const message = rateLimited
-        ? locale === "th"
-          ? "ขอ OTP บ่อยเกินไป กรุณารอ " + waitSec + " วินาที"
-          : "OTP rate limited. Please wait " + waitSec + "s."
+        ? isThai
+          ? `ขอ OTP บ่อยเกินไป กรุณารอ ${waitSec} วินาที`
+          : `OTP rate limited. Please wait ${waitSec}s.`
         : mapRegisterError(body.error, locale, t("register.failedSendOtp"));
 
       setError(message);
@@ -282,9 +287,9 @@ export default function RegisterPage() {
       const waitSec = apiRetry > 0 ? apiRetry : parsedRetry > 0 ? parsedRetry : 60;
 
       const message = rateLimited
-        ? locale === "th"
-          ? "ขอ OTP บ่อยเกินไป กรุณารอ " + waitSec + " วินาที"
-          : "OTP rate limited. Please wait " + waitSec + "s."
+        ? isThai
+          ? `ขอ OTP บ่อยเกินไป กรุณารอ ${waitSec} วินาที`
+          : `OTP rate limited. Please wait ${waitSec}s.`
         : mapRegisterError(body.error, locale, t("register.failedSendOtp"));
 
       setError(message);
@@ -300,8 +305,8 @@ export default function RegisterPage() {
     showToast(mapRegisterSuccess(body.message, locale, t("register.otpSent")), "success");
   }
 
-  async function createAccount(e: React.FormEvent) {
-    e.preventDefault();
+  async function createAccount(event: React.FormEvent) {
+    event.preventDefault();
     if (loading) return;
 
     setLoading(true);
@@ -330,8 +335,25 @@ export default function RegisterPage() {
       return;
     }
 
-    showToast(mapRegisterSuccess(body.message, locale, t("register.createdPending")), "success");
-    router.push("/login");
+    showToast(
+      mapRegisterSuccess(body.message, locale, isThai ? "สมัครสำเร็จ บัญชีพร้อมใช้งานแล้ว" : "Registration complete. Account is active."),
+      "success",
+    );
+
+    if (hasAcceptedTerms()) {
+      router.replace("/home");
+      return;
+    }
+
+    setAgreementOpen(true);
+  }
+
+  function acceptAgreement() {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(TERMS_ACK_STORAGE_KEY, TERMS_ACK_VERSION);
+    }
+    setAgreementOpen(false);
+    router.replace("/home");
   }
 
   return (
@@ -342,10 +364,10 @@ export default function RegisterPage() {
 
           <form
             className="space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
+            onSubmit={(event) => {
+              event.preventDefault();
               if (otpSent) {
-                void createAccount(e);
+                void createAccount(event);
               } else {
                 void requestOtp();
               }
@@ -356,10 +378,10 @@ export default function RegisterPage() {
                 <Input
                   placeholder={t("register.fullName")}
                   value={form.fullName}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setForm((prev) => ({
                       ...prev,
-                      fullName: e.target.value,
+                      fullName: event.target.value,
                     }))
                   }
                   required
@@ -369,8 +391,8 @@ export default function RegisterPage() {
                     type="email"
                     placeholder={t("register.email")}
                     value={form.email}
-                    onChange={(e) => {
-                      const nextEmail = e.target.value;
+                    onChange={(event) => {
+                      const nextEmail = event.target.value;
                       setForm((prev) => ({
                         ...prev,
                         email: nextEmail,
@@ -383,7 +405,7 @@ export default function RegisterPage() {
                   />
                   {emailChecking && normalizedEmail && emailFormatValid ? (
                     <p className="text-xs text-slate-500">
-                      {locale === "th" ? "กำลังตรวจสอบอีเมล..." : "Checking email..."}
+                      {isThai ? "กำลังตรวจสอบอีเมล..." : "Checking email..."}
                     </p>
                   ) : null}
                   {emailInlineError ? <p className="text-sm text-rose-600">{emailInlineError}</p> : null}
@@ -392,7 +414,7 @@ export default function RegisterPage() {
                   type="password"
                   placeholder={t("register.password")}
                   value={form.password}
-                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                  onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
                   required
                 />
                 <div className="space-y-1.5">
@@ -400,22 +422,22 @@ export default function RegisterPage() {
                     type="password"
                     placeholder={t("register.confirmPassword")}
                     value={form.confirmPassword}
-                    onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                    onChange={(event) => setForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
                     className={passwordMismatch ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100" : ""}
                     required
                   />
                   {passwordMismatch ? (
                     <p className="text-sm text-rose-600">
-                      {locale === "th"
-                        ? "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน"
-                        : "Passwords do not match."}
+                      {isThai ? "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน" : "Passwords do not match."}
                     </p>
                   ) : null}
                 </div>
               </>
             ) : (
               <div className="space-y-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-3">
-                <p className="text-sm text-slate-600">{t("register.createdPending")}</p>
+                <p className="text-sm text-slate-600">
+                  {isThai ? "กรุณากรอก OTP 6 หลักจากอีเมลเพื่อยืนยันการสมัคร" : "Please enter the 6-digit OTP from your email."}
+                </p>
                 <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={t("otpInput.ariaLabel")} />
 
                 <div className="grid grid-cols-2 gap-2">
@@ -428,7 +450,7 @@ export default function RegisterPage() {
                       setError("");
                     }}
                   >
-                    {locale === "th" ? "แก้ไขข้อมูล" : "Edit info"}
+                    {isThai ? "แก้ไขข้อมูล" : "Edit info"}
                   </Button>
 
                   <Button
@@ -438,9 +460,9 @@ export default function RegisterPage() {
                     onClick={() => void resendOtp()}
                   >
                     {resendIn > 0
-                      ? locale === "th"
-                        ? "ขอใหม่ใน " + resendIn + "s"
-                        : "Resend in " + resendIn + "s"
+                      ? isThai
+                        ? `ขอใหม่ใน ${resendIn}s`
+                        : `Resend in ${resendIn}s`
                       : t("register.sendOtp")}
                   </Button>
                 </div>
@@ -458,7 +480,7 @@ export default function RegisterPage() {
                   <Spinner /> {otpSent ? t("register.creating") : t("register.sendingOtp")}
                 </span>
               ) : otpSent ? (
-                t("register.createAccount")
+                isThai ? "ยืนยัน OTP และเข้าใช้งาน" : "Verify OTP and continue"
               ) : (
                 t("register.sendOtp")
               )}
@@ -466,6 +488,49 @@ export default function RegisterPage() {
           </form>
         </Card>
       </main>
+
+      {agreementOpen ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]">
+          <Card className="w-full max-w-[560px] space-y-3 rounded-3xl bg-white p-5">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {isThai ? "ข้อตกลงการใช้งานระบบ" : "Terms of Use"}
+            </h2>
+
+            <p className="text-sm leading-6 text-slate-700">
+              {isThai
+                ? "ก่อนเข้าใช้งาน กรุณาอ่านและยอมรับข้อตกลงต่อไปนี้"
+                : "Before proceeding, please read and accept the terms below."}
+            </p>
+
+            <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+              <p>
+                {isThai
+                  ? "1) ระบบมีฟังก์ชันหลักด้านความปลอดภัย เช่น OTP, PIN, Face Login, การเข้ารหัสข้อมูล, และการติดตามสถานะความเสี่ยงอุปกรณ์"
+                  : "1) The app includes OTP, PIN, Face Login, data encryption, and device risk monitoring features."}
+              </p>
+              <p>
+                {isThai
+                  ? "2) ทีมงานให้การดูแลและแก้ไขปัญหาระบบตลอด 24/7 เพื่อให้ผู้ใช้ใช้งานได้อย่างต่อเนื่อง"
+                  : "2) Our team provides 24/7 support and incident response to keep the service available."}
+              </p>
+              <p>
+                {isThai
+                  ? "3) ผู้ใช้ต้องรักษาความลับของบัญชี รหัสผ่าน PIN และอุปกรณ์ของตนเอง หากเกิดความเสียหายจากการใช้งานผิดวิธี ความประมาท หรือการเปิดเผยข้อมูลโดยผู้ใช้ ทางระบบขอสงวนสิทธิ์ไม่รับผิดชอบต่อความเสียหายดังกล่าว"
+                  : "3) Users are responsible for account, password, PIN, and device security. We are not liable for damages caused by user negligence, misuse, or user-side data disclosure."}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button variant="secondary" onClick={() => router.replace("/login")}>
+                {isThai ? "ยังไม่ยอมรับ (กลับไปหน้าเข้าสู่ระบบ)" : "Decline (Back to Login)"}
+              </Button>
+              <Button onClick={acceptAgreement}>
+                {isThai ? "ยอมรับข้อตกลงและเริ่มใช้งาน" : "Accept and Continue"}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
     </MobileShell>
   );
 }

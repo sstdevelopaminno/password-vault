@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { CameraAccessError, captureFaceSample, startCamera, stopCamera } from "@/lib/face-template";
 import { useI18n } from "@/i18n/provider";
+import { openVaultShieldAppSettings } from "@/lib/vault-shield";
 
 type FacePinLoginGateProps = {
   children?: React.ReactNode;
@@ -29,6 +30,7 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
   const [required, setRequired] = useState(false);
   const [verified, setVerified] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false);
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -107,8 +109,10 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
       }
       streamRef.current = stream;
       setCameraReady(true);
+      setCameraPermissionDenied(false);
     } catch (cameraError) {
       setCameraReady(false);
+      setCameraPermissionDenied(cameraError instanceof CameraAccessError && cameraError.code === "permission-denied");
       setError(mapCameraError(cameraError));
     }
   }, [mapCameraError, required, stopCameraNow, verified]);
@@ -178,6 +182,7 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
       try {
         sample = captureFaceSample(videoRef.current);
       } catch (captureError) {
+        setCameraPermissionDenied(captureError instanceof CameraAccessError && captureError.code === "permission-denied");
         setError(mapCameraError(captureError));
         return;
       }
@@ -222,6 +227,15 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
       }
     }
   }, [cameraReady, isThai, loadSession, loading, mapCameraError, pin, recoverSessionOrRedirect, resetSessionRetry, stopCameraNow]);
+
+  const openAppSettingsNow = useCallback(async () => {
+    const opened = await openVaultShieldAppSettings();
+    setError(
+      opened
+        ? (isThai ? "เปิดหน้าตั้งค่าแอปแล้ว กรุณาอนุญาตกล้อง" : "App settings opened. Please allow camera permission.")
+        : (isThai ? "ไม่สามารถเปิดหน้าตั้งค่าแอปได้" : "Unable to open app settings."),
+    );
+  }, [isThai]);
 
   const requestRecoveryOtp = useCallback(async () => {
     if (otpRequestLoading || resendIn > 0) return;
@@ -401,6 +415,12 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
                 )}
               </Button>
             </div>
+
+            {cameraPermissionDenied ? (
+              <Button variant="secondary" className="w-full" onClick={() => void openAppSettingsNow()}>
+                {isThai ? "เปิดการตั้งค่าแอปเพื่ออนุญาตกล้อง" : "Open app settings for camera permission"}
+              </Button>
+            ) : null}
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
               <p className="text-xs font-semibold text-amber-900">
