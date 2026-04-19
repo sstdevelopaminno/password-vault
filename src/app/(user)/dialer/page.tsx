@@ -1,7 +1,9 @@
-Ôªø'use client';
+'use client';
 
 import { useState } from 'react';
 import { PhoneCall, ShieldCheck, ShieldX } from 'lucide-react';
+import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
+import { openVaultShieldAppSettings, requestVaultShieldCallPhonePermission } from '@/lib/vault-shield';
 
 type DialPayload = {
   dial: {
@@ -29,6 +31,7 @@ export default function DialerPage() {
     return params.get('number') ?? '';
   });
   const [result, setResult] = useState<DialPayload['dial'] | null>(null);
+  const [callPermissionState, setCallPermissionState] = useState<'idle' | 'denied' | 'denied_permanently' | 'unknown'>('idle');
 
   async function previewDial() {
     const response = await fetch('/api/phone/dialer', {
@@ -40,19 +43,44 @@ export default function DialerPage() {
     setResult(payload.dial);
   }
 
+  async function handleSafeDial() {
+    const trimmedNumber = number.trim();
+    if (!trimmedNumber) return;
+
+    if (result?.allowDirectDial === false) {
+      setCallPermissionState('denied');
+      return;
+    }
+
+    const runtime = detectRuntimeCapabilities();
+    if (runtime.isCapacitorNative && runtime.isAndroid) {
+      const permission = await requestVaultShieldCallPhonePermission();
+      if (permission === 'denied' || permission === 'denied_permanently') {
+        setCallPermissionState(permission);
+        return;
+      }
+
+      setCallPermissionState(permission === 'unknown' ? 'unknown' : 'idle');
+    } else {
+      setCallPermissionState('idle');
+    }
+
+    window.location.href = `tel:${trimmedNumber}`;
+  }
+
   return (
     <section className='space-y-3'>
       <div className='rounded-3xl border border-white/70 bg-white/85 p-4 shadow-sm'>
-        <h1 className='text-lg font-semibold text-slate-900'>‡∏´‡∏ô‡πâ‡∏≤‡πÇ‡∏ó‡∏£‡∏≠‡∏≠‡∏Å</h1>
-        <p className='mt-1 text-sm text-slate-600'>‡πÇ‡∏ó‡∏£‡∏≠‡∏≠‡∏Å‡∏ó‡∏±‡∏ô‡∏ó‡∏µ ‡∏û‡∏£‡πâ‡∏≠‡∏°‡πÄ‡∏ä‡πá‡∏Å‡∏Ñ‡∏ß‡∏≤‡∏°‡πÄ‡∏™‡∏µ‡πà‡∏¢‡∏á‡∏Å‡πà‡∏≠‡∏ô‡∏Å‡∏î‡πÇ‡∏ó‡∏£</p>
+        <h1 className='text-lg font-semibold text-slate-900'>ÀπÈ“‚∑√ÕÕ°</h1>
+        <p className='mt-1 text-sm text-slate-600'>‚∑√ÕÕ°∑—π∑’ æ√ÈÕ¡‡™Á°§«“¡‡ ’Ë¬ß°ËÕπ°¥‚∑√</p>
 
         <div className='mt-3 rounded-2xl border border-slate-200 bg-white p-3'>
-          <label className='text-xs font-semibold text-slate-500'>‡∏´‡∏°‡∏≤‡∏¢‡πÄ‡∏•‡∏Ç‡∏õ‡∏•‡∏≤‡∏¢‡∏ó‡∏≤‡∏á</label>
+          <label className='text-xs font-semibold text-slate-500'>À¡“¬‡≈¢ª≈“¬∑“ß</label>
           <input
             type='tel'
             value={number}
             onChange={(event) => setNumber(event.target.value)}
-            placeholder='‡∏Å‡∏£‡∏≠‡∏Å‡∏´‡∏°‡∏≤‡∏¢‡πÄ‡∏•‡∏Ç‡πÇ‡∏ó‡∏£‡∏®‡∏±‡∏û‡∏ó‡πå'
+            placeholder='°√Õ°À¡“¬‡≈¢‚∑√»—æ∑Ï'
             className='mt-1 h-11 w-full rounded-lg border border-slate-200 px-3 text-base outline-none focus:border-blue-400'
           />
           <button
@@ -60,7 +88,7 @@ export default function DialerPage() {
             onClick={() => void previewDial()}
             className='mt-2 inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700'
           >
-            <ShieldCheck className='h-3.5 w-3.5' /> ‡∏ï‡∏£‡∏ß‡∏à‡∏Ñ‡∏ß‡∏≤‡∏°‡πÄ‡∏™‡∏µ‡πà‡∏¢‡∏á‡∏Å‡πà‡∏≠‡∏ô‡πÇ‡∏ó‡∏£
+            <ShieldCheck className='h-3.5 w-3.5' /> µ√«®§«“¡‡ ’Ë¬ß°ËÕπ‚∑√
           </button>
         </div>
 
@@ -74,18 +102,38 @@ export default function DialerPage() {
         ) : null}
 
         <div className='mt-3 flex gap-2'>
-          <a
-            href={number ? `tel:${number}` : '#'}
+          <button
+            type='button'
+            onClick={() => void handleSafeDial()}
             className='inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-sm font-semibold text-white'
           >
-            <PhoneCall className='h-4 w-4' /> ‡πÇ‡∏ó‡∏£‡∏≠‡∏≠‡∏Å‡∏ï‡∏≠‡∏ô‡∏ô‡∏µ‡πâ
-          </a>
+            <PhoneCall className='h-4 w-4' /> ‚∑√ÕÕ°µÕππ’È
+          </button>
           {result?.allowDirectDial === false ? (
             <button type='button' className='inline-flex h-11 items-center gap-1 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700'>
-              <ShieldX className='h-3.5 w-3.5' /> ‡∏ö‡∏•‡πá‡∏≠‡∏Å
+              <ShieldX className='h-3.5 w-3.5' /> ∫≈ÁÕ°
             </button>
           ) : null}
         </div>
+
+        {callPermissionState !== 'idle' ? (
+          <div className='mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800'>
+            {callPermissionState === 'denied_permanently'
+              ? '¬—ß‰¡Ë‰¥ÈÕπÿ≠“µ ‘∑∏‘Ï°“√‚∑√ °√ÿ≥“‡ª‘¥ ‘∑∏‘Ï„πµ—Èß§Ë“·Õª'
+              : callPermissionState === 'unknown'
+                ? '‰¡Ë “¡“√∂¬◊π¬—π ‘∑∏‘Ï°“√‚∑√‰¥È √–∫∫®–‡ª‘¥ÀπÈ“°“√‚∑√µ“¡ª°µ‘'
+                : '‰¡Ë “¡“√∂‚∑√ÕÕ°‰¥È ‡π◊ËÕß®“° ‘∑∏‘ÏÀ√◊Õ§«“¡ª≈Õ¥¿—¬¢ÕßÀ¡“¬‡≈¢'}
+            {callPermissionState === 'denied_permanently' ? (
+              <button
+                type='button'
+                onClick={() => void openVaultShieldAppSettings()}
+                className='ml-2 inline-flex rounded-lg border border-amber-300 bg-white px-2 py-1 text-[11px] font-semibold text-amber-800'
+              >
+                ‡ª‘¥µ—Èß§Ë“·Õª
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );

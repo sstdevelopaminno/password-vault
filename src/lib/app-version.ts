@@ -1,7 +1,7 @@
-const rawVersion = String(process.env.NEXT_PUBLIC_APP_VERSION ?? "").trim();
+﻿const rawVersion = String(process.env.NEXT_PUBLIC_APP_VERSION ?? '').trim();
 
-export const APP_VERSION = rawVersion || "V16.6.9";
+export const APP_VERSION = rawVersion || 'V16.6.10';
 
 export function versionLabel(locale: string) {
-  return locale === "th" ? `เวอร์ชัน ${APP_VERSION}` : `Version ${APP_VERSION}`;
+  return locale === 'th' ? `เวอร์ชัน ${APP_VERSION}` : `Version ${APP_VERSION}`;
 }

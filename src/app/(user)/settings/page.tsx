@@ -11,6 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { TopQuickActions } from '@/components/layout/top-quick-actions';
 import { useI18n } from '@/i18n/provider';
+import { readPhoneProtectionEnabled } from '@/lib/phone-protection';
 import {
   clampPinSessionTimeoutSec,
   DEFAULT_PIN_SESSION_TIMEOUT_SEC,
@@ -69,6 +70,7 @@ export default function SettingsPage() {
   const [pinSessionEnabled, setPinSessionEnabled] = useState(true);
   const [pinSessionTimeoutSec, setPinSessionTimeoutSec] = useState(DEFAULT_PIN_SESSION_TIMEOUT_SEC);
   const [pinSecuritySaving, setPinSecuritySaving] = useState(false);
+  const [phoneProtectionEnabled, setPhoneProtectionEnabled] = useState(false);
 
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailAutoLoading, setEmailAutoLoading] = useState(false);
@@ -332,6 +334,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadProfile();
+      setPhoneProtectionEnabled(readPhoneProtectionEnabled());
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadProfile]);
@@ -745,6 +748,26 @@ export default function SettingsPage() {
             </span>
           </span>
           <ChevronRight className='h-4 w-4 text-slate-400' />
+        </button>
+        <button
+          type='button'
+          onClick={() => router.push('/settings/risk-state?guide=1')}
+          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
+        >
+          <span className='inline-flex items-center gap-3'>
+            <span className='rounded-xl bg-slate-100 p-2.5 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'>
+              <Shield className='h-4 w-4' />
+            </span>
+            <span className='text-base font-semibold leading-6 text-slate-800'>
+              {locale === 'th' ? 'Phone Protection' : 'Phone Protection'}
+            </span>
+          </span>
+          <span className='inline-flex items-center gap-2'>
+            <span className={'rounded-full px-2 py-0.5 text-[11px] font-semibold ' + (phoneProtectionEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600')}>
+              {phoneProtectionEnabled ? (locale === 'th' ? 'เปิดแล้ว' : 'Enabled') : (locale === 'th' ? 'ปิดอยู่' : 'Disabled')}
+            </span>
+            <ChevronRight className='h-4 w-4 text-slate-400' />
+          </span>
         </button>
         <button
           type='button'

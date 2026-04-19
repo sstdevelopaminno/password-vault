@@ -17,6 +17,7 @@ import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.util.Log;
 import android.webkit.URLUtil;
@@ -51,7 +52,9 @@ import java.util.TimeZone;
 @CapacitorPlugin(
   name = "VaultShield",
   permissions = {
-    @Permission(alias = "camera", strings = { Manifest.permission.CAMERA })
+    @Permission(alias = "camera", strings = { Manifest.permission.CAMERA }),
+    @Permission(alias = "contacts", strings = { Manifest.permission.READ_CONTACTS }),
+    @Permission(alias = "call_phone", strings = { Manifest.permission.CALL_PHONE })
   }
 )
 public class VaultShieldPlugin extends Plugin {
@@ -70,6 +73,32 @@ public class VaultShieldPlugin extends Plugin {
     }
 
     requestPermissionForAlias("camera", call, "cameraPermissionCallback");
+  }
+
+  @PluginMethod
+  public void requestContactsPermission(PluginCall call) {
+    PermissionState state = getPermissionState("contacts");
+    if (state == PermissionState.GRANTED) {
+      JSObject payload = new JSObject();
+      payload.put("status", "granted");
+      call.resolve(payload);
+      return;
+    }
+
+    requestPermissionForAlias("contacts", call, "contactsPermissionCallback");
+  }
+
+  @PluginMethod
+  public void requestCallPhonePermission(PluginCall call) {
+    PermissionState state = getPermissionState("call_phone");
+    if (state == PermissionState.GRANTED) {
+      JSObject payload = new JSObject();
+      payload.put("status", "granted");
+      call.resolve(payload);
+      return;
+    }
+
+    requestPermissionForAlias("call_phone", call, "callPhonePermissionCallback");
   }
 
   @PermissionCallback
@@ -98,6 +127,153 @@ public class VaultShieldPlugin extends Plugin {
 
     payload.put("status", permanentlyDenied ? "denied_permanently" : "denied");
     call.resolve(payload);
+  }
+
+  @PermissionCallback
+  private void contactsPermissionCallback(PluginCall call) {
+    if (call == null) {
+      return;
+    }
+
+    PermissionState state = getPermissionState("contacts");
+    JSObject payload = new JSObject();
+    if (state == PermissionState.GRANTED) {
+      payload.put("status", "granted");
+      call.resolve(payload);
+      return;
+    }
+
+    boolean permanentlyDenied = false;
+    try {
+      if (getActivity() != null) {
+        permanentlyDenied =
+          !getActivity().shouldShowRequestPermissionRationale(Manifest.permission.READ_CONTACTS);
+      }
+    } catch (Exception ignored) {
+      permanentlyDenied = false;
+    }
+
+    payload.put("status", permanentlyDenied ? "denied_permanently" : "denied");
+    call.resolve(payload);
+  }
+
+  @PermissionCallback
+  private void callPhonePermissionCallback(PluginCall call) {
+    if (call == null) {
+      return;
+    }
+
+    PermissionState state = getPermissionState("call_phone");
+    JSObject payload = new JSObject();
+    if (state == PermissionState.GRANTED) {
+      payload.put("status", "granted");
+      call.resolve(payload);
+      return;
+    }
+
+    boolean permanentlyDenied = false;
+    try {
+      if (getActivity() != null) {
+        permanentlyDenied =
+          !getActivity().shouldShowRequestPermissionRationale(Manifest.permission.CALL_PHONE);
+      }
+    } catch (Exception ignored) {
+      permanentlyDenied = false;
+    }
+
+    payload.put("status", permanentlyDenied ? "denied_permanently" : "denied");
+    call.resolve(payload);
+  }
+
+  @PluginMethod
+  public void getDeviceContacts(PluginCall call) {
+    PermissionState state = getPermissionState("contacts");
+    if (state != PermissionState.GRANTED) {
+      JSObject payload = new JSObject();
+      payload.put("permission", "denied");
+      payload.put("contacts", new JSArray());
+      call.resolve(payload);
+      return;
+    }
+
+    int limit = 300;
+    Integer requestedLimit = call.getInt("limit");
+    if (requestedLimit != null && requestedLimit > 0) {
+      limit = Math.min(requestedLimit, 1000);
+    }
+
+    JSArray contacts = new JSArray();
+    Set<String> dedupe = new HashSet<>();
+
+    String[] projection = new String[] {
+      ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
+      ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+      ContactsContract.CommonDataKinds.Phone.NUMBER,
+      ContactsContract.CommonDataKinds.Phone.TYPE,
+    };
+
+    Cursor cursor = null;
+    try {
+      cursor = getContext().getContentResolver().query(
+        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+        projection,
+        null,
+        null,
+        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+      );
+
+      if (cursor == null) {
+        JSObject payload = new JSObject();
+        payload.put("permission", "granted");
+        payload.put("contacts", contacts);
+        payload.put("count", 0);
+        payload.put("source", "device");
+        call.resolve(payload);
+        return;
+      }
+
+      int idIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID);
+      int nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+      int numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+      int typeIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE);
+
+      while (cursor.moveToNext() && contacts.length() < limit) {
+        String id = idIndex >= 0 ? String.valueOf(cursor.getLong(idIndex)) : String.valueOf(contacts.length() + 1);
+        String name = nameIndex >= 0 ? String.valueOf(cursor.getString(nameIndex)) : "";
+        String number = numberIndex >= 0 ? String.valueOf(cursor.getString(numberIndex)) : "";
+        int type = typeIndex >= 0 ? cursor.getInt(typeIndex) : ContactsContract.CommonDataKinds.Phone.TYPE_OTHER;
+
+        if (number == null || number.trim().isEmpty()) {
+          continue;
+        }
+
+        String normalized = number.replaceAll("[^0-9]", "");
+        if (normalized.isEmpty() || dedupe.contains(normalized)) {
+          continue;
+        }
+        dedupe.add(normalized);
+
+        JSObject row = new JSObject();
+        row.put("id", id);
+        row.put("name", (name == null || name.trim().isEmpty()) ? "Unknown" : name.trim());
+        row.put("number", number.trim());
+        row.put("label", mapContactLabel(type));
+        contacts.put(row);
+      }
+
+      JSObject payload = new JSObject();
+      payload.put("permission", "granted");
+      payload.put("contacts", contacts);
+      payload.put("count", contacts.length());
+      payload.put("source", "device");
+      call.resolve(payload);
+    } catch (Exception error) {
+      call.reject("Unable to read contacts: " + error.getMessage());
+    } finally {
+      if (cursor != null) {
+        cursor.close();
+      }
+    }
   }
 
   @PluginMethod
@@ -496,6 +672,34 @@ public class VaultShieldPlugin extends Plugin {
 
   private boolean isDebuggable(Context context) {
     return (context.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+  }
+
+  private String mapContactLabel(int androidType) {
+    if (
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_WORK ||
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_WORK_MOBILE ||
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_WORK_PAGER ||
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_COMPANY_MAIN
+    ) {
+      return "work";
+    }
+
+    if (
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_HOME ||
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE ||
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_FAX_HOME
+    ) {
+      return "family";
+    }
+
+    if (
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_OTHER ||
+      androidType == ContactsContract.CommonDataKinds.Phone.TYPE_MAIN
+    ) {
+      return "service";
+    }
+
+    return "unknown";
   }
 
   private boolean hasTestKeys() {

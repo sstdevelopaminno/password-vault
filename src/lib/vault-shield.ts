@@ -53,10 +53,35 @@ export type VaultShieldCameraPermissionResult = {
   status?: "granted" | "denied" | "denied_permanently" | string;
 };
 
+export type VaultShieldContactsPermissionResult = {
+  status?: "granted" | "denied" | "denied_permanently" | string;
+};
+
+export type VaultShieldCallPermissionResult = {
+  status?: "granted" | "denied" | "denied_permanently" | string;
+};
+
+export type VaultShieldDeviceContact = {
+  id: string;
+  name: string;
+  number: string;
+  label: "family" | "work" | "service" | "unknown";
+};
+
+export type VaultShieldDeviceContactsResult = {
+  permission?: "granted" | "denied" | string;
+  contacts?: VaultShieldDeviceContact[];
+  count?: number;
+  source?: "device" | string;
+};
+
 type VaultShieldPlugin = {
   collectSignals(options?: VaultShieldCollectOptions): Promise<VaultShieldSignals>;
   installApkUpdate(options: VaultShieldInstallApkOptions): Promise<VaultShieldInstallApkResult>;
   requestCameraPermission(): Promise<VaultShieldCameraPermissionResult>;
+  requestContactsPermission(): Promise<VaultShieldContactsPermissionResult>;
+  requestCallPhonePermission(): Promise<VaultShieldCallPermissionResult>;
+  getDeviceContacts(options?: { limit?: number }): Promise<VaultShieldDeviceContactsResult>;
   openAppSettings(): Promise<{ opened?: boolean }>;
 };
 
@@ -185,5 +210,58 @@ export async function openVaultShieldAppSettings(): Promise<boolean> {
   } catch (error) {
     console.error("VaultShield openAppSettings failed:", error);
     return false;
+  }
+}
+
+export async function requestVaultShieldContactsPermission(): Promise<"granted" | "denied" | "denied_permanently" | "unknown"> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return "unknown";
+  }
+
+  try {
+    const result = await nativePlugin.requestContactsPermission();
+    const status = String(result?.status ?? "").toLowerCase();
+    if (status === "granted" || status === "denied" || status === "denied_permanently") {
+      return status;
+    }
+    return "unknown";
+  } catch (error) {
+    console.error("VaultShield requestContactsPermission failed:", error);
+    return "unknown";
+  }
+}
+
+export async function requestVaultShieldCallPhonePermission(): Promise<"granted" | "denied" | "denied_permanently" | "unknown"> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return "unknown";
+  }
+
+  try {
+    const result = await nativePlugin.requestCallPhonePermission();
+    const status = String(result?.status ?? "").toLowerCase();
+    if (status === "granted" || status === "denied" || status === "denied_permanently") {
+      return status;
+    }
+    return "unknown";
+  } catch (error) {
+    console.error("VaultShield requestCallPhonePermission failed:", error);
+    return "unknown";
+  }
+}
+
+export async function readVaultShieldDeviceContacts(limit = 300): Promise<VaultShieldDeviceContactsResult | null> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return null;
+  }
+
+  try {
+    const result = await nativePlugin.getDeviceContacts({ limit });
+    return result ?? null;
+  } catch (error) {
+    console.error("VaultShield getDeviceContacts failed:", error);
+    return null;
   }
 }

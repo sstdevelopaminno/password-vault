@@ -3,35 +3,34 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Phone, Search, UserRound } from 'lucide-react';
+import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
+import { readMobileContacts, type MobileContact, type MobileContactsPermission } from '@/lib/mobile-contacts';
 
-type Contact = {
-  id: string;
-  name: string;
-  number: string;
-  label: 'family' | 'work' | 'service' | 'unknown';
-};
-
-type ContactsPayload = {
-  contacts: Contact[];
-};
+type Contact = MobileContact;
 
 export default function ContactsPage() {
   const [query, setQuery] = useState('');
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [permission, setPermission] = useState<MobileContactsPermission>('unknown');
+  const [source, setSource] = useState<'device' | 'server-seed' | 'web'>('server-seed');
+  const [loading, setLoading] = useState(false);
+  const runtime = useMemo(() => detectRuntimeCapabilities(), []);
+  const canRequestNativeContacts = runtime.isCapacitorNative && runtime.isAndroid;
+
+  async function loadContacts(requestPermission: boolean) {
+    setLoading(true);
+    try {
+      const result = await readMobileContacts({ requestPermission, limit: 500 });
+      setContacts(result.contacts);
+      setPermission(result.permission);
+      setSource(result.source);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let ignore = false;
-    fetch('/api/phone/contacts', { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload: ContactsPayload | null) => {
-        if (ignore || !payload?.contacts) return;
-        setContacts(payload.contacts);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      ignore = true;
-    };
+    void loadContacts(false);
   }, []);
 
   const filtered = useMemo(() => {
@@ -45,6 +44,23 @@ export default function ContactsPage() {
       <div className='rounded-3xl border border-white/70 bg-white/85 p-4 shadow-sm'>
         <h1 className='text-lg font-semibold text-slate-900'>หน้าผู้ติดต่อ</h1>
         <p className='mt-1 text-sm text-slate-600'>รายชื่อมือถือสำหรับโทรออกอย่างปลอดภัย</p>
+        <p className='mt-1 text-xs text-slate-500'>
+          แหล่งข้อมูล: {source === 'device' ? 'รายชื่อจากเครื่องจริง' : source === 'web' ? 'Web runtime (ไม่รองรับรายชื่อเครื่อง)' : 'ข้อมูลเซิร์ฟเวอร์'}
+        </p>
+
+        {canRequestNativeContacts ? (
+          <div className='mt-3 flex items-center gap-2'>
+            <button
+              type='button'
+              onClick={() => void loadContacts(true)}
+              disabled={loading}
+              className='inline-flex h-9 items-center rounded-xl bg-blue-600 px-3 text-xs font-semibold text-white disabled:opacity-60'
+            >
+              {loading ? 'กำลังโหลดรายชื่อ...' : 'ขอสิทธิ์รายชื่อจากมือถือ'}
+            </button>
+            <span className='text-xs text-slate-500'>สถานะสิทธิ์: {permission}</span>
+          </div>
+        ) : null}
 
         <div className='mt-3 flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500'>
           <Search className='h-4 w-4' />
@@ -57,6 +73,7 @@ export default function ContactsPage() {
         </div>
 
         <div className='mt-3 space-y-2'>
+          {loading ? <p className='text-sm text-slate-500'>กำลังซิงก์รายชื่อ...</p> : null}
           {filtered.map((item) => (
             <div key={item.id} className='flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2'>
               <div>

@@ -74,6 +74,7 @@ export function AndroidApkUpdatePopup() {
 
       let mounted = true;
       let removeResumeListener: null | (() => void) = null;
+      let refreshTimer: null | ReturnType<typeof setInterval> = null;
 
       const refreshPopupState = async () => {
         const payload = await fetchReleaseFromApi();
@@ -110,6 +111,9 @@ export function AndroidApkUpdatePopup() {
       };
 
       void refreshPopupState();
+      refreshTimer = setInterval(function periodicRefresh() {
+        void refreshPopupState();
+      }, 120000);
 
       const onVisibilityChange = function onVisibilityChange() {
         if (document.visibilityState !== "visible") return;
@@ -142,6 +146,9 @@ export function AndroidApkUpdatePopup() {
         document.removeEventListener("visibilitychange", onVisibilityChange);
         if (removeResumeListener) {
           removeResumeListener();
+        }
+        if (refreshTimer) {
+          clearInterval(refreshTimer);
         }
       };
     },
@@ -337,6 +344,18 @@ export function AndroidApkUpdatePopup() {
             </span>
           </Button>
         </div>
+        <Button
+          type="button"
+          variant="secondary"
+          className="mt-2 h-10 w-full rounded-xl"
+          onClick={() => {
+            if (!release.downloadUrl) return;
+            window.location.assign(release.downloadUrl);
+          }}
+          disabled={!release.downloadUrl || installing}
+        >
+          {locale === "th" ? "ดาวน์โหลดไฟล์ APK" : "Download APK file"}
+        </Button>
       </div>
     </div>
   );
