@@ -17,6 +17,14 @@ type ProfilePayload = {
       score: number;
       reasons: string[];
     };
+    intelligence?: {
+      communityReports: number;
+      communityBlocks: number;
+      uniqueReporters: number;
+      webRiskMentions: number;
+      policeMentions: number;
+      officialSourceMatches: number;
+    };
   };
 };
 
@@ -79,6 +87,11 @@ export default function PhoneProfilePage() {
         <div className='rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600'>
           <p className='inline-flex items-center gap-1'><Clock3 className='h-4 w-4' /> ตรวจล่าสุด: {new Date(profile.lastSeenAt).toLocaleString('th-TH')}</p>
           <p className='mt-1 inline-flex items-center gap-1'><ShieldCheck className='h-4 w-4' /> ความพยายามโทร 24 ชั่วโมง: {profile.callAttempts24h} ครั้ง</p>
+          {profile.intelligence ? (
+            <p className='mt-1 text-xs text-slate-500'>
+              Community {profile.intelligence.communityReports}/{profile.intelligence.communityBlocks} | Web {profile.intelligence.webRiskMentions} | Police {profile.intelligence.policeMentions} | Official API {profile.intelligence.officialSourceMatches}
+            </p>
+          ) : null}
         </div>
 
         <div className='flex gap-2'>

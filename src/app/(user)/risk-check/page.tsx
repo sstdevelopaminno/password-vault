@@ -11,6 +11,19 @@ type RiskResult = {
   verdict: string;
   reasons: string[];
   recommendedAction: 'allow' | 'verify' | 'block';
+  intelligence?: {
+    communityReports: number;
+    communityBlocks: number;
+    uniqueReporters: number;
+    webRiskMentions: number;
+    policeMentions: number;
+    officialSourceMatches: number;
+    sources: Array<{
+      provider: 'supabase-community' | 'open-web' | 'police-web' | 'official-api';
+      title: string;
+      snippet?: string;
+    }>;
+  };
 };
 
 function tone(level: RiskResult['level']) {
@@ -82,11 +95,30 @@ export default function RiskCheckPage() {
                 <li key={reason}>- {reason}</li>
               ))}
             </ul>
+            {result.intelligence ? (
+              <div className='mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2'>
+                <p className='text-xs font-semibold text-slate-700'>แหล่งข้อมูลจริงที่ใช้</p>
+                <p className='mt-1 text-[11px] text-slate-600'>
+                  ชุมชน: รายงาน {result.intelligence.communityReports} บล็อก {result.intelligence.communityBlocks} ผู้ใช้ {result.intelligence.uniqueReporters}
+                </p>
+                <p className='text-[11px] text-slate-600'>
+                  เว็บสาธารณะ: {result.intelligence.webRiskMentions} สัญญาณ, โดเมนทางการ: {result.intelligence.policeMentions}
+                </p>
+                <p className='text-[11px] text-slate-600'>Official API match: {result.intelligence.officialSourceMatches}</p>
+                <div className='mt-1 space-y-1'>
+                  {result.intelligence.sources.slice(0, 3).map((source, index) => (
+                    <p key={`${source.title}-${index}`} className='text-[11px] text-slate-600'>
+                      - {source.title}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
         <p className='mt-3 inline-flex items-center gap-1 text-xs text-slate-500'>
-          <AlertTriangle className='h-3.5 w-3.5' /> ผลลัพธ์เป็นการประเมินความเสี่ยงเบื้องต้น
+          <AlertTriangle className='h-3.5 w-3.5' /> ผลลัพธ์เป็นการช่วยตัดสินใจ ไม่ใช่ฐานข้อมูลตำรวจโดยตรง
         </p>
       </div>
     </section>

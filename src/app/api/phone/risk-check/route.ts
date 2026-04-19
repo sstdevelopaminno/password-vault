@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { evaluatePhoneNumber } from '@/lib/phone-security';
+import { evaluatePhoneRiskWithIntel } from '@/lib/phone-risk-intel';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +22,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
-  const result = evaluatePhoneNumber(parsed.data.number);
+  const result = await evaluatePhoneRiskWithIntel(parsed.data.number, { includeWebSignals: true });
   return NextResponse.json({ result });
 }
