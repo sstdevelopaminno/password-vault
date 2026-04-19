@@ -35,6 +35,15 @@ export type VaultRiskSnapshot = {
   app?: {
     suspiciousApps?: string[];
     suspiciousAppCount?: number;
+    riskyInstallerApps?: string[];
+    heuristicRiskyApps?: string[];
+    highRiskPackageKeywordApps?: string[];
+    adwareLikeApps?: string[];
+    gameLikeApps?: string[];
+    unknownInstallerCount?: number;
+    heuristicRiskyAppCount?: number;
+    adwareLikeCount?: number;
+    gameLikeCount?: number;
     packageVisibilityLimited?: boolean;
     queryAllPackagesDeclared?: boolean;
     installSource?: string;
@@ -171,6 +180,38 @@ export function evaluateVaultRisk(snapshot: VaultRiskSnapshot): VaultRiskAssessm
     suspiciousApps.length,
     Number.isFinite(snapshot.app?.suspiciousAppCount) ? Number(snapshot.app?.suspiciousAppCount ?? 0) : 0,
   );
+  const riskyInstallerApps = Array.isArray(snapshot.app?.riskyInstallerApps)
+    ? snapshot.app?.riskyInstallerApps.filter((value) => typeof value === "string" && value.trim().length > 0)
+    : [];
+  const heuristicRiskyApps = Array.isArray(snapshot.app?.heuristicRiskyApps)
+    ? snapshot.app?.heuristicRiskyApps.filter((value) => typeof value === "string" && value.trim().length > 0)
+    : [];
+  const highRiskKeywordApps = Array.isArray(snapshot.app?.highRiskPackageKeywordApps)
+    ? snapshot.app?.highRiskPackageKeywordApps.filter((value) => typeof value === "string" && value.trim().length > 0)
+    : [];
+  const adwareLikeApps = Array.isArray(snapshot.app?.adwareLikeApps)
+    ? snapshot.app?.adwareLikeApps.filter((value) => typeof value === "string" && value.trim().length > 0)
+    : [];
+  const gameLikeApps = Array.isArray(snapshot.app?.gameLikeApps)
+    ? snapshot.app?.gameLikeApps.filter((value) => typeof value === "string" && value.trim().length > 0)
+    : [];
+
+  const unknownInstallerCount = Math.max(
+    riskyInstallerApps.length,
+    Number.isFinite(snapshot.app?.unknownInstallerCount) ? Number(snapshot.app?.unknownInstallerCount ?? 0) : 0,
+  );
+  const heuristicRiskyAppCount = Math.max(
+    heuristicRiskyApps.length,
+    Number.isFinite(snapshot.app?.heuristicRiskyAppCount) ? Number(snapshot.app?.heuristicRiskyAppCount ?? 0) : 0,
+  );
+  const adwareLikeCount = Math.max(
+    adwareLikeApps.length,
+    Number.isFinite(snapshot.app?.adwareLikeCount) ? Number(snapshot.app?.adwareLikeCount ?? 0) : 0,
+  );
+  const gameLikeCount = Math.max(
+    gameLikeApps.length,
+    Number.isFinite(snapshot.app?.gameLikeCount) ? Number(snapshot.app?.gameLikeCount ?? 0) : 0,
+  );
 
   const verdict = snapshot.device?.playIntegrityVerdict ?? "unknown";
   if (verdict === "failed") {
@@ -217,6 +258,62 @@ export function evaluateVaultRisk(snapshot: VaultRiskSnapshot): VaultRiskAssessm
       {
         suspiciousCount,
         suspiciousApps,
+      },
+    );
+  }
+
+  if (heuristicRiskyAppCount > 0) {
+    addFactor(
+      factors,
+      Math.min(44, heuristicRiskyAppCount * 12),
+      "app",
+      "heuristic_risky_apps_detected",
+      "Apps matched malware/hack/mod keyword heuristics",
+      {
+        heuristicRiskyAppCount,
+        heuristicRiskyApps,
+        highRiskKeywordApps,
+      },
+    );
+  }
+
+  if (unknownInstallerCount > 0) {
+    addFactor(
+      factors,
+      Math.min(22, unknownInstallerCount * 4),
+      "app",
+      "unknown_installer_apps_detected",
+      "Installed apps from unknown/non-trusted installer sources",
+      {
+        unknownInstallerCount,
+        riskyInstallerApps: riskyInstallerApps.slice(0, 40),
+      },
+    );
+  }
+
+  if (adwareLikeCount > 0) {
+    addFactor(
+      factors,
+      Math.min(28, adwareLikeCount * 7),
+      "app",
+      "adware_like_apps_detected",
+      "Potential adware/overlay ad app patterns detected",
+      {
+        adwareLikeCount,
+        adwareLikeApps,
+      },
+    );
+  }
+
+  if (gameLikeCount >= 15) {
+    addFactor(
+      factors,
+      8,
+      "app",
+      "high_game_app_density",
+      "High count of game-like apps may increase ad/malware exposure risk",
+      {
+        gameLikeCount,
       },
     );
   }

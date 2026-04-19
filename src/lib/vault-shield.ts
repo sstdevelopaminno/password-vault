@@ -17,6 +17,15 @@ export type VaultShieldSignals = {
   adbEnabled: boolean;
   vpnActive: boolean;
   suspiciousApps: string[];
+  riskyInstallerApps?: string[];
+  heuristicRiskyApps?: string[];
+  highRiskPackageKeywordApps?: string[];
+  adwareLikeApps?: string[];
+  gameLikeApps?: string[];
+  unknownInstallerCount?: number;
+  heuristicRiskyAppCount?: number;
+  adwareLikeCount?: number;
+  gameLikeCount?: number;
   packageVisibilityLimited: boolean;
   queryAllPackagesDeclared: boolean;
   scanMode: "explicit-package-check" | "launcher-intent";

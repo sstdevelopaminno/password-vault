@@ -42,6 +42,7 @@ import com.google.android.play.core.integrity.IntegrityTokenResponse;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -59,6 +60,46 @@ import java.util.TimeZone;
 )
 public class VaultShieldPlugin extends Plugin {
   private static final String TAG = "VaultShieldPlugin";
+  private static final List<String> TRUSTED_INSTALLER_PREFIXES = Arrays.asList(
+    "com.android.vending",
+    "com.google.android.packageinstaller",
+    "com.samsung.android",
+    "com.huawei.appmarket",
+    "com.xiaomi.market",
+    "com.oppo.market",
+    "com.vivo.appstore",
+    "com.oneplus"
+  );
+  private static final List<String> HIGH_RISK_PACKAGE_KEYWORDS = Arrays.asList(
+    "hack",
+    "crack",
+    "keygen",
+    "xposed",
+    "magisk",
+    "rootcloak",
+    "inject",
+    "trojan",
+    "spyware",
+    "malware",
+    "keylogger",
+    "rat",
+    "modmenu"
+  );
+  private static final List<String> ADWARE_PACKAGE_KEYWORDS = Arrays.asList(
+    "adservice",
+    "adsdk",
+    "adware",
+    "pushads",
+    "overlayads",
+    "clicker"
+  );
+  private static final List<String> GAME_PACKAGE_KEYWORDS = Arrays.asList(
+    "game",
+    "gaming",
+    "casino",
+    "slot",
+    "bet"
+  );
   private BroadcastReceiver apkDownloadReceiver;
   private long pendingApkDownloadId = -1L;
 
@@ -384,6 +425,8 @@ public class VaultShieldPlugin extends Plugin {
     Long playIntegrityCloudProjectNumber = call.getLong("playIntegrityCloudProjectNumber");
 
     Set<String> detectedPackages = detectSuspiciousPackages(pm, suspiciousPackages, scanLaunchableApps);
+    Set<String> launchablePackages = scanLaunchableApps ? getLaunchablePackages(pm) : new HashSet<>();
+    JSObject riskyScanSummary = scanLaunchableRiskSignals(pm, launchablePackages);
     String installSource = getInstallSource(pm, context.getPackageName());
 
     JSObject result = new JSObject();
@@ -403,6 +446,15 @@ public class VaultShieldPlugin extends Plugin {
     result.put("queryAllPackagesDeclared", isQueryAllPackagesDeclared(pm, context.getPackageName()));
     result.put("scanMode", scanLaunchableApps ? "launcher-intent" : "explicit-package-check");
     result.put("suspiciousApps", new JSArray(new ArrayList<>(detectedPackages)));
+    result.put("riskyInstallerApps", riskyScanSummary.optJSONArray("riskyInstallerApps"));
+    result.put("heuristicRiskyApps", riskyScanSummary.optJSONArray("heuristicRiskyApps"));
+    result.put("highRiskPackageKeywordApps", riskyScanSummary.optJSONArray("highRiskPackageKeywordApps"));
+    result.put("adwareLikeApps", riskyScanSummary.optJSONArray("adwareLikeApps"));
+    result.put("gameLikeApps", riskyScanSummary.optJSONArray("gameLikeApps"));
+    result.put("unknownInstallerCount", riskyScanSummary.optInt("unknownInstallerCount", 0));
+    result.put("heuristicRiskyAppCount", riskyScanSummary.optInt("heuristicRiskyAppCount", 0));
+    result.put("adwareLikeCount", riskyScanSummary.optInt("adwareLikeCount", 0));
+    result.put("gameLikeCount", riskyScanSummary.optInt("gameLikeCount", 0));
 
     if (playIntegrityNonce.isEmpty() || playIntegrityCloudProjectNumber == null || playIntegrityCloudProjectNumber <= 0L) {
       result.put("playIntegrityStatus", "skipped");
@@ -577,6 +629,103 @@ public class VaultShieldPlugin extends Plugin {
       }
     }
     return output;
+  }
+
+  @NonNull
+  private JSObject scanLaunchableRiskSignals(PackageManager pm, Set<String> launchablePackages) {
+    JSArray riskyInstallerApps = new JSArray();
+    JSArray heuristicRiskyApps = new JSArray();
+    JSArray highRiskKeywordApps = new JSArray();
+    JSArray adwareLikeApps = new JSArray();
+    JSArray gameLikeApps = new JSArray();
+
+    int unknownInstallerCount = 0;
+    int heuristicRiskyAppCount = 0;
+    int adwareLikeCount = 0;
+    int gameLikeCount = 0;
+
+    for (String packageName : launchablePackages) {
+      if (packageName == null || packageName.trim().isEmpty()) {
+        continue;
+      }
+
+      String normalized = packageName.toLowerCase(Locale.US);
+      String installer = getInstallSource(pm, packageName);
+      boolean trustedInstaller = isTrustedInstaller(installer);
+
+      if (!trustedInstaller) {
+        unknownInstallerCount += 1;
+        if (riskyInstallerApps.length() < 80) {
+          riskyInstallerApps.put(packageName + "|" + (installer == null ? "" : installer));
+        }
+      }
+
+      boolean hasHighRiskKeyword = containsAnyKeyword(normalized, HIGH_RISK_PACKAGE_KEYWORDS);
+      boolean hasAdwareKeyword = containsAnyKeyword(normalized, ADWARE_PACKAGE_KEYWORDS);
+      boolean hasGameKeyword = containsAnyKeyword(normalized, GAME_PACKAGE_KEYWORDS);
+
+      if (hasHighRiskKeyword) {
+        heuristicRiskyAppCount += 1;
+        if (highRiskKeywordApps.length() < 80) {
+          highRiskKeywordApps.put(packageName);
+        }
+      }
+      if (hasAdwareKeyword) {
+        adwareLikeCount += 1;
+        if (adwareLikeApps.length() < 80) {
+          adwareLikeApps.put(packageName);
+        }
+      }
+      if (hasGameKeyword) {
+        gameLikeCount += 1;
+        if (gameLikeApps.length() < 80) {
+          gameLikeApps.put(packageName);
+        }
+      }
+
+      if ((hasHighRiskKeyword || hasAdwareKeyword || !trustedInstaller) && heuristicRiskyApps.length() < 120) {
+        heuristicRiskyApps.put(packageName);
+      }
+    }
+
+    JSObject summary = new JSObject();
+    summary.put("riskyInstallerApps", riskyInstallerApps);
+    summary.put("heuristicRiskyApps", heuristicRiskyApps);
+    summary.put("highRiskPackageKeywordApps", highRiskKeywordApps);
+    summary.put("adwareLikeApps", adwareLikeApps);
+    summary.put("gameLikeApps", gameLikeApps);
+    summary.put("unknownInstallerCount", unknownInstallerCount);
+    summary.put("heuristicRiskyAppCount", heuristicRiskyAppCount);
+    summary.put("adwareLikeCount", adwareLikeCount);
+    summary.put("gameLikeCount", gameLikeCount);
+    return summary;
+  }
+
+  private boolean containsAnyKeyword(String value, List<String> keywords) {
+    if (value == null || value.trim().isEmpty()) {
+      return false;
+    }
+
+    for (String keyword : keywords) {
+      if (keyword != null && !keyword.trim().isEmpty() && value.contains(keyword)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean isTrustedInstaller(String installerPackage) {
+    if (installerPackage == null || installerPackage.trim().isEmpty()) {
+      return false;
+    }
+
+    String normalized = installerPackage.toLowerCase(Locale.US);
+    for (String trustedPrefix : TRUSTED_INSTALLER_PREFIXES) {
+      if (normalized.startsWith(trustedPrefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @NonNull
