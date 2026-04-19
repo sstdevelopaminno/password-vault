@@ -124,7 +124,6 @@ function toActions(severity: VaultRiskSeverity, suspiciousAppCount: number): Vau
   if (severity === "high") {
     const actions: VaultRiskAction[] = [
       "notify_user",
-      "force_reauth",
       "limit_sensitive_actions",
       "block_sensitive_data",
       "block_sync",

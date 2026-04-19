@@ -16,7 +16,7 @@ import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/li
 const POLL_MS = 5000;
 const ACCESS_CHECK_ART_URL =
   "https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/578899.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzU3ODg5OS5wbmciLCJpYXQiOjE3NzY0MTk5NjYsImV4cCI6MTgwNzk1NTk2Nn0.aE8IrA57M7-6CAyrX2XHTtJZwUFi0GV9dCnriyLPhw4";
-const MAX_UNAUTHORIZED_RETRIES = 6;
+const MAX_UNAUTHORIZED_RETRIES = 12;
 
 type GateMode = "loading" | "otp" | "pending" | "active" | "error";
 
@@ -53,6 +53,13 @@ function parseRetrySeconds(message: string) {
 function mapGateError(message: unknown, locale: string) {
   const text = String(message ?? "");
   const lower = text.toLowerCase();
+
+  if (lower.includes("unauthorized") || lower.includes("session expired")) {
+    return locale === "th" ? "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่" : "Session expired. Please sign in again.";
+  }
+  if (lower.includes("session synchronization") || lower.includes("sync")) {
+    return locale === "th" ? "กำลังซิงก์เซสชันความปลอดภัย กรุณารอสักครู่" : "Session synchronization in progress. Please wait.";
+  }
 
   if (lower.includes("token")) {
     return locale === "th" ? "OTP ไม่ถูกต้องหรือหมดอายุ" : "Invalid or expired OTP";
@@ -119,7 +126,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
           }
           window.setTimeout(() => {
             void loadProfileRef.current(false);
-          }, 1200 * unauthorizedRef.current);
+          }, Math.min(12_000, 1200 * unauthorizedRef.current));
           return;
         }
 

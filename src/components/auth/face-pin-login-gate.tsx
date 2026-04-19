@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Camera, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +19,7 @@ type FacePinLoginGateProps = {
 
 export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGateProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { locale } = useI18n();
   const isThai = locale === "th";
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -41,18 +42,35 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
   const [resendIn, setResendIn] = useState(0);
 
   const [error, setError] = useState("");
+  const bypassGateForTroubleshooting = useMemo(() => {
+    return (
+      pathname.startsWith("/settings/face-login") ||
+      pathname.startsWith("/settings/mobile-permissions") ||
+      pathname.startsWith("/settings/device-management")
+    );
+  }, [pathname]);
 
   const recoverSessionOrRedirect = useCallback(
     (retry: () => void) => {
       unauthorizedRef.current += 1;
-      if (unauthorizedRef.current >= 4) {
+      const maxRetries = bypassGateForTroubleshooting ? 14 : 8;
+      if (unauthorizedRef.current >= maxRetries) {
+        if (bypassGateForTroubleshooting) {
+          setError(
+            isThai
+              ? "กำลังซิงก์เซสชันความปลอดภัย กรุณารอสักครู่แล้วลองใหม่อีกครั้ง..."
+              : "Security session synchronization is still in progress. Please wait and retry.",
+          );
+          window.setTimeout(retry, 2500);
+          return;
+        }
         router.replace("/login");
         return;
       }
       setError(isThai ? "กำลังซิงก์เซสชันความปลอดภัย กรุณารอสักครู่..." : "Syncing secure session. Please wait...");
-      window.setTimeout(retry, 900 * unauthorizedRef.current);
+      window.setTimeout(retry, Math.min(7000, 900 * unauthorizedRef.current));
     },
-    [isThai, router],
+    [bypassGateForTroubleshooting, isThai, router],
   );
 
   const resetSessionRetry = useCallback(() => {
@@ -118,7 +136,7 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
   }, [mapCameraError, required, stopCameraNow, verified]);
 
   const loadSession = useCallback(async () => {
-    if (!enabled || !hasPin) {
+    if (!enabled || !hasPin || bypassGateForTroubleshooting) {
       setRequired(false);
       setVerified(true);
       setChecking(false);
@@ -170,7 +188,7 @@ export function FacePinLoginGate({ children, enabled, hasPin }: FacePinLoginGate
         setChecking(false);
       }
     }
-  }, [enabled, hasPin, isThai, recoverSessionOrRedirect, resetSessionRetry]);
+  }, [bypassGateForTroubleshooting, enabled, hasPin, isThai, recoverSessionOrRedirect, resetSessionRetry]);
 
   const verifyNow = useCallback(async () => {
     if (loading || pin.length !== 6 || !videoRef.current || !cameraReady) return;

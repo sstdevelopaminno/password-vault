@@ -35,6 +35,8 @@ const RUNTIME_AUTO_RELOAD_KEY_PREFIX = 'pv_runtime_autoreload_';
 type RuntimeVersionSnapshot = {
   marker: string;
   schemaVersion: string;
+  ok: boolean;
+  status: number;
 };
 
 function toDateStamp(input: Date) {
@@ -111,7 +113,7 @@ async function clearManagedCaches() {
 
 async function fetchRuntimeVersionSnapshot(fallbackMarker: string): Promise<RuntimeVersionSnapshot> {
   if (typeof window === 'undefined') {
-    return { marker: fallbackMarker, schemaVersion: RUNTIME_SCHEMA_VERSION };
+    return { marker: fallbackMarker, schemaVersion: RUNTIME_SCHEMA_VERSION, ok: false, status: 0 };
   }
 
   const controller = new AbortController();
@@ -125,6 +127,9 @@ async function fetchRuntimeVersionSnapshot(fallbackMarker: string): Promise<Runt
       cache: 'no-store',
       signal: controller.signal,
     });
+    if (!response.ok) {
+      return { marker: fallbackMarker, schemaVersion: RUNTIME_SCHEMA_VERSION, ok: false, status: response.status };
+    }
     const body = (await response.json().catch(function () {
       return {};
     })) as {
@@ -138,9 +143,11 @@ async function fetchRuntimeVersionSnapshot(fallbackMarker: string): Promise<Runt
     return {
       marker: markerRaw || fallbackMarker,
       schemaVersion: schemaRaw || RUNTIME_SCHEMA_VERSION,
+      ok: true,
+      status: response.status,
     };
   } catch {
-    return { marker: fallbackMarker, schemaVersion: RUNTIME_SCHEMA_VERSION };
+    return { marker: fallbackMarker, schemaVersion: RUNTIME_SCHEMA_VERSION, ok: false, status: 0 };
   } finally {
     window.clearTimeout(timer);
   }
@@ -184,9 +191,20 @@ export function Providers(props: ProvidersProps) {
     const reconcileRuntimeVersion = async function (trigger: string) {
       if (disposed) return;
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      const pathname = window.location.pathname;
+      if (
+        pathname.startsWith('/login') ||
+        pathname.startsWith('/register') ||
+        pathname.startsWith('/forgot-password') ||
+        pathname.startsWith('/verify-otp') ||
+        pathname.startsWith('/auth/callback')
+      ) {
+        return;
+      }
 
       const server = await fetchRuntimeVersionSnapshot(props.runtimeBuildMarker);
       if (disposed) return;
+      if (!server.ok) return;
 
       const localMarker = window.localStorage.getItem(RUNTIME_BUILD_MARKER_STORAGE_KEY);
       const localSchemaVersion = window.localStorage.getItem(RUNTIME_SCHEMA_STORAGE_KEY);

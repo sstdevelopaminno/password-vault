@@ -9,18 +9,26 @@ import { useI18n } from "@/i18n/provider";
 import { useToast } from "@/components/ui/toast";
 
 const LAST_NOTICE_STORAGE_KEY = "pv_last_risk_notice_id_v1";
+const LAST_NOTICE_AT_STORAGE_KEY = "pv_last_risk_notice_at_v1";
 const DEFAULT_SCAN_INTERVAL_MS = 5 * 60 * 1000;
+const RISK_NOTICE_COOLDOWN_MS = 20 * 60 * 1000;
 
 function getRiskMessage(locale: string, severity: "medium" | "high" | "critical") {
-  const prefix = locale === "th" ? "Vault Shield Alert:" : "Vault Shield Alert:";
+  const prefix = locale === "th" ? "แจ้งเตือน Vault Shield:" : "Vault Shield alert:";
 
   if (severity === "critical") {
-    return `${prefix} critical risk detected. Vault is temporarily locked and re-authentication is required.`;
+    return locale === "th"
+      ? `${prefix} พบความเสี่ยงระดับวิกฤต ระบบล็อกข้อมูลชั่วคราวและต้องยืนยันตัวตนใหม่`
+      : `${prefix} critical risk detected. Vault is temporarily locked and re-authentication is required.`;
   }
   if (severity === "high") {
-    return `${prefix} high risk detected. Sensitive actions are restricted and re-authentication is required.`;
+    return locale === "th"
+      ? `${prefix} พบความเสี่ยงระดับสูง ระบบจำกัดการทำรายการสำคัญชั่วคราว`
+      : `${prefix} high risk detected. Sensitive actions are restricted.`;
   }
-  return `${prefix} medium risk detected. Step-up authentication is required for sensitive operations.`;
+  return locale === "th"
+    ? `${prefix} พบความเสี่ยงระดับกลาง โปรดตรวจสอบสถานะอุปกรณ์`
+    : `${prefix} medium risk detected. Please review device security state.`;
 }
 
 export function VaultRiskSentinel() {
@@ -28,6 +36,7 @@ export function VaultRiskSentinel() {
   const toast = useToast();
   const inFlightRef = useRef(false);
   const lastNoticeIdRef = useRef("");
+  const lastNoticeAtRef = useRef(0);
   const lastRunAtRef = useRef(0);
 
   const runtime = useMemo(() => detectRuntimeCapabilities(), []);
@@ -46,7 +55,10 @@ export function VaultRiskSentinel() {
   useEffect(function () {
     if (typeof window === "undefined") return;
     const rememberedId = window.localStorage.getItem(LAST_NOTICE_STORAGE_KEY) ?? "";
+    const rememberedAtRaw = window.localStorage.getItem(LAST_NOTICE_AT_STORAGE_KEY) ?? "0";
+    const rememberedAt = Number(rememberedAtRaw);
     lastNoticeIdRef.current = rememberedId;
+    lastNoticeAtRef.current = Number.isFinite(rememberedAt) ? rememberedAt : 0;
   }, []);
 
   useEffect(function () {
@@ -70,13 +82,18 @@ export function VaultRiskSentinel() {
         const assessment = result.assessment;
         if (!result.ok || !assessment) return;
 
-        if (["medium", "high", "critical"].includes(assessment.severity)) {
-          const noticeId = `${assessment.assessedAt}:${assessment.severity}:${assessment.score}`;
-          if (lastNoticeIdRef.current !== noticeId) {
+        if (assessment.severity === "high" || assessment.severity === "critical") {
+          const actionSignature = Array.isArray(assessment.actions) ? assessment.actions.slice().sort().join(",") : "";
+          const noticeId = `${assessment.severity}:${actionSignature}`;
+          const nowMs = Date.now();
+          const withinCooldown = nowMs - lastNoticeAtRef.current < RISK_NOTICE_COOLDOWN_MS;
+          if (lastNoticeIdRef.current !== noticeId || !withinCooldown) {
             lastNoticeIdRef.current = noticeId;
+            lastNoticeAtRef.current = nowMs;
             window.localStorage.setItem(LAST_NOTICE_STORAGE_KEY, noticeId);
+            window.localStorage.setItem(LAST_NOTICE_AT_STORAGE_KEY, String(nowMs));
             toast.showToast(
-              getRiskMessage(locale, assessment.severity as "medium" | "high" | "critical"),
+              getRiskMessage(locale, assessment.severity as "high" | "critical"),
               "error",
             );
           }

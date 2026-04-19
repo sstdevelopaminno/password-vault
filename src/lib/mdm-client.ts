@@ -322,27 +322,77 @@ function getActionEndpoint() {
   return endpoint || DEFAULT_ACTION_ENDPOINT;
 }
 
-export async function readMdmOverview(): Promise<MdmOverview> {
-  const response = await fetch(getOverviewEndpoint(), { cache: 'no-store' });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = String((payload as Record<string, unknown>)?.error ?? 'Failed to load MDM overview');
-    throw new Error(message);
+const MDM_FETCH_MAX_ATTEMPTS = 3;
+const MDM_FETCH_BASE_DELAY_MS = 900;
+
+function asErrorMessage(payload: unknown, fallback: string) {
+  const text = String((payload as Record<string, unknown>)?.error ?? '').trim();
+  return text || fallback;
+}
+
+function isRecoverableMdmFailure(status: number, payload: unknown) {
+  if ([401, 429, 500, 502, 503, 504].includes(status)) return true;
+  const message = asErrorMessage(payload, '').toLowerCase();
+  return message.includes('session synchronization') || message.includes('session sync');
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function fetchMdmJsonWithRetry(
+  input: string,
+  init: RequestInit,
+  fallbackError: string,
+): Promise<unknown> {
+  let lastError = fallbackError;
+
+  for (let attempt = 1; attempt <= MDM_FETCH_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(input, { cache: 'no-store', ...init });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok) return payload;
+
+      lastError = asErrorMessage(payload, fallbackError);
+      if (!isRecoverableMdmFailure(response.status, payload) || attempt >= MDM_FETCH_MAX_ATTEMPTS) {
+        throw new Error(lastError);
+      }
+    } catch (error) {
+      if (error instanceof Error && attempt >= MDM_FETCH_MAX_ATTEMPTS) {
+        throw new Error(error.message || fallbackError);
+      }
+      if (!(error instanceof Error) && attempt >= MDM_FETCH_MAX_ATTEMPTS) {
+        throw new Error(lastError);
+      }
+    }
+
+    await wait(Math.min(4000, MDM_FETCH_BASE_DELAY_MS * attempt));
   }
+
+  throw new Error(lastError);
+}
+
+export async function readMdmOverview(): Promise<MdmOverview> {
+  const payload = await fetchMdmJsonWithRetry(
+    getOverviewEndpoint(),
+    { method: 'GET' },
+    'Failed to load MDM overview',
+  );
   return normalizeOverview(payload);
 }
 
 export async function executeMdmAction(action: MdmActionName): Promise<MdmActionResult> {
-  const response = await fetch(getActionEndpoint(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action }),
-  });
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    const message = String(payload?.error ?? 'MDM action failed');
-    throw new Error(message);
-  }
+  const payload = (await fetchMdmJsonWithRetry(
+    getActionEndpoint(),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    },
+    'MDM action failed',
+  )) as Record<string, unknown>;
 
   const { schema } = getSchemaConfig();
   const message = asString(pickFirst(payload, schema.actionResult.message), 'Action completed');

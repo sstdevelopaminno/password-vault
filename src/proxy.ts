@@ -242,7 +242,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const forceReauthActive = Boolean(activeRiskPolicy?.actions.includes("force_reauth"));
+  const forceReauthActive = Boolean(
+    activeRiskPolicy?.severity === "critical" && activeRiskPolicy?.actions.includes("force_reauth"),
+  );
   const riskBypass = isRiskBypassPath(pathname);
 
   if (user && activeRiskPolicy && forceReauthActive && !riskBypass) {

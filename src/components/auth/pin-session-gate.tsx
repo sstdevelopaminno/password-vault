@@ -45,6 +45,8 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSession
   const pinInputRef = useRef<HTMLInputElement | null>(null);
   const autoSubmitRef = useRef("");
   const inactivityTimerRef = useRef<number | null>(null);
+  const unauthorizedRetryRef = useRef(0);
+  const verifyPinRef = useRef<() => Promise<void>>(async () => undefined);
 
   const key = storageKey(userId);
   const isSettingsPage = pathname.startsWith("/settings");
@@ -71,6 +73,28 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSession
       window.sessionStorage.setItem(key, "1");
     }
   }, [key]);
+
+  const resetUnauthorizedRetry = useCallback(() => {
+    unauthorizedRetryRef.current = 0;
+  }, []);
+
+  const recoverSessionOrRelogin = useCallback(
+    (retry: () => void) => {
+      unauthorizedRetryRef.current += 1;
+      if (unauthorizedRetryRef.current >= 10) {
+        router.replace("/login");
+        return;
+      }
+
+      setError(
+        locale === "th"
+          ? "กำลังซิงก์เซสชันความปลอดภัย กรุณารอสักครู่..."
+          : "Syncing secure session. Please wait...",
+      );
+      window.setTimeout(retry, Math.min(7000, 900 * unauthorizedRetryRef.current));
+    },
+    [locale, router],
+  );
 
   const armInactivityLock = useCallback(() => {
     if (inactivityTimerRef.current !== null) {
@@ -159,6 +183,19 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSession
         body: JSON.stringify({ pin, action: "unlock_app" }),
       });
       const body = (await response.json().catch(() => ({}))) as { error?: string; assertionToken?: string };
+      const errorText = String(body.error ?? "").toLowerCase();
+      const recoverable =
+        response.status === 503 ||
+        errorText.includes("session synchronization") ||
+        errorText.includes("session sync") ||
+        Boolean(response.status === 401 && errorText.includes("sync"));
+
+      if (recoverable) {
+        recoverSessionOrRelogin(() => {
+          void verifyPinRef.current();
+        });
+        return;
+      }
 
       if (response.status === 401) {
         router.replace("/login");
@@ -171,13 +208,18 @@ export function PinSessionGate({ children, hasPin, pinSessionEnabled, pinSession
         return;
       }
 
+      resetUnauthorizedRetry();
       markUnlocked();
     } catch {
       setError(locale === "th" ? "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่" : "Network error. Please retry.");
     } finally {
       setLoading(false);
     }
-  }, [loading, locale, markUnlocked, pin, router]);
+  }, [loading, locale, markUnlocked, pin, recoverSessionOrRelogin, resetUnauthorizedRetry, router]);
+
+  useEffect(() => {
+    verifyPinRef.current = verifyPinNow;
+  }, [verifyPinNow]);
 
   useEffect(() => {
     if (pin.length !== 6 || loading) return;

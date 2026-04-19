@@ -148,6 +148,28 @@ function readPackageVersion() {
   }
 }
 
+function getAndroidVersionFromPackage() {
+  const packageVersion = readPackageVersion();
+  const match = packageVersion.match(/^(\d+)\.(\d+)\.(\d+)(?:[.-].*)?$/);
+  if (!match) {
+    return {
+      versionName: packageVersion || "0.0.0",
+      versionCode: 1,
+    };
+  }
+
+  const major = Number.parseInt(match[1], 10) || 0;
+  const minor = Number.parseInt(match[2], 10) || 0;
+  const patch = Number.parseInt(match[3], 10) || 0;
+  // Keep historical encoding used by this project (16.6.13 -> 16613).
+  const versionCode = major * 1000 + minor * 100 + patch;
+
+  return {
+    versionName: packageVersion,
+    versionCode: Math.max(versionCode, 1),
+  };
+}
+
 loadLocalEnvFile();
 const javaHome = findJavaHome();
 if (!javaHome) {
@@ -167,6 +189,7 @@ const gradleCommand = process.platform === "win32" ? "gradlew.bat" : "./gradlew"
 const gradleUserHome = process.env.GRADLE_USER_HOME
   ? path.resolve(projectRoot, process.env.GRADLE_USER_HOME)
   : path.join(projectRoot, ".gradle-home");
+const androidVersion = getAndroidVersionFromPackage();
 mkdirSync(gradleUserHome, { recursive: true });
 
 const env = {
@@ -183,13 +206,21 @@ console.log(`Using ANDROID_HOME=${androidSdkRoot}`);
 console.log(`Using GRADLE_USER_HOME=${gradleUserHome}`);
 
 runStep(npmCommand, ["run", "cap:sync:android"], { cwd: projectRoot, env });
-runStep(gradleCommand, ["assembleRelease"], { cwd: path.join(projectRoot, "android"), env });
+runStep(
+  gradleCommand,
+  [
+    `-PVERSION_NAME=${androidVersion.versionName}`,
+    `-PVERSION_CODE=${androidVersion.versionCode}`,
+    "assembleRelease",
+  ],
+  { cwd: path.join(projectRoot, "android"), env },
+);
 
 const releaseDir = path.join(projectRoot, "android", "app", "build", "outputs", "apk", "release");
 const unsignedApk = path.join(releaseDir, "app-release-unsigned.apk");
 const alignedApk = path.join(releaseDir, "app-release-aligned.apk");
 const signedApk = path.join(releaseDir, "app-release.apk");
-const packageVersion = readPackageVersion();
+const packageVersion = androidVersion.versionName;
 const publicApkPath = packageVersion ? path.join(projectRoot, "public", "apk", `vault-v${packageVersion}.apk`) : "";
 
 if (!existsSync(unsignedApk)) {
