@@ -22,6 +22,7 @@ type AndroidReleaseApiPayload = {
 };
 
 const ANDROID_PWA_PROMPT_SEEN_PREFIX = "pv_android_pwa_prompt_seen_";
+const FORCE_ANDROID_INSTALL_POPUP_EVENT = "pv:force-android-install-popup";
 
 function defaultRelease() {
   const fallback = getDefaultAndroidReleasePayload();
@@ -133,6 +134,19 @@ export function AndroidApkUpdatePopup() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [capabilities.isCapacitorNative, isAndroidWebRuntime, popupEligible]);
+
+  useEffect(() => {
+    if (!popupEligible || typeof window === "undefined") return;
+
+    const forceOpen = () => {
+      setOpen(true);
+    };
+
+    window.addEventListener(FORCE_ANDROID_INSTALL_POPUP_EVENT, forceOpen);
+    return () => {
+      window.removeEventListener(FORCE_ANDROID_INSTALL_POPUP_EVENT, forceOpen);
+    };
+  }, [popupEligible]);
 
   if (!popupEligible || !open) return null;
 

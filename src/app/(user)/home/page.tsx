@@ -22,6 +22,8 @@ import { readMobileContacts, type MobileContactsPermission } from '@/lib/mobile-
 import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
 import { readPhoneProtectionEnabled, writePhoneProtectionEnabled } from '@/lib/phone-protection';
 
+const FORCE_ANDROID_INSTALL_POPUP_EVENT = 'pv:force-android-install-popup';
+
 type AlertRow = {
   id: string;
   number: string;
@@ -150,10 +152,26 @@ export default function HomePage() {
   }
 
   async function enablePhoneProtection() {
+    const runtime = detectRuntimeCapabilities();
+    const isAndroidWebRuntime = runtime.isAndroid && !runtime.isIos && !runtime.isCapacitorNative;
+    if (isAndroidWebRuntime && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event(FORCE_ANDROID_INSTALL_POPUP_EVENT));
+      return;
+    }
+
     writePhoneProtectionEnabled(true);
     setPhoneProtectionEnabled(true);
     await syncMobileContacts(true);
     router.push('/settings/risk-state?guide=1');
+  }
+
+  function gateAndroidPwaMenu(event: { preventDefault: () => void }) {
+    const runtime = detectRuntimeCapabilities();
+    const isAndroidWebRuntime = runtime.isAndroid && !runtime.isIos && !runtime.isCapacitorNative;
+    if (!isAndroidWebRuntime || typeof window === 'undefined') return false;
+    event.preventDefault();
+    window.dispatchEvent(new Event(FORCE_ANDROID_INSTALL_POPUP_EVENT));
+    return true;
   }
 
   return (
@@ -172,7 +190,7 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        <Link href='/risk-alerts' className='rounded-xl bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200' aria-label='แจ้งเตือน'>
+        <Link href='/risk-alerts' onClick={gateAndroidPwaMenu} className='rounded-xl bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200' aria-label='แจ้งเตือน'>
           <Bell className='h-4 w-4' />
         </Link>
       </div>
@@ -181,7 +199,7 @@ export default function HomePage() {
           <h2 className='text-sm font-semibold text-slate-900'>Premium Protection</h2>
           <p className='mt-1 text-xs text-slate-600'>ปกป้องรหัสผ่าน การโทร และข้อมูลส่วนตัว</p>
 
-          <Link href='/risk-check' className='mt-3 flex h-10 items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-500 transition hover:border-blue-300 hover:text-slate-700'>
+          <Link href='/risk-check' onClick={gateAndroidPwaMenu} className='mt-3 flex h-10 items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-500 transition hover:border-blue-300 hover:text-slate-700'>
             <span>ค้นหาเบอร์/ชื่อผู้ติดต่อ</span>
             <ChevronRight className='h-4 w-4' />
           </Link>
@@ -197,7 +215,7 @@ export default function HomePage() {
           {actionTiles.map((tile) => {
             const Icon = tile.icon;
             return (
-              <Link key={tile.href} href={tile.href} className='rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-blue-300 hover:shadow-sm'>
+              <Link key={tile.href} href={tile.href} onClick={gateAndroidPwaMenu} className='rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-blue-300 hover:shadow-sm'>
                 <div className='mb-2 inline-flex rounded-lg bg-blue-50 p-2 text-blue-600'>
                   <Icon className='h-4 w-4' />
                 </div>
@@ -218,7 +236,7 @@ export default function HomePage() {
               </button>
               {isIosRuntime ? (
                 <button type='button' onClick={() => setShowIosGuide(true)} className='inline-flex h-9 items-center rounded-xl border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700'>
-                  ติดตั้ง PWA บน iOS
+                  สถานะ iOS
                 </button>
               ) : null}
             </div>
@@ -228,7 +246,7 @@ export default function HomePage() {
         <div className='mb-3 rounded-2xl border border-slate-200 bg-white p-3'>
           <div className='mb-2 flex items-center justify-between'>
             <h3 className='text-sm font-semibold text-slate-900'>เบอร์ที่ตรวจล่าสุด</h3>
-            <Link href='/phone-profile?number=091-998-7788' className='text-xs font-semibold text-blue-600'>ดูโปรไฟล์เบอร์</Link>
+            <Link href='/phone-profile?number=091-998-7788' onClick={gateAndroidPwaMenu} className='text-xs font-semibold text-blue-600'>ดูโปรไฟล์เบอร์</Link>
           </div>
           <div className='space-y-2'>
             {recentChecks.length === 0 ? (
@@ -273,6 +291,7 @@ export default function HomePage() {
 
       <Link
         href='/dialer'
+        onClick={gateAndroidPwaMenu}
         className='fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-4 z-50 inline-flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(37,99,235,0.35)] transition hover:opacity-95'
       >
         <ShieldAlert className='h-4 w-4' />
@@ -285,20 +304,17 @@ export default function HomePage() {
           <div className='relative z-10 w-[min(92vw,420px)] rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]'>
             <div className='flex items-start justify-between gap-3'>
               <div>
-                <p className='text-base font-semibold text-slate-900'>ติดตั้ง PWA บน iPhone/iPad</p>
-                <p className='mt-1 text-xs leading-5 text-slate-600'>สำหรับความเสถียรสูง แนะนำติดตั้งผ่าน Safari แล้วเพิ่มลง Home Screen</p>
+                <p className='text-base font-semibold text-slate-900'>ระบบยังไม่รองรับเวอร์ชัน iOS</p>
+                <p className='mt-1 text-xs leading-5 text-slate-600'>ขณะนี้ฟีเจอร์หลักบางส่วนยังไม่รองรับบน iOS กรุณาใช้งานผ่าน Android App เพื่อความเสถียรสูงสุด</p>
               </div>
               <button type='button' onClick={() => setShowIosGuide(false)} className='rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700' aria-label='ปิด'>
                 <X className='h-4 w-4' />
               </button>
             </div>
 
-            <ol className='mt-4 space-y-2 text-[13px] text-slate-700'>
-              <li className='rounded-lg bg-slate-50 px-3 py-2'>1) เปิดเว็บนี้ด้วย Safari</li>
-              <li className='rounded-lg bg-slate-50 px-3 py-2'>2) กดปุ่ม Share</li>
-              <li className='rounded-lg bg-slate-50 px-3 py-2'>3) เลือก Add to Home Screen</li>
-              <li className='rounded-lg bg-slate-50 px-3 py-2'>4) กด Add แล้วเปิดจากไอคอนบนหน้าจอหลัก</li>
-            </ol>
+            <div className='mt-4 rounded-lg bg-slate-50 px-3 py-2 text-[13px] text-slate-700'>
+              แนะนำติดตั้งแอป Android เวอร์ชันล่าสุดเพื่อใช้งานสิทธิ์รายชื่อและโทรออกได้เต็มระบบ
+            </div>
           </div>
         </div>
       ) : null}
