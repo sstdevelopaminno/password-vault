@@ -17,7 +17,9 @@
     "cap:add:ios": "cap add ios",
     "cap:open:android": "cap open android",
     "cap:open:ios": "cap open ios",
-    "apk:android:release": "node scripts/build-android-apk.mjs"
+    "apk:android:release": "node scripts/build-android-apk.mjs",
+    "supabase:push": "tools/supabase-cli/supabase.exe db push --linked --include-all",
+    "supabase:migration:list": "tools/supabase-cli/supabase.exe migration list --linked"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

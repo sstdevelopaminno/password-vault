@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Bell, ChevronLeft, ChevronRight, KeyRound, Languages, LifeBuoy, Lock, LogOut, Mail, QrCode, RefreshCw, Shield, ShieldAlert, UserRound, type LucideIcon } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, KeyRound, Languages, LifeBuoy, Lock, LogOut, Mail, QrCode, RefreshCw, Shield, ShieldAlert, Smartphone, UserRound, type LucideIcon } from 'lucide-react';
 import { OtpInput } from '@/components/auth/otp-input';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -742,6 +742,21 @@ export default function SettingsPage() {
             </span>
             <span className='text-base font-semibold leading-6 text-slate-800'>
               {locale === 'th' ? 'Risk State (Vault Shield)' : 'Risk State (Vault Shield)'}
+            </span>
+          </span>
+          <ChevronRight className='h-4 w-4 text-slate-400' />
+        </button>
+        <button
+          type='button'
+          onClick={() => router.push('/settings/mobile-permissions')}
+          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
+        >
+          <span className='inline-flex items-center gap-3'>
+            <span className='rounded-xl bg-slate-100 p-2.5 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'>
+              <Smartphone className='h-4 w-4' />
+            </span>
+            <span className='text-base font-semibold leading-6 text-slate-800'>
+              {locale === 'th' ? 'ตรวจสิทธิจากมือถือ' : 'Mobile Permission Health'}
             </span>
           </span>
           <ChevronRight className='h-4 w-4 text-slate-400' />

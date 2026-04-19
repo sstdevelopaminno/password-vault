@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   title: 'Vault',
   description: 'Mobile-first password manager with OTP, PIN and RBAC',
   icons: {
-    icon: [{ url: APP_ICON_192, type: 'image/svg+xml' }],
-    shortcut: [{ url: APP_ICON_192, type: 'image/svg+xml' }],
-    apple: [{ url: APP_ICON_192, type: 'image/svg+xml' }],
+    icon: [{ url: APP_ICON_192, type: 'image/png' }],
+    shortcut: [{ url: APP_ICON_192, type: 'image/png' }],
+    apple: [{ url: APP_ICON_192, type: 'image/png' }],
   },
   appleWebApp: {
     capable: true,

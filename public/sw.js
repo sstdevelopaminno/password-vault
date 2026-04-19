@@ -4,9 +4,9 @@ const BUILD_MARKER = buildValue ? buildValue : 'dev';
 const STATIC_CACHE_NAME = 'pv-static-' + BUILD_MARKER;  
 const PAGE_CACHE_NAME = 'pv-pages-' + BUILD_MARKER;  
 const CACHE_PREFIXES = ['pv-static-', 'pv-pages-'];  
-const APP_SHELL = ['/', '/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png'];  
+const APP_SHELL = ['/', '/home', '/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png'];  
 const NAVIGATION_NETWORK_TIMEOUT_MS = 15000;
-const SAFE_PAGE_CACHE_PATHS = ['/', '/offline.html'];
+const SAFE_PAGE_CACHE_PATHS = ['/', '/home', '/offline.html'];
   
 async function cleanupOldCaches() {  
   const keys = await caches.keys();  
@@ -141,7 +141,7 @@ self.addEventListener('fetch', function (event) {
     const cache = await caches.open(STATIC_CACHE_NAME);  
     const cached = await cache.match(event.request);  
     const networkPromise = fetch(event.request).then(function (response) {  
-      if (response.status === 200) {  
+      if (response.status === 200 && response.type !== 'opaque') {  
         if (isSameOrigin(event.request)) {  
           cache.put(event.request, response.clone());  
         }  
