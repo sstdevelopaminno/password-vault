@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { findAuthUserByEmail, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { z } from "zod";
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   }
 
   const ip = clientIp(req);
-  const limit = takeRateLimit(`forgot-password:${ip}:${normalizedEmail}`, { limit: 3, windowMs: 60 * 1000 });
+  const limit = await takeRateLimit(`forgot-password:${ip}:${normalizedEmail}`, { limit: 3, windowMs: 60 * 1000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "OTP rate limited. Please wait.", retryAfterSec: limit.retryAfterSec }, { status: 429 });
   }
@@ -88,3 +88,4 @@ export async function POST(req: Request) {
     message: "OTP sent for password reset",
   });
 }
+

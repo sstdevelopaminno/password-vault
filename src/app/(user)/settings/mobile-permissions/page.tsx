@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ChevronLeft, RefreshCw, Settings, ShieldCheck } from 'lucide-react';
+import { useI18n } from '@/i18n/provider';
 import { openVaultShieldAppSettings } from '@/lib/vault-shield';
 import {
   mobilePermissionLabel,
@@ -12,6 +13,8 @@ import {
 } from '@/lib/mobile-permission-health';
 
 export default function MobilePermissionsPage() {
+  const { locale } = useI18n();
+  const isThai = locale === 'th';
   const [report, setReport] = useState<MobilePermissionHealthReport | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -55,7 +58,7 @@ export default function MobilePermissionsPage() {
           </Link>
           <div>
             <h1 className='text-lg font-semibold text-slate-900'>Mobile Permission Health</h1>
-            <p className='text-xs text-slate-500'>ตรวจสิทธิการทำงานจากมือถือสำหรับทีมซัพพอร์ต</p>
+            <p className='text-xs text-slate-500'>{isThai ? 'ตรวจสิทธิการทำงานจากมือถือสำหรับทีมซัพพอร์ต' : 'Check mobile permission health for support diagnostics'}</p>
           </div>
         </div>
 
@@ -67,7 +70,7 @@ export default function MobilePermissionsPage() {
             className='inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 disabled:opacity-60'
           >
             <RefreshCw className={'h-4 w-4' + (loading ? ' animate-spin' : '')} />
-            ตรวจใหม่
+            {isThai ? 'ตรวจใหม่' : 'Refresh'}
           </button>
 
           <button
@@ -77,7 +80,7 @@ export default function MobilePermissionsPage() {
             className='inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 disabled:opacity-60'
           >
             <ShieldCheck className='h-4 w-4' />
-            ขอสิทธิกล้อง
+            {isThai ? 'ขอสิทธิกล้อง' : 'Request camera permission'}
           </button>
 
           <button
@@ -86,7 +89,7 @@ export default function MobilePermissionsPage() {
             disabled={loading}
             className='inline-flex h-10 items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 disabled:opacity-60'
           >
-            ขอสิทธิแจ้งเตือน
+            {isThai ? 'ขอสิทธิแจ้งเตือน' : 'Request notification permission'}
           </button>
 
           <button
@@ -95,7 +98,7 @@ export default function MobilePermissionsPage() {
             className='inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-700'
           >
             <Settings className='h-4 w-4' />
-            เปิดหน้าตั้งค่าแอป
+            {isThai ? 'เปิดหน้าตั้งค่าแอป' : 'Open app settings'}
           </button>
         </div>
 
@@ -111,16 +114,18 @@ export default function MobilePermissionsPage() {
                   Camera: {mobilePermissionLabel(report.camera)}
                 </span>
                 <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${report.pushSupported ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-slate-50 border-slate-200'}`}>
-                  Push: {report.pushSupported ? 'รองรับ' : 'ไม่รองรับ'}
+                  Push: {report.pushSupported ? (isThai ? 'รองรับ' : 'Supported') : (isThai ? 'ไม่รองรับ' : 'Unsupported')}
                 </span>
                 <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${report.serviceWorkerSupported ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-slate-50 border-slate-200'}`}>
-                  Service Worker: {report.serviceWorkerSupported ? 'พร้อม' : 'ไม่พร้อม'}
+                  Service Worker: {report.serviceWorkerSupported ? (isThai ? 'พร้อม' : 'Ready') : (isThai ? 'ไม่พร้อม' : 'Not ready')}
                 </span>
               </div>
-              <p className='mt-2 text-[11px] text-slate-500'>ตรวจล่าสุด: {new Date(report.checkedAt).toLocaleString('th-TH')}</p>
+              <p className='mt-2 text-[11px] text-slate-500'>
+                {isThai ? 'ตรวจล่าสุด' : 'Last checked'}: {new Date(report.checkedAt).toLocaleString(isThai ? 'th-TH' : 'en-US')}
+              </p>
             </>
           ) : (
-            <p className='text-sm text-slate-500'>กำลังอ่านสถานะสิทธิจากอุปกรณ์...</p>
+            <p className='text-sm text-slate-500'>{isThai ? 'กำลังอ่านสถานะสิทธิจากอุปกรณ์...' : 'Reading permission state from device...'}</p>
           )}
         </div>
       </div>

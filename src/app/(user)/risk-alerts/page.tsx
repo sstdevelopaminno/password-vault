@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { BellRing, ShieldAlert, ShieldX } from 'lucide-react';
 
@@ -57,7 +58,7 @@ export default function RiskAlertsPage() {
       await fetch('/api/phone/risk-alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number, action }),
+        body: JSON.stringify({ number, action, source: 'risk_alerts' }),
       });
       await loadAlerts();
     } finally {
@@ -78,6 +79,9 @@ export default function RiskAlertsPage() {
           <p className='mt-1 text-xs text-rose-600'>
             พบเบอร์เสี่ยงสูง {summary?.highRiskCount ?? 0} รายการ และน่าสงสัย {summary?.suspiciousCount ?? 0} รายการ
           </p>
+          <Link href='/risk-tip' className='mt-2 inline-flex h-8 items-center rounded-lg bg-rose-600 px-2.5 text-xs font-semibold text-white'>
+            แจ้งเบาะแสเพิ่มเติม
+          </Link>
         </div>
 
         <div className='mt-3 space-y-2'>

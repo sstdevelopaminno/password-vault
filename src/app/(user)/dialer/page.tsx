@@ -41,6 +41,19 @@ export default function DialerPage() {
     });
     const payload = (await response.json()) as DialPayload;
     setResult(payload.dial);
+    if (typeof window !== 'undefined' && (payload.dial.risk.level === 'high_risk' || payload.dial.risk.level === 'suspicious')) {
+      window.dispatchEvent(
+        new CustomEvent('pv-call-risk-detected', {
+          detail: {
+            number,
+            level: payload.dial.risk.level,
+            score: payload.dial.risk.score,
+            verdict: payload.dial.risk.verdict,
+            message: payload.dial.message,
+          },
+        }),
+      );
+    }
   }
 
   async function handleSafeDial() {

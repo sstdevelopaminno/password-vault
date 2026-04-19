@@ -16,3 +16,6 @@ Metrics endpoint:
 GET /api/metrics?windowSec=60
 POST /api/metrics with action reset
 
+Public baseline (no auth required):
+k6 run -e BASE_URL=http://localhost:3000 -e TARGET_RPS=60 -e DURATION=90s load-tests/k6/baseline-public.js
+

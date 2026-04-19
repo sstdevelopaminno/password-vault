@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     }
 
     const ip = clientIp(req);
-    const limit = takeRateLimit(`pin-verify:${ip}:${data.user.id}`, { limit: 12, windowMs: 60 * 1000 });
+    const limit = await takeRateLimit(`pin-verify:${ip}:${data.user.id}`, { limit: 12, windowMs: 60 * 1000 });
     if (!limit.allowed) {
       return NextResponse.json({ error: "Too many PIN attempts. Please wait.", retryAfterSec: limit.retryAfterSec }, { status: 429 });
     }
@@ -106,3 +106,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: (error as Error).message || "PIN verify failed" }, { status: 500 });
   }
 }
+

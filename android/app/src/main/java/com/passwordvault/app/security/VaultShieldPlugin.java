@@ -1,6 +1,8 @@
 package com.passwordvault.app.security;
 
 import android.Manifest;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.BroadcastReceiver;
@@ -15,6 +17,7 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.Uri;
+import android.net.TrafficStats;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.ContactsContract;
@@ -99,6 +102,19 @@ public class VaultShieldPlugin extends Plugin {
     "casino",
     "slot",
     "bet"
+  );
+  private static final List<String> CRITICAL_PERMISSION_MARKERS = Arrays.asList(
+    Manifest.permission.SEND_SMS,
+    Manifest.permission.RECEIVE_SMS,
+    Manifest.permission.READ_SMS,
+    Manifest.permission.RECEIVE_MMS,
+    Manifest.permission.RECEIVE_WAP_PUSH,
+    Manifest.permission.SYSTEM_ALERT_WINDOW,
+    Manifest.permission.REQUEST_INSTALL_PACKAGES,
+    Manifest.permission.RECEIVE_BOOT_COMPLETED,
+    "android.permission.BIND_ACCESSIBILITY_SERVICE",
+    "android.permission.BIND_DEVICE_ADMIN",
+    "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
   );
   private BroadcastReceiver apkDownloadReceiver;
   private long pendingApkDownloadId = -1L;
@@ -465,6 +481,217 @@ public class VaultShieldPlugin extends Plugin {
     requestPlayIntegrityToken(call, result, playIntegrityNonce, playIntegrityCloudProjectNumber);
   }
 
+  @PluginMethod
+  public void getDeviceSecurityState(PluginCall call) {
+    try {
+      JSObject state = buildDeviceSecurityState(getContext());
+      call.resolve(state);
+    } catch (Exception error) {
+      call.reject("Unable to read device security state: " + error.getMessage());
+    }
+  }
+
+  @PluginMethod
+  public void scanInstalledApps(PluginCall call) {
+    Context context = getContext();
+    PackageManager pm = context.getPackageManager();
+    int limit = 240;
+    Integer requestedLimit = call.getInt("limit");
+    if (requestedLimit != null && requestedLimit > 0) {
+      limit = Math.min(500, requestedLimit);
+    }
+
+    Set<String> launchablePackages = getLaunchablePackages(pm);
+    Set<String> enabledAccessibilityPackages =
+      parseEnabledServicePackages(Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES));
+    Set<String> enabledNotificationPackages =
+      parseEnabledServicePackages(Settings.Secure.getString(context.getContentResolver(), "enabled_notification_listeners"));
+    Set<String> deviceAdminPackages = new HashSet<>();
+    try {
+      DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+      if (dpm != null) {
+        List<ComponentName> activeAdmins = dpm.getActiveAdmins();
+        if (activeAdmins != null) {
+          for (ComponentName component : activeAdmins) {
+            if (component != null && component.getPackageName() != null) {
+              deviceAdminPackages.add(component.getPackageName());
+            }
+          }
+        }
+      }
+    } catch (Exception ignored) {
+      // no-op
+    }
+
+    JSArray apps = new JSArray();
+    int scanned = 0;
+    for (String packageName : launchablePackages) {
+      if (scanned >= limit) break;
+      if (packageName == null || packageName.trim().isEmpty()) continue;
+
+      try {
+        PackageInfo info;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          info = pm.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS));
+        } else {
+          //noinspection deprecation
+          info = pm.getPackageInfo(packageName, PackageManager.GET_PERMISSIONS);
+        }
+
+        ApplicationInfo appInfo = info.applicationInfo;
+        String appName = appInfo == null ? packageName : String.valueOf(pm.getApplicationLabel(appInfo));
+        String installer = getInstallSource(pm, packageName);
+        String[] requestedPermissions = info.requestedPermissions == null ? new String[0] : info.requestedPermissions;
+        Set<String> permissionSet = new HashSet<>(Arrays.asList(requestedPermissions));
+
+        boolean hasSmsPermission =
+          permissionSet.contains(Manifest.permission.SEND_SMS) ||
+          permissionSet.contains(Manifest.permission.RECEIVE_SMS) ||
+          permissionSet.contains(Manifest.permission.READ_SMS);
+        boolean hasAccessibilityPermission = permissionSet.contains("android.permission.BIND_ACCESSIBILITY_SERVICE");
+        boolean hasDeviceAdminPermission = permissionSet.contains("android.permission.BIND_DEVICE_ADMIN");
+        boolean hasOverlayPermission = permissionSet.contains(Manifest.permission.SYSTEM_ALERT_WINDOW);
+        boolean hasNotificationListenerPermission = permissionSet.contains("android.permission.BIND_NOTIFICATION_LISTENER_SERVICE");
+        boolean hasInstallPackagePermission = permissionSet.contains(Manifest.permission.REQUEST_INSTALL_PACKAGES);
+        boolean hasBootPermission = permissionSet.contains(Manifest.permission.RECEIVE_BOOT_COMPLETED);
+
+        boolean accessibilityEnabled = enabledAccessibilityPackages.contains(packageName);
+        boolean notificationEnabled = enabledNotificationPackages.contains(packageName);
+        boolean deviceAdminActive = deviceAdminPackages.contains(packageName);
+        boolean unknownInstaller = !isTrustedInstaller(installer);
+        boolean suspiciousKeyword =
+          containsAnyKeyword(packageName.toLowerCase(Locale.US), HIGH_RISK_PACKAGE_KEYWORDS) ||
+          containsAnyKeyword(packageName.toLowerCase(Locale.US), ADWARE_PACKAGE_KEYWORDS);
+
+        int dangerousPermissionCount = 0;
+        for (String marker : CRITICAL_PERMISSION_MARKERS) {
+          if (permissionSet.contains(marker)) {
+            dangerousPermissionCount += 1;
+          }
+        }
+
+        int uid = appInfo == null ? -1 : appInfo.uid;
+        long rxBytes = uid > 0 ? Math.max(0L, TrafficStats.getUidRxBytes(uid)) : 0L;
+        long txBytes = uid > 0 ? Math.max(0L, TrafficStats.getUidTxBytes(uid)) : 0L;
+        long networkBytes = rxBytes + txBytes;
+
+        int riskScore = 0;
+        List<String> reasons = new ArrayList<>();
+
+        if (hasSmsPermission) {
+          riskScore += 26;
+          reasons.add("requests SMS permissions");
+        }
+        if (hasAccessibilityPermission || accessibilityEnabled) {
+          riskScore += 24;
+          reasons.add(accessibilityEnabled ? "accessibility service currently enabled" : "declares accessibility service permission");
+        }
+        if (hasDeviceAdminPermission || deviceAdminActive) {
+          riskScore += 20;
+          reasons.add(deviceAdminActive ? "device admin currently active" : "declares device admin permission");
+        }
+        if (hasOverlayPermission) {
+          riskScore += 14;
+          reasons.add("can draw over other apps");
+        }
+        if (hasNotificationListenerPermission || notificationEnabled) {
+          riskScore += 14;
+          reasons.add(notificationEnabled ? "notification access currently enabled" : "declares notification listener permission");
+        }
+        if (hasInstallPackagePermission) {
+          riskScore += 12;
+          reasons.add("can request package installs");
+        }
+        if (hasBootPermission) {
+          riskScore += 8;
+          reasons.add("starts on boot");
+        }
+        if (unknownInstaller) {
+          riskScore += 10;
+          reasons.add("installed from unknown store");
+        }
+        if (suspiciousKeyword) {
+          riskScore += 16;
+          reasons.add("package name matches risky keyword pattern");
+        }
+        if (networkBytes > 300L * 1024L * 1024L) {
+          riskScore += 16;
+          reasons.add("abnormally high network usage");
+        } else if (networkBytes > 120L * 1024L * 1024L) {
+          riskScore += 8;
+          reasons.add("high network usage");
+        }
+        if (dangerousPermissionCount >= 6) {
+          riskScore += 14;
+          reasons.add("many high-risk permissions");
+        } else if (dangerousPermissionCount >= 3) {
+          riskScore += 8;
+          reasons.add("multiple high-risk permissions");
+        }
+
+        if (riskScore > 100) riskScore = 100;
+        String riskLevel;
+        String recommendation;
+        if (riskScore >= 75) {
+          riskLevel = "remove";
+          recommendation = "uninstall";
+        } else if (riskScore >= 50) {
+          riskLevel = "risky";
+          recommendation = "verify";
+        } else if (riskScore >= 25) {
+          riskLevel = "review";
+          recommendation = "verify";
+        } else {
+          riskLevel = "safe";
+          recommendation = "allow";
+        }
+
+        JSArray permissionsJson = new JSArray();
+        for (String permission : requestedPermissions) {
+          if (permission != null && !permission.trim().isEmpty()) {
+            permissionsJson.put(permission);
+          }
+        }
+
+        JSArray reasonsJson = new JSArray();
+        for (String reason : reasons) {
+          reasonsJson.put(reason);
+        }
+
+        JSObject row = new JSObject();
+        row.put("packageName", packageName);
+        row.put("appName", appName);
+        row.put("installer", installer == null ? "" : installer);
+        row.put("riskScore", riskScore);
+        row.put("riskLevel", riskLevel);
+        row.put("recommendation", recommendation);
+        row.put("dangerousPermissionCount", dangerousPermissionCount);
+        row.put("hasSmsPermission", hasSmsPermission);
+        row.put("accessibilityEnabled", hasAccessibilityPermission || accessibilityEnabled);
+        row.put("deviceAdminActive", hasDeviceAdminPermission || deviceAdminActive);
+        row.put("canDisplayOverlay", hasOverlayPermission);
+        row.put("notificationAccessEnabled", hasNotificationListenerPermission || notificationEnabled);
+        row.put("canInstallPackages", hasInstallPackagePermission);
+        row.put("bootAutoStart", hasBootPermission);
+        row.put("hasSuspiciousKeyword", suspiciousKeyword);
+        row.put("networkRxBytes", rxBytes);
+        row.put("networkTxBytes", txBytes);
+        row.put("reasons", reasonsJson);
+        row.put("requestedPermissions", permissionsJson);
+        apps.put(row);
+        scanned += 1;
+      } catch (Exception ignored) {
+        // Skip packages that cannot be inspected due to visibility/signature restrictions.
+      }
+    }
+
+    JSObject payload = new JSObject();
+    payload.put("scannedAt", nowIsoUtc());
+    payload.put("count", apps.length());
+    payload.put("apps", apps);
+    call.resolve(payload);
+  }
+
   private void requestPlayIntegrityToken(
     PluginCall call,
     JSObject result,
@@ -816,6 +1043,80 @@ public class VaultShieldPlugin extends Plugin {
       return pm.getInstallerPackageName(packageName);
     } catch (Exception ignored) {
       return "";
+    }
+  }
+
+  private JSObject buildDeviceSecurityState(Context context) {
+    JSObject result = new JSObject();
+    result.put("collectedAt", nowIsoUtc());
+    result.put("playProtectEnabled", isPlayProtectEnabled(context));
+    result.put("securityPatchLevel", String.valueOf(Build.VERSION.SECURITY_PATCH == null ? "" : Build.VERSION.SECURITY_PATCH));
+    result.put("unknownSourcesEnabled", isUnknownSourcesEnabled(context));
+    result.put("developerOptionsEnabled", isDeveloperOptionsEnabled(context));
+    result.put("adbEnabled", isAdbEnabled(context));
+    result.put("vpnActive", isVpnActive(context));
+    result.put("activeWifi", isActiveWifi(context));
+    result.put("overlayPermissionGrantedToVault", Settings.canDrawOverlays(context));
+    result.put("suBinaryDetected", hasSuBinary());
+    result.put("hasTestKeys", hasTestKeys());
+    return result;
+  }
+
+  private Set<String> parseEnabledServicePackages(String rawValue) {
+    Set<String> packages = new HashSet<>();
+    if (rawValue == null || rawValue.trim().isEmpty()) {
+      return packages;
+    }
+
+    String[] components = rawValue.split(":");
+    for (String entry : components) {
+      if (entry == null || entry.trim().isEmpty()) continue;
+      String value = entry.trim();
+      int slashIndex = value.indexOf('/');
+      String packageName = slashIndex > 0 ? value.substring(0, slashIndex) : value;
+      if (!packageName.trim().isEmpty()) {
+        packages.add(packageName.trim());
+      }
+    }
+    return packages;
+  }
+
+  private boolean isPlayProtectEnabled(Context context) {
+    try {
+      int verifierEnabled = Settings.Global.getInt(
+        context.getContentResolver(),
+        "package_verifier_enable",
+        1
+      );
+      return verifierEnabled == 1;
+    } catch (Exception ignored) {
+      return false;
+    }
+  }
+
+  private boolean isUnknownSourcesEnabled(Context context) {
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        return context.getPackageManager().canRequestPackageInstalls();
+      }
+      //noinspection deprecation
+      return Settings.Secure.getInt(context.getContentResolver(), Settings.Secure.INSTALL_NON_MARKET_APPS, 0) == 1;
+    } catch (Exception ignored) {
+      return false;
+    }
+  }
+
+  private boolean isActiveWifi(Context context) {
+    try {
+      ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+      if (connectivityManager == null) return false;
+      Network activeNetwork = connectivityManager.getActiveNetwork();
+      if (activeNetwork == null) return false;
+      NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(activeNetwork);
+      if (capabilities == null) return false;
+      return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+    } catch (Exception ignored) {
+      return false;
     }
   }
 

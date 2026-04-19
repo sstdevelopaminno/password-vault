@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { resolveProfileForAuthUser } from "@/lib/supabase/admin";
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   }
 
   const ip = clientIp(req);
-  const limit = takeRateLimit(`face-auth-recovery-verify:${ip}:${auth.user.id}`, {
+  const limit = await takeRateLimit(`face-auth-recovery-verify:${ip}:${auth.user.id}`, {
     limit: 6,
     windowMs: 5 * 60 * 1000,
   });
@@ -129,3 +129,4 @@ export async function POST(req: Request) {
   });
   return response;
 }
+

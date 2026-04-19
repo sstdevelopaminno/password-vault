@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     }
 
     const ip = clientIp(req);
-    const limit = takeRateLimit(`login:${ip}:${normalizedEmail}`, { limit: 10, windowMs: 5 * 60 * 1000 });
+    const limit = await takeRateLimit(`login:${ip}:${normalizedEmail}`, { limit: 10, windowMs: 5 * 60 * 1000 });
     if (!limit.allowed) {
       return NextResponse.json(
         { error: "Too many login attempts. Please wait.", retryAfterSec: limit.retryAfterSec },
@@ -178,6 +178,7 @@ export async function POST(req: Request) {
     );
   }
 }
+
 
 
 

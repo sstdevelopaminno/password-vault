@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   }
 
   const ip = clientIp(req);
-  const limit = takeRateLimit(`face-auth-recovery-request:${ip}:${auth.user.id}`, {
+  const limit = await takeRateLimit(`face-auth-recovery-request:${ip}:${auth.user.id}`, {
     limit: 3,
     windowMs: 60 * 1000,
   });
@@ -111,3 +111,4 @@ export async function POST(req: Request) {
     message: "OTP sent for face login recovery.",
   });
 }
+

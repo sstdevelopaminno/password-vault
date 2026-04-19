@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { z } from "zod";
 import { findAuthUserByEmail, resolveProfileForAuthUser, createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
  const email = parsed.data.email.trim().toLowerCase();
  const { pin, newPassword } = parsed.data;
  const ip = clientIp(req);
- const limit = takeRateLimit(`reset-password-pin:${ip}:${email}`, { limit: 5, windowMs: 15 * 60 * 1000 });
+ const limit = await takeRateLimit(`reset-password-pin:${ip}:${email}`, { limit: 5, windowMs: 15 * 60 * 1000 });
  if (!limit.allowed) {
  return NextResponse.json(
  { error: "Too many reset attempts. Please wait.", retryAfterSec: limit.retryAfterSec },
@@ -73,3 +73,4 @@ export async function POST(req: Request) {
 
  return NextResponse.json({ ok: true, message: "Password reset successful" });
 }
+

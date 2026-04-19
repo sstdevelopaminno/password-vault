@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -18,11 +18,34 @@ function ensurePath(inputPath) {
 }
 
 function getJavaMajorVersion(javaExecutable) {
-  const result = spawnSync(javaExecutable, ["-version"], { encoding: "utf8" });
-  const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  const match = combined.match(/version\s+"(\d+)(?:\.\d+)?/i);
-  if (!match) return 0;
-  return Number.parseInt(match[1], 10) || 0;
+  const readMajorFromReleaseFile = () => {
+    const javaHome = path.resolve(javaExecutable, "..", "..");
+    const releasePath = path.join(javaHome, "release");
+    if (!existsSync(releasePath)) return 0;
+    const releaseContent = readFileSync(releasePath, "utf8");
+    const releaseMatch = releaseContent.match(/JAVA_VERSION="(\d+)(?:\.\d+)?/i);
+    if (!releaseMatch) return 0;
+    return Number.parseInt(releaseMatch[1], 10) || 0;
+  };
+
+  const parseMajor = (stdout, stderr) => {
+    const combined = `${stdout ?? ""}\n${stderr ?? ""}`;
+    const match = combined.match(/version\s+"(\d+)(?:\.\d+)?/i);
+    if (!match) return 0;
+    return Number.parseInt(match[1], 10) || 0;
+  };
+
+  const directResult = spawnSync(javaExecutable, ["-version"], { encoding: "utf8" });
+  const directMajor = parseMajor(directResult.stdout, directResult.stderr);
+  if (directMajor >= 1) return directMajor;
+
+  if (process.platform === "win32" && directResult.error?.code === "EPERM") {
+    const cmdResult = spawnSync("cmd.exe", ["/d", "/s", "/c", `"${javaExecutable}" -version`], { encoding: "utf8" });
+    const cmdMajor = parseMajor(cmdResult.stdout, cmdResult.stderr);
+    if (cmdMajor >= 1) return cmdMajor;
+  }
+
+  return readMajorFromReleaseFile();
 }
 
 function findJavaHome() {
@@ -141,17 +164,23 @@ if (!androidSdkRoot) {
 const javaBin = path.join(javaHome, "bin");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const gradleCommand = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
+const gradleUserHome = process.env.GRADLE_USER_HOME
+  ? path.resolve(projectRoot, process.env.GRADLE_USER_HOME)
+  : path.join(projectRoot, ".gradle-home");
+mkdirSync(gradleUserHome, { recursive: true });
 
 const env = {
   ...process.env,
   JAVA_HOME: javaHome,
   ANDROID_HOME: androidSdkRoot,
   ANDROID_SDK_ROOT: androidSdkRoot,
+  GRADLE_USER_HOME: gradleUserHome,
   PATH: `${javaBin}${path.delimiter}${process.env.PATH ?? ""}`,
 };
 
 console.log(`Using JAVA_HOME=${javaHome}`);
 console.log(`Using ANDROID_HOME=${androidSdkRoot}`);
+console.log(`Using GRADLE_USER_HOME=${gradleUserHome}`);
 
 runStep(npmCommand, ["run", "cap:sync:android"], { cwd: projectRoot, env });
 runStep(gradleCommand, ["assembleRelease"], { cwd: path.join(projectRoot, "android"), env });

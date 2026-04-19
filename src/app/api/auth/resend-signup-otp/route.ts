@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { clientIp, takeRateLimit } from "@/lib/rate-limit";
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
   const normalizedEmail = parsed.data.email.trim().toLowerCase();
   const ip = clientIp(req);
-  const limit = takeRateLimit(`resend-signup-otp:${ip}:${normalizedEmail}`, { limit: 2, windowMs: 60 * 1000 });
+  const limit = await takeRateLimit(`resend-signup-otp:${ip}:${normalizedEmail}`, { limit: 2, windowMs: 60 * 1000 });
 
   if (!limit.allowed) {
     return NextResponse.json(
@@ -81,3 +81,4 @@ export async function POST(req: Request) {
     message: "OTP sent to your email",
   });
 }
+

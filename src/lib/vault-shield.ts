@@ -84,6 +84,48 @@ export type VaultShieldDeviceContactsResult = {
   source?: "device" | string;
 };
 
+export type VaultShieldInstalledAppRisk = {
+  packageName: string;
+  appName: string;
+  installer: string;
+  riskScore: number;
+  riskLevel: "safe" | "review" | "risky" | "remove";
+  recommendation: "allow" | "verify" | "uninstall";
+  dangerousPermissionCount: number;
+  hasSmsPermission: boolean;
+  accessibilityEnabled: boolean;
+  deviceAdminActive: boolean;
+  canDisplayOverlay: boolean;
+  notificationAccessEnabled: boolean;
+  canInstallPackages: boolean;
+  bootAutoStart: boolean;
+  hasSuspiciousKeyword: boolean;
+  networkRxBytes: number;
+  networkTxBytes: number;
+  reasons: string[];
+  requestedPermissions: string[];
+};
+
+export type VaultShieldAppScanResult = {
+  scannedAt: string;
+  count: number;
+  apps: VaultShieldInstalledAppRisk[];
+};
+
+export type VaultShieldDeviceSecurityState = {
+  collectedAt: string;
+  playProtectEnabled: boolean;
+  securityPatchLevel: string;
+  unknownSourcesEnabled: boolean;
+  developerOptionsEnabled: boolean;
+  adbEnabled: boolean;
+  vpnActive: boolean;
+  activeWifi: boolean;
+  overlayPermissionGrantedToVault: boolean;
+  suBinaryDetected: boolean;
+  hasTestKeys: boolean;
+};
+
 type VaultShieldPlugin = {
   collectSignals(options?: VaultShieldCollectOptions): Promise<VaultShieldSignals>;
   installApkUpdate(options: VaultShieldInstallApkOptions): Promise<VaultShieldInstallApkResult>;
@@ -91,6 +133,8 @@ type VaultShieldPlugin = {
   requestContactsPermission(): Promise<VaultShieldContactsPermissionResult>;
   requestCallPhonePermission(): Promise<VaultShieldCallPermissionResult>;
   getDeviceContacts(options?: { limit?: number }): Promise<VaultShieldDeviceContactsResult>;
+  scanInstalledApps(options?: { limit?: number }): Promise<VaultShieldAppScanResult>;
+  getDeviceSecurityState(): Promise<VaultShieldDeviceSecurityState>;
   openAppSettings(): Promise<{ opened?: boolean }>;
 };
 
@@ -271,6 +315,34 @@ export async function readVaultShieldDeviceContacts(limit = 300): Promise<VaultS
     return result ?? null;
   } catch (error) {
     console.error("VaultShield getDeviceContacts failed:", error);
+    return null;
+  }
+}
+
+export async function scanVaultShieldInstalledApps(limit = 240): Promise<VaultShieldAppScanResult | null> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return null;
+  }
+
+  try {
+    return await nativePlugin.scanInstalledApps({ limit });
+  } catch (error) {
+    console.error("VaultShield scanInstalledApps failed:", error);
+    return null;
+  }
+}
+
+export async function readVaultShieldDeviceSecurityState(): Promise<VaultShieldDeviceSecurityState | null> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return null;
+  }
+
+  try {
+    return await nativePlugin.getDeviceSecurityState();
+  } catch (error) {
+    console.error("VaultShield getDeviceSecurityState failed:", error);
     return null;
   }
 }

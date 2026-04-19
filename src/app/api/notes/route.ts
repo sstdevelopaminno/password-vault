@@ -3,8 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { noteCreateSchema } from '@/lib/validators';
-import { processNoteReminderJobs, syncNoteReminderJob } from '@/lib/note-reminders';
-import { processPushQueue } from '@/lib/push-queue';
+import { syncNoteReminderJob } from '@/lib/note-reminders';
 
 type NoteRow = {
  id: string;
@@ -15,27 +14,6 @@ type NoteRow = {
  created_at: string;
  updated_at: string;
 };
-
-let lastReminderPumpAt = 0;
-let reminderPumpPromise: Promise<void> | null = null;
-
-function maybeProcessReminderPipeline() {
- const now = Date.now();
- if (now - lastReminderPumpAt < 45_000) return;
- if (reminderPumpPromise) return;
- lastReminderPumpAt = now;
-
- reminderPumpPromise = (async () => {
- try {
- await processNoteReminderJobs({ batchSize: 20 });
- await processPushQueue({ batchSize: 20 });
- } catch {
- // Reminder processing should never block notes listing.
- } finally {
- reminderPumpPromise = null;
- }
- })();
-}
 
 function parseLimit(raw: string | null, fallback = 20, max = 60) {
  const value = Number(raw ?? fallback);
@@ -75,8 +53,6 @@ export async function GET(req: Request) {
  if (!auth.user) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
-
- void maybeProcessReminderPipeline();
 
  const { searchParams } = new URL(req.url);
  const limit = parseLimit(searchParams.get('limit'));

@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit';
 import {
   evaluatePhoneRiskWithIntel,
   listRiskAlertsWithIntel,
@@ -12,6 +13,8 @@ export const dynamic = 'force-dynamic';
 const actionSchema = z.object({
   number: z.string().trim().min(6).max(30),
   action: z.enum(['block', 'report']),
+  clueText: z.string().trim().min(2).max(500).optional(),
+  source: z.enum(['manual_tip', 'risk_alerts', 'home_quick_action']).optional(),
 });
 
 function isMissingPhoneRiskTableError(message: unknown) {
@@ -84,10 +87,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: withNormalized.error.message }, { status: 400 });
   }
 
+  if (parsed.data.action === 'report') {
+    await logAudit('phone_risk_tip_reported', {
+      workflowStatus: 'pending_review',
+      number: parsed.data.number,
+      normalizedNumber: normalized,
+      riskLevel: risk.level,
+      source: parsed.data.source ?? 'manual_tip',
+      clueText: parsed.data.clueText ?? '',
+      persisted,
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     number: parsed.data.number,
     action: parsed.data.action,
+    workflowStatus: parsed.data.action === 'report' ? 'pending_review' : null,
+    clueText: parsed.data.clueText ?? '',
+    source: parsed.data.source ?? 'manual_tip',
     riskLevel: risk.level,
     processedAt: new Date().toISOString(),
     persisted,

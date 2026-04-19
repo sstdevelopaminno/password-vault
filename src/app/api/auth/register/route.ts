@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { registerSchema } from "@/lib/validators";
 import { createAdminClient, findAuthUserByEmail, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { clientIp, takeRateLimit } from "@/lib/rate-limit";
 import {
   isOtpProviderConfigError,
   isOtpSendConstraintError,
@@ -28,6 +29,11 @@ export async function POST(req: Request) {
 
     const { email, password, fullName, otp } = parsed.data;
     const normalizedEmail = email.toLowerCase();
+    const ip = clientIp(req);
+    const registerRate = await takeRateLimit(`register:${ip}:${normalizedEmail}`, { limit: 10, windowMs: 60 * 1000 });
+    if (!registerRate.allowed) {
+      return NextResponse.json({ error: "Too many registration attempts. Please wait.", retryAfterSec: registerRate.retryAfterSec }, { status: 429 });
+    }
 
     const admin = createAdminClient();
     const supabase = await createClient();
@@ -38,9 +44,13 @@ export async function POST(req: Request) {
         .select("id")
         .eq("email", normalizedEmail)
         .maybeSingle();
-      const existingAuthUser = await findAuthUserByEmail(normalizedEmail);
 
-      if (existingProfile?.id || existingAuthUser?.id) {
+      if (existingProfile?.id) {
+        return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+      }
+
+      const existingAuthUser = await findAuthUserByEmail(normalizedEmail);
+      if (existingAuthUser?.id) {
         return NextResponse.json({ error: "Email already registered" }, { status: 409 });
       }
 

@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import {
   HardDrive,
   PhoneCall,
   Server,
+  Send,
   ShieldAlert,
   ShieldCheck,
   ShieldX,
@@ -19,20 +20,19 @@ import {
   X,
 } from 'lucide-react';
 import { readMobileContacts, type MobileContactsPermission } from '@/lib/mobile-contacts';
+import { readMdmOverview, type MdmOverview } from '@/lib/mdm-client';
 import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
 import { readPhoneProtectionEnabled, writePhoneProtectionEnabled } from '@/lib/phone-protection';
 
 const FORCE_ANDROID_INSTALL_POPUP_EVENT = 'pv:force-android-install-popup';
 
-type AlertRow = {
-  id: string;
-  number: string;
-  level: 'safe' | 'suspicious' | 'high_risk';
-  message: string;
-};
-
 type AlertsResponse = {
-  alerts: AlertRow[];
+  alerts: Array<{
+    id: string;
+    number: string;
+    level: 'safe' | 'suspicious' | 'high_risk';
+    message: string;
+  }>;
   summary: {
     total: number;
     highRiskCount: number;
@@ -50,6 +50,30 @@ type ProfileResponse = {
   status?: string;
 };
 
+type TipSubmitResponse = {
+  ok?: boolean;
+  riskLevel?: string;
+  workflowStatus?: string;
+  error?: string;
+};
+
+function mdmTone(state: MdmOverview['complianceState']) {
+  if (state === 'compliant') return 'bg-emerald-50 text-emerald-700';
+  if (state === 'at_risk') return 'bg-amber-50 text-amber-700';
+  if (state === 'non_compliant') return 'bg-rose-50 text-rose-700';
+  return 'bg-slate-100 text-slate-700';
+}
+
+function mdmLabel(state: MdmOverview['complianceState']) {
+  if (state === 'compliant') return 'Compliant';
+  if (state === 'at_risk') return 'At risk';
+  if (state === 'non_compliant') return 'Non-compliant';
+  return 'Unknown';
+}
+
+function normalizePhone(value: string) {
+  return value.replace(/[^0-9+]/g, '').slice(0, 30);
+}
 
 const actionTiles = [
   { href: '/contacts', title: 'ผู้ติดต่อ', subtitle: 'รายชื่อมือถือ', icon: Smartphone },
@@ -58,21 +82,8 @@ const actionTiles = [
   { href: '/risk-alerts', title: 'บล็อก/รายงาน', subtitle: 'เบอร์เสี่ยง', icon: ShieldX },
 ];
 
-function tone(level: AlertRow['level']) {
-  if (level === 'safe') return 'text-emerald-600 bg-emerald-50 border-emerald-200';
-  if (level === 'suspicious') return 'text-amber-700 bg-amber-50 border-amber-200';
-  return 'text-rose-600 bg-rose-50 border-rose-200';
-}
-
-function levelLabel(level: AlertRow['level']) {
-  if (level === 'safe') return 'ปลอดภัย';
-  if (level === 'suspicious') return 'น่าสงสัย';
-  return 'เสี่ยงสูง';
-}
-
 export default function HomePage() {
   const router = useRouter();
-  const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [summary, setSummary] = useState<AlertsResponse['summary'] | null>(null);
   const [contactsCount, setContactsCount] = useState(0);
   const [, setContactsPermission] = useState<MobileContactsPermission>('unknown');
@@ -81,8 +92,13 @@ export default function HomePage() {
   const [userStatus, setUserStatus] = useState('active');
   const [userFullName, setUserFullName] = useState('');
   const [showIosGuide, setShowIosGuide] = useState(false);
-  const [isIosRuntime, setIsIosRuntime] = useState(false);
-  const [phoneProtectionEnabled, setPhoneProtectionEnabled] = useState(false);
+  const [isIosRuntime] = useState(() => detectRuntimeCapabilities().isIos);
+  const [phoneProtectionEnabled, setPhoneProtectionEnabled] = useState(() => readPhoneProtectionEnabled());
+  const [mdmOverview, setMdmOverview] = useState<MdmOverview | null>(null);
+  const [tipNumber, setTipNumber] = useState('');
+  const [tipClueText, setTipClueText] = useState('');
+  const [tipLoading, setTipLoading] = useState(false);
+  const [tipStatus, setTipStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -90,7 +106,6 @@ export default function HomePage() {
       .then((response) => (response.ok ? response.json() : null))
       .then((payload: AlertsResponse | null) => {
         if (ignore || !payload) return;
-        setAlerts(payload.alerts ?? []);
         setSummary(payload.summary ?? null);
       })
       .catch(() => undefined);
@@ -113,15 +128,16 @@ export default function HomePage() {
       })
       .catch(() => undefined);
 
+    readMdmOverview()
+      .then((overview) => {
+        if (ignore) return;
+        setMdmOverview(overview);
+      })
+      .catch(() => undefined);
+
     return () => {
       ignore = true;
     };
-  }, []);
-
-  useEffect(() => {
-    const runtime = detectRuntimeCapabilities();
-    setIsIosRuntime(runtime.isIos);
-    setPhoneProtectionEnabled(readPhoneProtectionEnabled());
   }, []);
 
   useEffect(() => {
@@ -138,8 +154,6 @@ export default function HomePage() {
       ignore = true;
     };
   }, []);
-
-  const recentChecks = useMemo(() => alerts.slice(0, 3), [alerts]);
 
   async function syncMobileContacts(requestPermission: boolean) {
     try {
@@ -174,6 +188,53 @@ export default function HomePage() {
     return true;
   }
 
+  async function submitRiskTipFromHome() {
+    const number = normalizePhone(tipNumber);
+    if (number.length < 6) {
+      setTipStatus({ type: 'error', message: 'กรุณากรอกเบอร์อย่างน้อย 6 หลัก' });
+      return;
+    }
+    if (tipClueText.trim().length < 2) {
+      setTipStatus({ type: 'error', message: 'กรุณากรอกรายละเอียดอย่างน้อย 2 ตัวอักษร' });
+      return;
+    }
+
+    setTipLoading(true);
+    setTipStatus(null);
+    try {
+      const response = await fetch('/api/phone/risk-alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          number,
+          action: 'report',
+          clueText: tipClueText.trim(),
+          source: 'home_quick_action',
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as TipSubmitResponse;
+      if (!response.ok) {
+        setTipStatus({ type: 'error', message: String(payload.error ?? 'ส่งเบาะแสไม่สำเร็จ') });
+        return;
+      }
+
+      setTipNumber('');
+      setTipClueText('');
+      setTipStatus({
+        type: 'success',
+        message: `รับเบาะแสแล้ว (risk: ${String(payload.riskLevel ?? 'unknown')})`,
+      });
+
+      const summaryResponse = await fetch('/api/phone/risk-alerts', { cache: 'no-store' });
+      const summaryPayload = (await summaryResponse.json().catch(() => null)) as AlertsResponse | null;
+      if (summaryResponse.ok && summaryPayload?.summary) {
+        setSummary(summaryPayload.summary);
+      }
+    } finally {
+      setTipLoading(false);
+    }
+  }
+
   return (
     <section className='relative space-y-3 pb-20 pt-[max(10px,env(safe-area-inset-top))]'>
       <div className='mb-3 flex items-start justify-between gap-3'>
@@ -186,6 +247,9 @@ export default function HomePage() {
             <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
               <span className='rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700'>สิทธิ์: {userRole}</span>
               <span className='rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700'>สถานะ: {userStatus}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${mdmTone(mdmOverview?.complianceState ?? 'unknown')}`}>
+                MDM: {mdmLabel(mdmOverview?.complianceState ?? 'unknown')}
+              </span>
               {userFullName ? <span className='truncate text-[11px] text-slate-500'>{userFullName}</span> : null}
             </div>
           </div>
@@ -243,25 +307,45 @@ export default function HomePage() {
           </div>
         ) : null}
 
-        <div className='mb-3 rounded-2xl border border-slate-200 bg-white p-3'>
-          <div className='mb-2 flex items-center justify-between'>
-            <h3 className='text-sm font-semibold text-slate-900'>เบอร์ที่ตรวจล่าสุด</h3>
-            <Link href='/phone-profile?number=091-998-7788' onClick={gateAndroidPwaMenu} className='text-xs font-semibold text-blue-600'>ดูโปรไฟล์เบอร์</Link>
-          </div>
-          <div className='space-y-2'>
-            {recentChecks.length === 0 ? (
-              <div className='rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-500'>กำลังโหลดข้อมูลล่าสุด...</div>
-            ) : (
-              recentChecks.map((row) => (
-                <div key={row.id} className='flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2'>
-                  <p className='text-sm font-medium text-slate-800'>{row.number}</p>
-                  <div className='flex items-center gap-2'>
-                    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tone(row.level)}`}>{levelLabel(row.level)}</span>
-                    <span className='text-xs font-semibold text-slate-600'>{row.level === 'high_risk' ? 'บล็อก' : row.level === 'suspicious' ? 'ตรวจ' : 'โทร'}</span>
-                  </div>
-                </div>
-              ))
-            )}
+        <div className='mb-3 rounded-2xl border border-rose-200 bg-rose-50 p-3'>
+          <h3 className='text-sm font-semibold text-rose-900'>แจ้งเบาะแสเบอร์มิจฉาชีพ</h3>
+          <p className='mt-1 text-xs leading-5 text-rose-800'>แจ้งเบอร์ต้องสงสัยได้ทันทีจากหน้าแรก พร้อมแนบรายละเอียดประกอบ</p>
+          <div className='mt-2 space-y-2'>
+            <input
+              type='tel'
+              value={tipNumber}
+              onChange={(event) => setTipNumber(event.target.value)}
+              placeholder='เบอร์ต้องสงสัย เช่น 08x-xxx-xxxx'
+              className='h-10 w-full rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-rose-400'
+            />
+            <textarea
+              value={tipClueText}
+              onChange={(event) => setTipClueText(event.target.value)}
+              placeholder='รายละเอียด เช่น อ้างเป็นเจ้าหน้าที่ ขอ OTP หรือขอให้โอนเงิน'
+              rows={3}
+              className='w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-rose-400'
+            />
+            <div className='flex flex-wrap items-center gap-2'>
+              <button
+                type='button'
+                onClick={() => void submitRiskTipFromHome()}
+                disabled={tipLoading}
+                className='inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-600 px-3 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60'
+              >
+                <Send className='h-3.5 w-3.5' />
+                {tipLoading ? 'กำลังส่ง...' : 'ส่งเบาะแส'}
+              </button>
+              <Link
+                href='/risk-tip'
+                onClick={gateAndroidPwaMenu}
+                className='inline-flex h-9 items-center rounded-xl border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100'
+              >
+                ดูรายการทั้งหมด
+              </Link>
+            </div>
+            {tipStatus ? (
+              <p className={`text-xs ${tipStatus.type === 'error' ? 'text-rose-700' : 'text-emerald-700'}`}>{tipStatus.message}</p>
+            ) : null}
           </div>
         </div>
 

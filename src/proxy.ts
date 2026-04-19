@@ -42,6 +42,8 @@ const riskBypassPaths = new Set([
   "/settings/risk-state",
   "/api/security/risk-evaluate",
   "/api/security/risk-state",
+  "/api/security/url-scan",
+  "/api/security/file-scan",
   "/api/runtime/diagnostics",
   "/api/version",
   ...publicApiPaths,

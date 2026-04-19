@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
   const ip = clientIp(req);
   const rateKey = `profile-otp:${parsedPurpose.data}:${ip}:${user.id}`;
-  const rate = takeRateLimit(rateKey, { limit: 3, windowMs: 60 * 1000 });
+  const rate = await takeRateLimit(rateKey, { limit: 3, windowMs: 60 * 1000 });
   if (!rate.allowed) {
     return NextResponse.json({
       error: 'OTP rate limited. Please wait.',
@@ -96,3 +96,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, message: 'OTP sent.' });
 }
+

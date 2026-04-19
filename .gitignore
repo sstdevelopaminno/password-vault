@@ -44,6 +44,9 @@ next-env.d.ts
 .tmp/
 .tmp_*
 supabase/.temp/
+/.gradle-home/
+tmp_k6_server.out.log
+tmp_k6_server.err.log
 
 # local JDK/tooling for Android build
 /tools/

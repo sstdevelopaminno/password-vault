@@ -12,6 +12,20 @@ type CommunityRow = {
   created_at: string;
 };
 
+export type PhoneRiskTelemetrySignals = {
+  numberInContacts?: boolean;
+  spamLikeCallPattern?: boolean;
+  networkOrSimAnomaly?: boolean;
+  frequentSimChanges?: boolean;
+  abnormalSignalOrCellInfo?: boolean;
+  riskyVoipOrRelayApps?: boolean;
+  rootedOrTamperedOrSideloaded?: boolean;
+  gatewayOrMassCallingBehavior?: boolean;
+  suspiciousCallAttempts1h?: number;
+  outboundCalls24h?: number;
+  distinctCallees24h?: number;
+};
+
 export type RiskSource = {
   provider: 'supabase-community' | 'open-web' | 'police-web' | 'official-api';
   title: string;
@@ -29,6 +43,7 @@ export type PhoneRiskIntelResult = {
   reasons: string[];
   recommendedAction: 'allow' | 'verify' | 'block';
   checkedAt: string;
+  riskSignals: PhoneRiskTelemetrySignals;
   intelligence: {
     communityReports: number;
     communityBlocks: number;
@@ -36,33 +51,19 @@ export type PhoneRiskIntelResult = {
     webRiskMentions: number;
     policeMentions: number;
     officialSourceMatches: number;
+    signalRiskScore: number;
     sources: RiskSource[];
   };
 };
 
 type EvaluateOptions = {
   includeWebSignals?: boolean;
+  telemetrySignals?: PhoneRiskTelemetrySignals;
 };
 
-const RISK_WORDS = [
-  'scam',
-  'fraud',
-  'spam',
-  'blacklist',
-  'robocall',
-  'phishing',
-  'มิจฉาชีพ',
-  'หลอกลวง',
-  'โกง',
-  'แบล็กลิสต์',
-];
+const RISK_WORDS = ['scam', 'fraud', 'spam', 'blacklist', 'robocall', 'phishing', 'มิจฉาชีพ', 'หลอกลวง', 'โกง', 'แบล็กลิสต์'];
 
-const POLICE_HINTS = [
-  'police.go.th',
-  'cyberpolice.go.th',
-  'interpol.int',
-  'europol.europa.eu',
-];
+const POLICE_HINTS = ['police.go.th', 'cyberpolice.go.th', 'interpol.int', 'europol.europa.eu'];
 
 const SEARCH_QUERIES = (number: string) => [
   `"${number}" scam fraud spam`,
@@ -79,6 +80,12 @@ function clampScore(value: number) {
   if (value < 0) return 0;
   if (value > 100) return 100;
   return Math.round(value);
+}
+
+function clampInt(value: unknown, min: number, max: number) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return min;
+  return Math.max(min, Math.min(max, Math.round(numeric)));
 }
 
 function stripHtml(html: string) {
@@ -100,6 +107,85 @@ function toRecommendedAction(level: PhoneRiskLevel): 'allow' | 'verify' | 'block
   if (level === 'high_risk') return 'block';
   if (level === 'suspicious') return 'verify';
   return 'allow';
+}
+
+function scoreTelemetrySignals(
+  input: PhoneRiskTelemetrySignals | undefined,
+): { score: number; reasons: string[]; normalized: PhoneRiskTelemetrySignals } {
+  const normalized: PhoneRiskTelemetrySignals = {
+    numberInContacts: input?.numberInContacts,
+    spamLikeCallPattern: Boolean(input?.spamLikeCallPattern),
+    networkOrSimAnomaly: Boolean(input?.networkOrSimAnomaly),
+    frequentSimChanges: Boolean(input?.frequentSimChanges),
+    abnormalSignalOrCellInfo: Boolean(input?.abnormalSignalOrCellInfo),
+    riskyVoipOrRelayApps: Boolean(input?.riskyVoipOrRelayApps),
+    rootedOrTamperedOrSideloaded: Boolean(input?.rootedOrTamperedOrSideloaded),
+    gatewayOrMassCallingBehavior: Boolean(input?.gatewayOrMassCallingBehavior),
+    suspiciousCallAttempts1h: clampInt(input?.suspiciousCallAttempts1h ?? 0, 0, 500),
+    outboundCalls24h: clampInt(input?.outboundCalls24h ?? 0, 0, 5000),
+    distinctCallees24h: clampInt(input?.distinctCallees24h ?? 0, 0, 5000),
+  };
+
+  const reasons: string[] = [];
+  let score = 0;
+
+  if (normalized.numberInContacts === false) {
+    score += 10;
+    reasons.push('หมายเลขนี้ไม่อยู่ในรายชื่อผู้ติดต่อ');
+  }
+  if (normalized.spamLikeCallPattern) {
+    score += 22;
+    reasons.push('รูปแบบสายเข้าคล้ายสแปมหรือ robocall');
+  }
+  if (normalized.networkOrSimAnomaly) {
+    score += 20;
+    reasons.push('พบความผิดปกติจากเครือข่ายหรือข้อมูล SIM');
+  }
+  if (normalized.frequentSimChanges) {
+    score += 24;
+    reasons.push('พบการเปลี่ยน SIM บ่อยผิดปกติ');
+  }
+  if (normalized.abnormalSignalOrCellInfo) {
+    score += 16;
+    reasons.push('พบสัญญาณหรือ cell info ผิดปกติช่วงใช้งานเสี่ยง');
+  }
+  if (normalized.riskyVoipOrRelayApps) {
+    score += 18;
+    reasons.push('พบแอป VoIP/Call Relay ที่มีความเสี่ยง');
+  }
+  if (normalized.rootedOrTamperedOrSideloaded) {
+    score += 28;
+    reasons.push('ตรวจพบ root/tamper/sideload เพิ่มความเสี่ยงอุปกรณ์');
+  }
+  if (normalized.gatewayOrMassCallingBehavior) {
+    score += 26;
+    reasons.push('พฤติกรรมคล้ายอุปกรณ์ gateway หรือ mass-calling');
+  }
+
+  const suspiciousAttemptsScore = Math.min(16, Math.floor((normalized.suspiciousCallAttempts1h ?? 0) / 2));
+  if (suspiciousAttemptsScore > 0) {
+    score += suspiciousAttemptsScore;
+    reasons.push(`มีความพยายามสายต้องสงสัยใน 1 ชั่วโมง (${normalized.suspiciousCallAttempts1h} ครั้ง)`);
+  }
+
+  const massCallVolume = Math.max(
+    0,
+    (normalized.outboundCalls24h ?? 0) - 25,
+    (normalized.distinctCallees24h ?? 0) - 20,
+  );
+  const massCallScore = Math.min(14, Math.floor(massCallVolume / 5));
+  if (massCallScore > 0) {
+    score += massCallScore;
+    reasons.push(
+      `ปริมาณโทรออกสูงผิดปกติใน 24 ชั่วโมง (${normalized.outboundCalls24h} สาย, ปลายทาง ${normalized.distinctCallees24h} เบอร์)`,
+    );
+  }
+
+  return {
+    score: Math.min(55, score),
+    reasons,
+    normalized,
+  };
 }
 
 async function searchOpenWeb(number: string) {
@@ -240,7 +326,9 @@ export async function evaluatePhoneRiskWithIntel(
   const normalizedNumber = normalizePhoneNumber(rawNumber);
 
   const community = await readCommunitySignals(normalizedNumber);
-  const web = options.includeWebSignals ? await searchOpenWeb(rawNumber) : { webRiskMentions: 0, policeMentions: 0, sources: [] as RiskSource[] };
+  const web = options.includeWebSignals
+    ? await searchOpenWeb(rawNumber)
+    : { webRiskMentions: 0, policeMentions: 0, sources: [] as RiskSource[] };
   const officialSignals = options.includeWebSignals ? await fetchOfficialRiskSignals(rawNumber) : [];
   const officialMatches = officialSignals.filter((signal) => signal.matched).length;
   const officialRiskScore = officialSignals.reduce((score, signal) => {
@@ -256,8 +344,16 @@ export async function evaluatePhoneRiskWithIntel(
   );
   const webRiskScore = Math.min(25, web.webRiskMentions * 3);
   const policeRiskScore = Math.min(20, web.policeMentions * 7);
+  const signalAssessment = scoreTelemetrySignals(options.telemetrySignals);
 
-  const score = clampScore(base.score + communityRiskScore + webRiskScore + policeRiskScore + Math.min(30, officialRiskScore));
+  const score = clampScore(
+    base.score +
+      communityRiskScore +
+      webRiskScore +
+      policeRiskScore +
+      Math.min(30, officialRiskScore) +
+      signalAssessment.score,
+  );
 
   const level: PhoneRiskLevel = score >= 70 ? 'high_risk' : score >= 35 ? 'suspicious' : 'safe';
   const reasons = [...base.reasons];
@@ -274,7 +370,10 @@ export async function evaluatePhoneRiskWithIntel(
     reasons.push(`พบการอ้างอิงโดเมนหน่วยงานทางการ ${web.policeMentions} สัญญาณ`);
   }
   if (officialMatches > 0) {
-    reasons.push(`พบการแมตช์จากแหล่งข้อมูลทางการที่ตั้งค่าไว้ ${officialMatches} แหล่ง`);
+    reasons.push(`พบการ match จากแหล่งข้อมูลทางการที่ตั้งค่าไว้ ${officialMatches} แหล่ง`);
+  }
+  if (signalAssessment.reasons.length > 0) {
+    reasons.push(...signalAssessment.reasons);
   }
 
   const officialSources: RiskSource[] = officialSignals.map((signal) => ({
@@ -294,6 +393,7 @@ export async function evaluatePhoneRiskWithIntel(
     reasons,
     recommendedAction: toRecommendedAction(level),
     checkedAt: new Date().toISOString(),
+    riskSignals: signalAssessment.normalized,
     intelligence: {
       communityReports: community.communityReports,
       communityBlocks: community.communityBlocks,
@@ -301,6 +401,7 @@ export async function evaluatePhoneRiskWithIntel(
       webRiskMentions: web.webRiskMentions,
       policeMentions: web.policeMentions,
       officialSourceMatches: officialMatches,
+      signalRiskScore: signalAssessment.score,
       sources: [...community.sources, ...web.sources, ...officialSources].slice(0, 8),
     },
   };

@@ -39,6 +39,15 @@ export type AuthUserSummary = {
   last_sign_in_at: string | null;
 };
 
+type AuthLookupCacheItem = {
+  value: AuthUserSummary | null;
+  expiresAt: number;
+};
+
+const AUTH_LOOKUP_CACHE_TTL_MS = 2 * 60 * 1000;
+const AUTH_LOOKUP_CACHE_MAX = 5000;
+const authLookupCache = new Map<string, AuthLookupCacheItem>();
+
 function isDuplicateEmailConstraintError(message: unknown) {
   const text = String(message ?? "").toLowerCase();
   return text.includes("duplicate key value") && text.includes("profiles_email_key");
@@ -48,27 +57,62 @@ function normalizeEmail(email: unknown) {
   return String(email ?? "").trim().toLowerCase();
 }
 
+function getCachedAuthUserByEmail(email: string) {
+  const hit = authLookupCache.get(email);
+  if (!hit) return undefined;
+  if (hit.expiresAt <= Date.now()) {
+    authLookupCache.delete(email);
+    return undefined;
+  }
+  return hit.value;
+}
+
+function setCachedAuthUserByEmail(email: string, value: AuthUserSummary | null) {
+  authLookupCache.set(email, {
+    value,
+    expiresAt: Date.now() + AUTH_LOOKUP_CACHE_TTL_MS,
+  });
+
+  if (authLookupCache.size <= AUTH_LOOKUP_CACHE_MAX) return;
+
+  const overflow = authLookupCache.size - AUTH_LOOKUP_CACHE_MAX;
+  const oldest = Array.from(authLookupCache.entries())
+    .sort((a, b) => a[1].expiresAt - b[1].expiresAt)
+    .slice(0, overflow);
+
+  for (const [key] of oldest) {
+    authLookupCache.delete(key);
+  }
+}
+
 export async function findAuthUserByEmail(email: string): Promise<AuthUserSummary | null> {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return null;
 
+  const cached = getCachedAuthUserByEmail(normalizedEmail);
+  if (cached !== undefined) return cached;
+
   const admin = createAdminClient();
   const perPage = 1000;
+  const maxPages = Number(process.env.AUTH_LIST_USERS_MAX_PAGES ?? 50);
+  const safeMaxPages = Number.isFinite(maxPages) && maxPages > 0 ? Math.min(200, Math.floor(maxPages)) : 50;
 
-  for (let page = 1; page <= 50; page += 1) {
+  for (let page = 1; page <= safeMaxPages; page += 1) {
     const listed = await admin.auth.admin.listUsers({ page, perPage });
     if (listed.error) throw new Error(listed.error.message);
 
     const users = listed.data?.users ?? [];
     const matched = users.find((entry) => normalizeEmail(entry.email) === normalizedEmail);
     if (matched) {
-      return {
+      const found = {
         id: String(matched.id),
         email: String(matched.email ?? ""),
         email_confirmed_at: matched.email_confirmed_at ? String(matched.email_confirmed_at) : null,
         banned_until: matched.banned_until ? String(matched.banned_until) : null,
         last_sign_in_at: matched.last_sign_in_at ? String(matched.last_sign_in_at) : null,
       };
+      setCachedAuthUserByEmail(normalizedEmail, found);
+      return found;
     }
 
     if (users.length < perPage) {
@@ -76,6 +120,7 @@ export async function findAuthUserByEmail(email: string): Promise<AuthUserSummar
     }
   }
 
+  setCachedAuthUserByEmail(normalizedEmail, null);
   return null;
 }
 

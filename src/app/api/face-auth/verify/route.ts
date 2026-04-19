@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
   }
 
   const ip = clientIp(req);
-  const limit = takeRateLimit(`face-pin-verify:${ip}:${auth.user.id}`, { limit: 12, windowMs: 60 * 1000 });
+  const limit = await takeRateLimit(`face-pin-verify:${ip}:${auth.user.id}`, { limit: 12, windowMs: 60 * 1000 });
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many verification attempts. Please wait.", retryAfterSec: limit.retryAfterSec },
@@ -230,3 +230,4 @@ export async function POST(req: Request) {
   });
   return response;
 }
+
