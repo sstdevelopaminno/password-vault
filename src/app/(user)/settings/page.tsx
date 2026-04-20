@@ -25,6 +25,15 @@ function digits(value: string) {
 function mapError<T extends string>(message: unknown, t: (key: T) => string, locale: 'th' | 'en') {
   const text = String(message ?? '').toLowerCase();
   if (text.includes('token') || text.includes('invalid otp')) return t('verifyOtp.invalid' as T);
+  if (
+    text.includes('risk_sync_blocked') ||
+    text.includes('vault sync is temporarily blocked by security risk controls') ||
+    text.includes('vault sync is temporarily blocked while risk controls are active')
+  ) {
+    return locale === 'th'
+      ? 'ระบบระงับการซิงก์ข้อมูลชั่วคราว เนื่องจากมาตรการความปลอดภัยกำลังทำงาน'
+      : 'Vault sync is temporarily blocked while security risk controls are active.';
+  }
   if (text.includes('duplicate key value') && text.includes('profiles_email_key')) {
     return locale === 'th'
       ? 'พบข้อมูลบัญชีซ้ำ ระบบกำลังเชื่อมบัญชีเดิมให้อัตโนมัติ กรุณาลองอีกครั้ง'
@@ -38,11 +47,11 @@ function mapError<T extends string>(message: unknown, t: (key: T) => string, loc
   return String(message ?? 'Unknown error');
 }
 
-type SettingsSection = '' | 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout';
+type SettingsSection = '' | 'name' | 'email' | 'password' | 'pin' | 'riskSync' | 'language' | 'logout';
 const SETTINGS_SECTION_QUERY = 'section';
 
 function parseSettingsSection(raw: string | null): SettingsSection {
- if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'pin' || raw === 'language' || raw === 'logout') {
+ if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'pin' || raw === 'riskSync' || raw === 'language' || raw === 'logout') {
  return raw;
  }
  return '';
@@ -71,6 +80,8 @@ export default function SettingsPage() {
   const [pinSessionTimeoutSec, setPinSessionTimeoutSec] = useState(DEFAULT_PIN_SESSION_TIMEOUT_SEC);
   const [pinSecuritySaving, setPinSecuritySaving] = useState(false);
   const [phoneProtectionEnabled, setPhoneProtectionEnabled] = useState(false);
+  const [allowSyncWhenRiskBlocked, setAllowSyncWhenRiskBlocked] = useState(false);
+  const [syncRiskControlSaving, setSyncRiskControlSaving] = useState(false);
 
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailAutoLoading, setEmailAutoLoading] = useState(false);
@@ -101,6 +112,13 @@ export default function SettingsPage() {
     setPinSessionTimeoutSec(
       clampPinSessionTimeoutSec(body?.pinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC),
     );
+  }, []);
+
+  const loadSyncRiskControl = useCallback(async () => {
+    const response = await fetch('/api/security/sync-control', { method: 'GET', cache: 'no-store' });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) return;
+    setAllowSyncWhenRiskBlocked(body?.allowSyncWhenRiskBlocked === true);
   }, []);
 
   const apiCall = useCallback(async (url: string, method: 'POST' | 'PATCH', payload: unknown, fallback: string) => {
@@ -165,6 +183,36 @@ export default function SettingsPage() {
         : enabled
           ? 'PIN screen lock enabled.'
           : 'PIN screen lock disabled.',
+      'success',
+    );
+  }
+
+  async function updateSyncRiskControl(nextEnabled: boolean) {
+    if (syncRiskControlSaving) return;
+    setSyncRiskControlSaving(true);
+
+    const response = await fetch('/api/security/sync-control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ allowSyncWhenRiskBlocked: nextEnabled }),
+    });
+    const body = await response.json().catch(() => ({}));
+    setSyncRiskControlSaving(false);
+
+    if (!response.ok) {
+      toast.showToast(mapError(body?.error ?? t('settings.updateFailed'), t, locale), 'error');
+      return;
+    }
+
+    setAllowSyncWhenRiskBlocked(nextEnabled);
+    toast.showToast(
+      locale === 'th'
+        ? nextEnabled
+          ? 'อนุญาตซิงก์แม้ระบบความเสี่ยงบล็อกไว้ชั่วคราวแล้ว'
+          : 'เปิดการบล็อกซิงก์ตามมาตรการความเสี่ยงแล้ว'
+        : nextEnabled
+          ? 'Temporary sync override enabled.'
+          : 'Risk-based sync block enabled.',
       'success',
     );
   }
@@ -334,10 +382,11 @@ export default function SettingsPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadProfile();
+      void loadSyncRiskControl();
       setPhoneProtectionEnabled(readPhoneProtectionEnabled());
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loadProfile]);
+  }, [loadProfile, loadSyncRiskControl]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -392,8 +441,9 @@ export default function SettingsPage() {
         ? 'ส่ง OTP ใหม่'
         : 'Resend OTP';
   const canUseAdminQr = profileStatus === 'active' && ['admin', 'super_admin'].includes(profileRole);
+  const canUseDeviceManagement = ['admin', 'super_admin', 'approver'].includes(profileRole);
 
-  const menuBtn = (key: 'name' | 'email' | 'password' | 'pin' | 'language' | 'logout', title: string, Icon: LucideIcon) => (
+  const menuBtn = (key: 'name' | 'email' | 'password' | 'pin' | 'riskSync' | 'language' | 'logout', title: string, Icon: LucideIcon) => (
     <button
       key={key}
       type='button'
@@ -582,6 +632,55 @@ export default function SettingsPage() {
     </Card>
   );
 
+  const riskSyncView = (
+    <Card className='space-y-3 rounded-[24px] p-4'>
+      <div className='rounded-2xl border border-slate-200 bg-slate-50 p-3'>
+        <div className='mb-2 flex items-start gap-2'>
+          <Shield className='mt-0.5 h-4 w-4 text-slate-600' />
+          <div>
+            <p className='text-sm font-semibold text-slate-800'>
+              {locale === 'th' ? 'ควบคุมการบล็อกซิงก์เมื่อพบความเสี่ยง' : 'Risk-based sync control'}
+            </p>
+            <p className='text-xs text-slate-500'>
+              {locale === 'th'
+                ? 'เมื่อเปิดโหมดอนุญาตซิงก์ชั่วคราว ระบบจะไม่บล็อก API ซิงก์ แม้ยังมี action block_sync'
+                : 'Temporary override allows sync APIs even when `block_sync` is active.'}
+            </p>
+          </div>
+        </div>
+
+        <div className='grid grid-cols-2 gap-2'>
+          <Button
+            variant={!allowSyncWhenRiskBlocked ? 'default' : 'secondary'}
+            className='h-10 rounded-xl'
+            onClick={() => void updateSyncRiskControl(false)}
+            disabled={syncRiskControlSaving}
+          >
+            {locale === 'th' ? 'บล็อกซิงก์ตามความเสี่ยง' : 'Enforce risk block'}
+          </Button>
+          <Button
+            variant={allowSyncWhenRiskBlocked ? 'default' : 'secondary'}
+            className='h-10 rounded-xl'
+            onClick={() => void updateSyncRiskControl(true)}
+            disabled={syncRiskControlSaving}
+          >
+            {locale === 'th' ? 'อนุญาตซิงก์ชั่วคราว' : 'Allow temporary sync'}
+          </Button>
+        </div>
+
+        <p className='mt-3 text-[11px] text-slate-600'>
+          {allowSyncWhenRiskBlocked
+            ? (locale === 'th'
+              ? 'สถานะปัจจุบัน: เปิดโหมดอนุญาตซิงก์ชั่วคราว'
+              : 'Current status: temporary sync override is enabled.')
+            : (locale === 'th'
+              ? 'สถานะปัจจุบัน: ใช้การบล็อกซิงก์ตามมาตรการความเสี่ยง'
+              : 'Current status: sync is blocked while risk controls are active.')}
+        </p>
+      </div>
+    </Card>
+  );
+
   const languageView = (
     <Card className='space-y-4 rounded-[24px] p-4'>
       <p className='text-sm text-slate-600'>
@@ -625,6 +724,8 @@ export default function SettingsPage() {
         ? t('settings.passwordTitle')
         : active === 'pin'
           ? t('settings.pinTitle')
+          : active === 'riskSync'
+            ? (locale === 'th' ? 'ควบคุมการซิงก์เมื่อเสี่ยง' : 'Risk Sync Control')
           : active === 'language'
             ? (locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language')
             : locale === 'th'
@@ -639,6 +740,8 @@ export default function SettingsPage() {
         ? passwordView
         : active === 'pin'
           ? pinView
+          : active === 'riskSync'
+            ? riskSyncView
           : active === 'language'
             ? languageView
             : active === 'logout'
@@ -673,6 +776,7 @@ export default function SettingsPage() {
         {menuBtn('email', t('settings.emailTitle'), Mail)}
         {menuBtn('password', t('settings.passwordTitle'), Lock)}
         {menuBtn('pin', t('settings.pinTitle'), KeyRound)}
+        {menuBtn('riskSync', locale === 'th' ? 'การซิงก์เมื่อพบความเสี่ยง' : 'Sync During Risk Controls', Shield)}
         <button
           type='button'
           onClick={() => router.push('/settings/face-login')}
@@ -754,21 +858,23 @@ export default function SettingsPage() {
             <ChevronRight className='h-4 w-4 text-slate-400' />
           </span>
         </button>
-        <button
-          type='button'
-          onClick={() => router.push('/settings/device-management')}
-          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
-        >
-          <span className='inline-flex items-center gap-3'>
-            <span className='rounded-xl bg-slate-100 p-2.5 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'>
-              <Building2 className='h-4 w-4' />
+        {canUseDeviceManagement ? (
+          <button
+            type='button'
+            onClick={() => router.push('/settings/device-management')}
+            className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
+          >
+            <span className='inline-flex items-center gap-3'>
+              <span className='rounded-xl bg-slate-100 p-2.5 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'>
+                <Building2 className='h-4 w-4' />
+              </span>
+              <span className='text-base font-semibold leading-6 text-slate-800'>
+                {locale === 'th' ? 'Device Management (MDM)' : 'Device Management (MDM)'}
+              </span>
             </span>
-            <span className='text-base font-semibold leading-6 text-slate-800'>
-              {locale === 'th' ? 'Device Management (MDM)' : 'Device Management (MDM)'}
-            </span>
-          </span>
-          <ChevronRight className='h-4 w-4 text-slate-400' />
-        </button>
+            <ChevronRight className='h-4 w-4 text-slate-400' />
+          </button>
+        ) : null}
         <button
           type='button'
           onClick={() => router.push('/settings/mobile-permissions')}

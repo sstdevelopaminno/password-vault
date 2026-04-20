@@ -1,6 +1,6 @@
 {
   "name": "password-vault",
-  "version": "16.6.16",
+  "version": "16.6.17",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "check:i18n": "node scripts/check-i18n.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
     "check:otp-env": "node scripts/check-otp-env.mjs",
     "smoke:face-auth": "node scripts/smoke-face-auth.mjs",
     "cap:sync": "cap sync",

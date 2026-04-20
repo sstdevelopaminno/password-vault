@@ -14,6 +14,11 @@ import {
   parseVaultRiskPolicyCookie,
   type VaultRiskPolicy,
 } from "@/lib/vault-risk-policy";
+import {
+  VAULT_SYNC_CONTROL_COOKIE,
+  clearVaultSyncRiskOverrideCookie,
+  isVaultSyncRiskOverrideEnabled,
+} from "@/lib/vault-sync-control";
 
 const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
 const userPaths = [
@@ -118,10 +123,15 @@ function isSensitiveVaultPagePath(pathname: string) {
   return pathname.startsWith("/vault") || pathname.startsWith("/org-shared") || pathname.startsWith("/settings/sync");
 }
 
-function attachRiskHeaders(response: NextResponse, policy: VaultRiskPolicy | null) {
+function attachRiskHeaders(
+  response: NextResponse,
+  policy: VaultRiskPolicy | null,
+  syncRiskOverrideEnabled = false,
+) {
   response.headers.set("x-vault-risk-severity", policy?.severity ?? "none");
   response.headers.set("x-vault-risk-score", policy ? String(policy.score) : "0");
   response.headers.set("x-vault-risk-actions", policy?.actions.join(",") ?? "");
+  response.headers.set("x-vault-sync-risk-override", syncRiskOverrideEnabled ? "1" : "0");
 }
 
 function clearSessionCookiesForReauth(response: NextResponse, request: NextRequest) {
@@ -207,6 +217,8 @@ export async function proxy(request: NextRequest) {
     parsedRiskPolicy && !isVaultRiskPolicyExpired(parsedRiskPolicy)
       ? parsedRiskPolicy
       : null;
+  const rawSyncControlCookie = request.cookies.get(VAULT_SYNC_CONTROL_COOKIE)?.value;
+  const syncRiskOverrideEnabled = isVaultSyncRiskOverrideEnabled(rawSyncControlCookie, user?.id);
 
   if (parsedRiskPolicy && !activeRiskPolicy) {
     clearVaultRiskPolicyCookie(response);
@@ -216,6 +228,14 @@ export async function proxy(request: NextRequest) {
     clearVaultRiskPolicyCookie(response);
   }
 
+  if (!user && rawSyncControlCookie) {
+    clearVaultSyncRiskOverrideCookie(response);
+  }
+
+  if (user && rawSyncControlCookie && !syncRiskOverrideEnabled) {
+    clearVaultSyncRiskOverrideCookie(response);
+  }
+
   if (needsAuth && !user) {
     const hasSessionCookie = hasSupabaseAuthCookie(request.cookies.getAll());
     const recoverableAuthState = Boolean(authError && hasSessionCookie);
@@ -223,7 +243,7 @@ export async function proxy(request: NextRequest) {
       if (isApiPath) {
         return apiError("Session synchronization in progress. Please retry.", 503);
       }
-      attachRiskHeaders(response, null);
+      attachRiskHeaders(response, null, false);
       return response;
     }
     const denied = unauthorizedFor(request, "Unauthorized");
@@ -272,19 +292,19 @@ export async function proxy(request: NextRequest) {
         activeRiskPolicy,
       );
       clearSessionCookiesForReauth(blocked, request);
-      attachRiskHeaders(blocked, activeRiskPolicy);
+      attachRiskHeaders(blocked, activeRiskPolicy, syncRiskOverrideEnabled);
       return blocked;
     }
 
     const redirect = NextResponse.redirect(new URL("/login?risk=reauth", request.url));
     clearSessionCookiesForReauth(redirect, request);
-    attachRiskHeaders(redirect, activeRiskPolicy);
+    attachRiskHeaders(redirect, activeRiskPolicy, syncRiskOverrideEnabled);
     return redirect;
   }
 
   if (isAuthEntryPath && user && !forceReauthActive) {
     const redirected = NextResponse.redirect(new URL("/home", request.url));
-    attachRiskHeaders(redirected, activeRiskPolicy);
+    attachRiskHeaders(redirected, activeRiskPolicy, syncRiskOverrideEnabled);
     return redirected;
   }
 
@@ -297,7 +317,7 @@ export async function proxy(request: NextRequest) {
           "Vault is temporarily locked due to critical device risk.",
           activeRiskPolicy,
         );
-        attachRiskHeaders(blocked, activeRiskPolicy);
+        attachRiskHeaders(blocked, activeRiskPolicy, syncRiskOverrideEnabled);
         return blocked;
       }
 
@@ -308,23 +328,27 @@ export async function proxy(request: NextRequest) {
           "Sensitive data is blocked until device risk is reduced.",
           activeRiskPolicy,
         );
-        attachRiskHeaders(blocked, activeRiskPolicy);
+        attachRiskHeaders(blocked, activeRiskPolicy, syncRiskOverrideEnabled);
         return blocked;
       }
 
-      if (activeRiskPolicy.actions.includes("block_sync") && isSyncApiPath(pathname)) {
+      if (
+        activeRiskPolicy.actions.includes("block_sync") &&
+        isSyncApiPath(pathname) &&
+        !syncRiskOverrideEnabled
+      ) {
         const blocked = riskApiBlocked(
           423,
           "RISK_SYNC_BLOCKED",
-          "Vault sync is temporarily blocked while risk controls are active.",
+          "Vault sync is temporarily blocked by security risk controls.",
           activeRiskPolicy,
         );
-        attachRiskHeaders(blocked, activeRiskPolicy);
+        attachRiskHeaders(blocked, activeRiskPolicy, syncRiskOverrideEnabled);
         return blocked;
       }
     } else if (activeRiskPolicy.actions.includes("lock_vault_temporarily") && isSensitiveVaultPagePath(pathname)) {
       const redirect = NextResponse.redirect(new URL("/home?risk=locked", request.url));
-      attachRiskHeaders(redirect, activeRiskPolicy);
+      attachRiskHeaders(redirect, activeRiskPolicy, syncRiskOverrideEnabled);
       return redirect;
     }
   }
@@ -334,12 +358,12 @@ export async function proxy(request: NextRequest) {
     const role = profile?.role;
     if (!["admin", "super_admin", "approver"].includes(role)) {
       const denied = forbiddenFor(request, "Forbidden");
-      attachRiskHeaders(denied, activeRiskPolicy);
+      attachRiskHeaders(denied, activeRiskPolicy, syncRiskOverrideEnabled);
       return denied;
     }
   }
 
-  attachRiskHeaders(response, activeRiskPolicy);
+  attachRiskHeaders(response, activeRiskPolicy, syncRiskOverrideEnabled);
   return response;
 }
 

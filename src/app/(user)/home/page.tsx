@@ -82,6 +82,8 @@ const actionTiles = [
   { href: '/risk-alerts', title: 'บล็อก/รายงาน', subtitle: 'เบอร์เสี่ยง', icon: ShieldX },
 ];
 
+const ELEVATED_ROLES = new Set(['admin', 'super_admin', 'approver']);
+
 export default function HomePage() {
   const router = useRouter();
   const [summary, setSummary] = useState<AlertsResponse['summary'] | null>(null);
@@ -95,10 +97,12 @@ export default function HomePage() {
   const [isIosRuntime] = useState(() => detectRuntimeCapabilities().isIos);
   const [phoneProtectionEnabled, setPhoneProtectionEnabled] = useState(() => readPhoneProtectionEnabled());
   const [mdmOverview, setMdmOverview] = useState<MdmOverview | null>(null);
+  const [showTipModal, setShowTipModal] = useState(false);
   const [tipNumber, setTipNumber] = useState('');
   const [tipClueText, setTipClueText] = useState('');
   const [tipLoading, setTipLoading] = useState(false);
   const [tipStatus, setTipStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const canViewMdmStatus = ELEVATED_ROLES.has(userRole);
 
   useEffect(() => {
     let ignore = false;
@@ -247,9 +251,11 @@ export default function HomePage() {
             <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
               <span className='rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700'>สิทธิ์: {userRole}</span>
               <span className='rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700'>สถานะ: {userStatus}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${mdmTone(mdmOverview?.complianceState ?? 'unknown')}`}>
-                MDM: {mdmLabel(mdmOverview?.complianceState ?? 'unknown')}
-              </span>
+              {canViewMdmStatus ? (
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${mdmTone(mdmOverview?.complianceState ?? 'unknown')}`}>
+                  MDM: {mdmLabel(mdmOverview?.complianceState ?? 'unknown')}
+                </span>
+              ) : null}
               {userFullName ? <span className='truncate text-[11px] text-slate-500'>{userFullName}</span> : null}
             </div>
           </div>
@@ -310,42 +316,15 @@ export default function HomePage() {
         <div className='mb-3 rounded-2xl border border-rose-200 bg-rose-50 p-3'>
           <h3 className='text-sm font-semibold text-rose-900'>แจ้งเบาะแสเบอร์มิจฉาชีพ</h3>
           <p className='mt-1 text-xs leading-5 text-rose-800'>แจ้งเบอร์ต้องสงสัยได้ทันทีจากหน้าแรก พร้อมแนบรายละเอียดประกอบ</p>
-          <div className='mt-2 space-y-2'>
-            <input
-              type='tel'
-              value={tipNumber}
-              onChange={(event) => setTipNumber(event.target.value)}
-              placeholder='เบอร์ต้องสงสัย เช่น 08x-xxx-xxxx'
-              className='h-10 w-full rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-rose-400'
-            />
-            <textarea
-              value={tipClueText}
-              onChange={(event) => setTipClueText(event.target.value)}
-              placeholder='รายละเอียด เช่น อ้างเป็นเจ้าหน้าที่ ขอ OTP หรือขอให้โอนเงิน'
-              rows={3}
-              className='w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-rose-400'
-            />
-            <div className='flex flex-wrap items-center gap-2'>
-              <button
-                type='button'
-                onClick={() => void submitRiskTipFromHome()}
-                disabled={tipLoading}
-                className='inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-600 px-3 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60'
-              >
-                <Send className='h-3.5 w-3.5' />
-                {tipLoading ? 'กำลังส่ง...' : 'ส่งเบาะแส'}
-              </button>
-              <Link
-                href='/risk-tip'
-                onClick={gateAndroidPwaMenu}
-                className='inline-flex h-9 items-center rounded-xl border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100'
-              >
-                ดูรายการทั้งหมด
-              </Link>
-            </div>
-            {tipStatus ? (
-              <p className={`text-xs ${tipStatus.type === 'error' ? 'text-rose-700' : 'text-emerald-700'}`}>{tipStatus.message}</p>
-            ) : null}
+          <div className='mt-2'>
+            <button
+              type='button'
+              onClick={() => setShowTipModal(true)}
+              className='inline-flex h-10 items-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-semibold text-white transition hover:bg-rose-700'
+            >
+              <Send className='h-4 w-4' />
+              แจ้งเบาะแสเบอร์มิจฉาชีพ
+            </button>
           </div>
         </div>
 
@@ -398,6 +377,65 @@ export default function HomePage() {
 
             <div className='mt-4 rounded-lg bg-slate-50 px-3 py-2 text-[13px] text-slate-700'>
               แนะนำติดตั้งแอป Android เวอร์ชันล่าสุดเพื่อใช้งานสิทธิ์รายชื่อและโทรออกได้เต็มระบบ
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showTipModal ? (
+        <div className='fixed inset-0 z-[130] flex items-center justify-center px-4' role='dialog' aria-modal='true'>
+          <button type='button' className='absolute inset-0 bg-slate-900/45 backdrop-blur-[1px]' onClick={() => setShowTipModal(false)} aria-label='ปิด' />
+          <div className='relative z-10 w-[min(92vw,480px)] rounded-3xl border border-rose-200 bg-rose-50 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]'>
+            <div className='mb-2 flex items-start justify-between gap-3'>
+              <div>
+                <h3 className='text-sm font-semibold text-rose-900'>แจ้งเบาะแสเบอร์มิจฉาชีพ</h3>
+                <p className='mt-1 text-xs leading-5 text-rose-800'>แจ้งเบอร์ต้องสงสัยได้ทันทีจากหน้าแรก พร้อมแนบรายละเอียดประกอบ</p>
+              </div>
+              <button
+                type='button'
+                onClick={() => setShowTipModal(false)}
+                className='rounded-lg p-1 text-slate-500 transition hover:bg-white hover:text-slate-700'
+                aria-label='ปิด'
+              >
+                <X className='h-4 w-4' />
+              </button>
+            </div>
+            <div className='space-y-2'>
+              <input
+                type='tel'
+                value={tipNumber}
+                onChange={(event) => setTipNumber(event.target.value)}
+                placeholder='เบอร์ต้องสงสัย เช่น 08x-xxx-xxxx'
+                className='h-10 w-full rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-rose-400'
+              />
+              <textarea
+                value={tipClueText}
+                onChange={(event) => setTipClueText(event.target.value)}
+                placeholder='รายละเอียด เช่น อ้างเป็นเจ้าหน้าที่ ขอ OTP หรือขอให้โอนเงิน'
+                rows={3}
+                className='w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-rose-400'
+              />
+              <div className='flex flex-wrap items-center gap-2'>
+                <button
+                  type='button'
+                  onClick={() => void submitRiskTipFromHome()}
+                  disabled={tipLoading}
+                  className='inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-600 px-3 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60'
+                >
+                  <Send className='h-3.5 w-3.5' />
+                  {tipLoading ? 'กำลังส่ง...' : 'ส่งเบาะแส'}
+                </button>
+                <Link
+                  href='/risk-tip'
+                  onClick={gateAndroidPwaMenu}
+                  className='inline-flex h-9 items-center rounded-xl border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100'
+                >
+                  ดูรายการทั้งหมด
+                </Link>
+              </div>
+              {tipStatus ? (
+                <p className={`text-xs ${tipStatus.type === 'error' ? 'text-rose-700' : 'text-emerald-700'}`}>{tipStatus.message}</p>
+              ) : null}
             </div>
           </div>
         </div>

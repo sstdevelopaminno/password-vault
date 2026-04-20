@@ -14,6 +14,12 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const role = String(profile?.role ?? '');
+  if (!['admin', 'super_admin', 'approver'].includes(role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const upstream = await requestUpstreamMdmOverview(user);
   if (upstream?.ok) {
     return NextResponse.json(upstream.payload, { headers: { 'x-mdm-source': 'upstream' } });

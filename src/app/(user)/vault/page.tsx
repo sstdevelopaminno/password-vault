@@ -88,6 +88,21 @@ function buildPageNumbers(page: number, totalPages: number) {
  return [page - 2, page - 1, page, page + 1, page + 2];
 }
 
+function mapVaultError(message: unknown, fallback: string, locale: 'th' | 'en') {
+ const raw = String(message ?? '').trim();
+ const text = raw.toLowerCase();
+ if (
+ text.includes('risk_sync_blocked') ||
+ text.includes('vault sync is temporarily blocked by security risk controls') ||
+ text.includes('vault sync is temporarily blocked while risk controls are active')
+ ) {
+ return locale === 'th'
+ ? 'ระบบระงับการซิงก์ข้อมูลชั่วคราว เนื่องจากมาตรการความปลอดภัยกำลังทำงาน'
+ : 'Vault sync is temporarily blocked while security risk controls are active.';
+ }
+ return raw || fallback;
+}
+
 export default function VaultPage() {
  const router = useRouter();
  const { t, locale } = useI18n();
@@ -217,7 +232,7 @@ export default function VaultPage() {
  return;
  }
  }
- showToast(body.error ?? t('vaultDetail.loadFailed'), 'error');
+ showToast(mapVaultError(body.error, t('vaultDetail.loadFailed'), locale), 'error');
  return;
  }
 
@@ -321,7 +336,7 @@ export default function VaultPage() {
  return;
  }
  clearCachedAssertion('delete_secret');
- showToast(body.error ?? t('vaultDetail.deleteFailed'), 'error');
+ showToast(mapVaultError(body.error, t('vaultDetail.deleteFailed'), locale), 'error');
  return;
  }
 
@@ -403,7 +418,7 @@ export default function VaultPage() {
  return;
  }
  clearCachedAssertion('edit_secret');
- showToast(body.error ?? t('vaultDetail.updateFailed'), 'error');
+ showToast(mapVaultError(body.error, t('vaultDetail.updateFailed'), locale), 'error');
  return;
  }
 
@@ -441,7 +456,10 @@ export default function VaultPage() {
  handleUnauthorized();
  return;
  }
- showToast(body.error ?? (locale === 'th' ? 'ยกเลิกแชร์ไม่สำเร็จ' : 'Failed to cancel sharing'), 'error');
+ showToast(
+ mapVaultError(body.error, locale === 'th' ? 'ยกเลิกแชร์ไม่สำเร็จ' : 'Failed to cancel sharing', locale),
+ 'error',
+ );
  return;
  }
 

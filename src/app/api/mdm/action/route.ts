@@ -48,6 +48,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const role = String(profile?.role ?? '');
+  if (!['admin', 'super_admin', 'approver'].includes(role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const inputRaw = await request.json().catch(() => ({}));
   const parsed = actionSchema.safeParse(inputRaw);
   if (!parsed.success) {

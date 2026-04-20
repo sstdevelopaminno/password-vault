@@ -154,6 +154,9 @@ Detailed release steps and compatibility rules:
 # 1) Validate OTP provider/env readiness
 npm run check:otp-env
 
+# 1.1) Scan repo for accidental credential leaks (recommended before deploy)
+npm run check:secrets
+
 # Optional: send real provider probe email (will send one test message)
 node scripts/check-otp-env.mjs --probe-email=ops@your-domain.com
 
