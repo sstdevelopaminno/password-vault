@@ -1,6 +1,6 @@
 "use client";
 
-import { registerPlugin } from "@capacitor/core";
+import { registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
 
 export type VaultShieldSignals = {
@@ -55,7 +55,28 @@ export type VaultShieldInstallApkResult = {
   fileName?: string;
   requiresUserAction?: boolean;
   settingsOpened?: boolean;
+  installerOpened?: boolean;
+  downloadsOpened?: boolean;
   message?: string;
+};
+
+export type VaultShieldApkInstallEvent = {
+  status?: "installer_opened" | "installer_blocked" | "installer_error" | "download_failed" | string;
+  message?: string;
+  fileName?: string;
+  downloadId?: number;
+  requiresUserAction?: boolean;
+  settingsOpened?: boolean;
+  installerOpened?: boolean;
+  downloadsOpened?: boolean;
+};
+
+export type VaultShieldOpenPendingApkResult = {
+  status?: "installer_opened" | "installer_blocked" | "no_pending_apk" | string;
+  installerOpened?: boolean;
+  downloadsOpened?: boolean;
+  fileName?: string;
+  requiresUserAction?: boolean;
 };
 
 export type VaultShieldCameraPermissionResult = {
@@ -129,6 +150,7 @@ export type VaultShieldDeviceSecurityState = {
 type VaultShieldPlugin = {
   collectSignals(options?: VaultShieldCollectOptions): Promise<VaultShieldSignals>;
   installApkUpdate(options: VaultShieldInstallApkOptions): Promise<VaultShieldInstallApkResult>;
+  openPendingApkInstaller(): Promise<VaultShieldOpenPendingApkResult>;
   requestCameraPermission(): Promise<VaultShieldCameraPermissionResult>;
   requestContactsPermission(): Promise<VaultShieldContactsPermissionResult>;
   requestCallPhonePermission(): Promise<VaultShieldCallPermissionResult>;
@@ -136,6 +158,10 @@ type VaultShieldPlugin = {
   scanInstalledApps(options?: { limit?: number }): Promise<VaultShieldAppScanResult>;
   getDeviceSecurityState(): Promise<VaultShieldDeviceSecurityState>;
   openAppSettings(): Promise<{ opened?: boolean }>;
+  addListener(
+    eventName: "apkInstallState",
+    listenerFunc: (event: VaultShieldApkInstallEvent) => void,
+  ): Promise<PluginListenerHandle> | PluginListenerHandle;
 };
 
 const nativePlugin = registerPlugin<VaultShieldPlugin>("VaultShield");
@@ -228,6 +254,43 @@ export async function installAndroidApkUpdate(
     return await nativePlugin.installApkUpdate(options);
   } catch (error) {
     console.error("VaultShield installApkUpdate failed:", error);
+    return null;
+  }
+}
+
+export async function openPendingAndroidApkInstaller(): Promise<VaultShieldOpenPendingApkResult | null> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return null;
+  }
+
+  try {
+    return await nativePlugin.openPendingApkInstaller();
+  } catch (error) {
+    console.error("VaultShield openPendingApkInstaller failed:", error);
+    return null;
+  }
+}
+
+export async function onVaultShieldApkInstallState(
+  listener: (event: VaultShieldApkInstallEvent) => void,
+): Promise<(() => Promise<void>) | null> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return null;
+  }
+
+  try {
+    const handle = await nativePlugin.addListener("apkInstallState", listener);
+    return async function removeListener() {
+      try {
+        await handle.remove();
+      } catch {
+        // ignore
+      }
+    };
+  } catch (error) {
+    console.error("VaultShield apkInstallState listener failed:", error);
     return null;
   }
 }

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, ShieldCheck, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -13,7 +13,12 @@ import {
   type AndroidApkRelease,
 } from "@/lib/android-apk-release";
 import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
-import { installAndroidApkUpdate } from "@/lib/vault-shield";
+import {
+  installAndroidApkUpdate,
+  onVaultShieldApkInstallState,
+  openPendingAndroidApkInstaller,
+  readVaultShieldDeviceSecurityState,
+} from "@/lib/vault-shield";
 
 type AndroidReleaseApiPayload = {
   ok?: boolean;
@@ -57,6 +62,10 @@ export function AndroidApkUpdatePopup() {
   const [installedVersionCode, setInstalledVersionCode] = useState<number | null>(null);
   const [release, setRelease] = useState<AndroidApkRelease>(() => defaultRelease().release);
   const [compatibility, setCompatibility] = useState<AndroidApkCompatibility>(() => defaultRelease().compatibility);
+  const [waitingInstallPermission, setWaitingInstallPermission] = useState(false);
+  const [pendingInstallerAvailable, setPendingInstallerAvailable] = useState(false);
+  const waitingInstallPermissionRef = useRef(false);
+  const releaseRef = useRef(release);
 
   const capabilities = detectRuntimeCapabilities();
   const isAndroidRuntime = capabilities.isAndroid && !capabilities.isIos;
@@ -64,10 +73,20 @@ export function AndroidApkUpdatePopup() {
 
   const popupEligible = useMemo(() => isAndroidRuntime, [isAndroidRuntime]);
 
+  useEffect(() => {
+    releaseRef.current = release;
+  }, [release]);
+
+  useEffect(() => {
+    waitingInstallPermissionRef.current = waitingInstallPermission;
+  }, [waitingInstallPermission]);
+
   const dismissPopup = () => {
     if (typeof window !== "undefined" && isAndroidWebRuntime) {
       window.localStorage.setItem(ANDROID_PWA_PROMPT_SEEN_PREFIX + release.versionName, "1");
     }
+    setWaitingInstallPermission(false);
+    setPendingInstallerAvailable(false);
     setOpen(false);
   };
 
@@ -148,6 +167,68 @@ export function AndroidApkUpdatePopup() {
     };
   }, [popupEligible]);
 
+  useEffect(() => {
+    if (!capabilities.isCapacitorNative || !isAndroidRuntime) return;
+
+    let mounted = true;
+    let removeListener: (() => Promise<void>) | null = null;
+
+    void onVaultShieldApkInstallState((event) => {
+      if (!mounted) return;
+
+      if (event.status === "installer_opened") {
+        setPendingInstallerAvailable(false);
+        setWaitingInstallPermission(false);
+        setOpen(false);
+        toast.showToast(locale === "th" ? "เปิดหน้าติดตั้งแล้ว" : "Installer opened.", "success");
+        return;
+      }
+
+      if (event.status === "installer_blocked" || event.status === "installer_error" || event.status === "download_failed") {
+        setPendingInstallerAvailable(true);
+        toast.showToast(
+          locale === "th"
+            ? "ระบบบล็อกการเปิดติดตั้งอัตโนมัติ กรุณากดปุ่มเปิดตัวติดตั้ง"
+            : "Auto-open installer was blocked. Please tap Open installer.",
+          "error",
+        );
+      }
+    }).then((remove) => {
+      removeListener = remove;
+    });
+
+    return () => {
+      mounted = false;
+      if (removeListener) {
+        void removeListener();
+      }
+    };
+  }, [capabilities.isCapacitorNative, isAndroidRuntime, locale, toast]);
+
+  useEffect(() => {
+    if (!capabilities.isCapacitorNative || !isAndroidRuntime || typeof window === "undefined") return;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!waitingInstallPermissionRef.current) return;
+
+      void readVaultShieldDeviceSecurityState().then((state) => {
+        if (!state?.unknownSourcesEnabled) return;
+        const pendingRelease = releaseRef.current;
+        if (!pendingRelease?.downloadUrl) return;
+
+        setWaitingInstallPermission(false);
+        setInstalling(true);
+        void startNativeInstall(pendingRelease).finally(() => setInstalling(false));
+      });
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [capabilities.isCapacitorNative, isAndroidRuntime]);
+
   if (!popupEligible || !open) return null;
 
   const title = isAndroidWebRuntime
@@ -174,33 +255,66 @@ export function AndroidApkUpdatePopup() {
       ? "พบ package/signing key ต่างกัน ควรถอนแอปเดิมก่อนติดตั้งใหม่"
       : "Package/signing mismatch detected. Reinstall may be required.";
 
+  const installPolicyHint = locale === "th"
+    ? "หมายเหตุ: Android ทุกค่ายต้องให้ผู้ใช้ยืนยันการติดตั้งเอง ระบบไม่สามารถติดตั้งเงียบโดยไม่กดยืนยันได้"
+    : "Note: Android requires user confirmation for APK install on all vendors; silent install is not allowed.";
+
+  async function startNativeInstall(targetRelease: AndroidApkRelease) {
+    const result = await installAndroidApkUpdate({
+      downloadUrl: targetRelease.downloadUrl,
+      title: locale === "th" ? `Vault อัปเดต ${targetRelease.versionName}` : `Vault update ${targetRelease.versionName}`,
+      description: locale === "th" ? "กำลังดาวน์โหลดแพ็กเกจอัปเดต" : "Downloading update package",
+      fileName: `vault-v${targetRelease.versionName}.apk`,
+    });
+
+    if (!result) {
+      toast.showToast(locale === "th" ? "เริ่มติดตั้งแบบ native ไม่สำเร็จ จะเปิดลิงก์ดาวน์โหลดแทน" : "Native install failed, opening download link.", "error");
+      dismissPopup();
+      window.location.assign(targetRelease.downloadUrl);
+      return;
+    }
+
+    if (result.status === "permission_required") {
+      setWaitingInstallPermission(true);
+      toast.showToast(
+        locale === "th"
+          ? "กรุณาอนุญาตติดตั้งแอปที่ไม่รู้จัก แล้วกลับมาที่แอป ระบบจะลองต่อให้อัตโนมัติ"
+          : "Please allow install unknown apps, then return to the app. Installation will resume automatically.",
+        "error",
+      );
+      return;
+    }
+
+    setWaitingInstallPermission(false);
+    if (result.status === "downloading") {
+      toast.showToast(
+        locale === "th"
+          ? "เริ่มดาวน์โหลดแล้ว ระบบจะเปิดหน้าติดตั้งอัตโนมัติ หากไม่เด้งให้กดปุ่มเปิดตัวติดตั้ง"
+          : "Download started. Installer opens automatically; if blocked, tap Open installer.",
+        "success",
+      );
+      return;
+    }
+
+    if (result.status === "installer_blocked") {
+      setPendingInstallerAvailable(true);
+      toast.showToast(
+        locale === "th"
+          ? "ระบบผู้ผลิตบล็อกการเปิดติดตั้งอัตโนมัติ กดปุ่มเปิดตัวติดตั้งเพื่อดำเนินการต่อ"
+          : "Installer auto-open was blocked by device policy. Tap Open installer to continue.",
+        "error",
+      );
+      return;
+    }
+  }
+
   const installClick = async () => {
     if (installing || !release.downloadUrl) return;
 
     setInstalling(true);
     if (capabilities.isCapacitorNative) {
-      const result = await installAndroidApkUpdate({
-        downloadUrl: release.downloadUrl,
-        title: locale === "th" ? `Vault อัปเดต ${release.versionName}` : `Vault update ${release.versionName}`,
-        description: locale === "th" ? "กำลังดาวน์โหลดแพ็กเกจอัปเดต" : "Downloading update package",
-        fileName: `vault-v${release.versionName}.apk`,
-      });
-
+      await startNativeInstall(release);
       setInstalling(false);
-      if (!result) {
-        toast.showToast(locale === "th" ? "เริ่มติดตั้งแบบ native ไม่สำเร็จ จะเปิดลิงก์ดาวน์โหลดแทน" : "Native install failed, opening download link.", "error");
-        dismissPopup();
-        window.location.assign(release.downloadUrl);
-        return;
-      }
-
-      if (result.status === "permission_required") {
-        toast.showToast(locale === "th" ? "กรุณาอนุญาตติดตั้งแอปที่ไม่รู้จัก แล้วกดอีกครั้ง" : "Please allow install unknown apps, then try again.", "error");
-        return;
-      }
-
-      dismissPopup();
-      toast.showToast(locale === "th" ? "เริ่มดาวน์โหลดแล้ว ระบบจะเปิดหน้าติดตั้งอัตโนมัติ" : "Download started. Installer will open automatically.", "success");
       return;
     }
 
@@ -256,6 +370,16 @@ export function AndroidApkUpdatePopup() {
           <p className="mt-1">{compatibilityText}</p>
         </div>
 
+        <p className="mt-2 text-[11px] leading-5 text-slate-500">{installPolicyHint}</p>
+
+        {waitingInstallPermission ? (
+          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+            {locale === "th"
+              ? "กำลังรอสิทธิ์ Install unknown apps เมื่อกลับจากหน้าตั้งค่า ระบบจะพยายามดาวน์โหลดต่อให้อัตโนมัติ"
+              : "Waiting for Install unknown apps permission. Update will resume automatically after returning from settings."}
+          </p>
+        ) : null}
+
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button type="button" variant="secondary" disabled={installing} onClick={dismissPopup}>
             {locale === "th" ? "ภายหลัง" : "Later"}
@@ -267,6 +391,33 @@ export function AndroidApkUpdatePopup() {
             </span>
           </Button>
         </div>
+
+        {pendingInstallerAvailable ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-2 w-full"
+            onClick={() => {
+              void openPendingAndroidApkInstaller().then((result) => {
+                if (result?.status === "installer_opened") {
+                  setPendingInstallerAvailable(false);
+                  setOpen(false);
+                  toast.showToast(locale === "th" ? "เปิดตัวติดตั้งแล้ว" : "Installer opened.", "success");
+                  return;
+                }
+
+                toast.showToast(
+                  locale === "th"
+                    ? "ระบบยังบล็อกการเปิดอัตโนมัติ ให้เปิดจาก Downloads ในเครื่อง"
+                    : "Installer is still blocked. Please open the APK from Downloads.",
+                  "error",
+                );
+              });
+            }}
+          >
+            {locale === "th" ? "เปิดตัวติดตั้ง" : "Open installer"}
+          </Button>
+        ) : null}
       </div>
     </div>
   );

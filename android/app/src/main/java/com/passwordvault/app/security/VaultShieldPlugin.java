@@ -63,15 +63,26 @@ import java.util.TimeZone;
 )
 public class VaultShieldPlugin extends Plugin {
   private static final String TAG = "VaultShieldPlugin";
+  private static final String APK_INSTALL_EVENT = "apkInstallState";
   private static final List<String> TRUSTED_INSTALLER_PREFIXES = Arrays.asList(
     "com.android.vending",
+    "com.android.packageinstaller",
     "com.google.android.packageinstaller",
+    "com.miui.packageinstaller",
+    "com.samsung.android.packageinstaller",
+    "com.sec.android.app.samsungapps",
     "com.samsung.android",
     "com.huawei.appmarket",
+    "com.hihonor.appmarket",
     "com.xiaomi.market",
+    "com.heytap.market",
+    "com.coloros.appstore",
     "com.oppo.market",
     "com.vivo.appstore",
-    "com.oneplus"
+    "com.bbk.appstore",
+    "com.oneplus",
+    "com.amazon.venezia",
+    "com.transsion"
   );
   private static final List<String> HIGH_RISK_PACKAGE_KEYWORDS = Arrays.asList(
     "hack",
@@ -118,6 +129,8 @@ public class VaultShieldPlugin extends Plugin {
   );
   private BroadcastReceiver apkDownloadReceiver;
   private long pendingApkDownloadId = -1L;
+  private Uri pendingApkUri;
+  private String pendingApkFileName = "";
 
   @PluginMethod
   public void requestCameraPermission(PluginCall call) {
@@ -367,23 +380,19 @@ public class VaultShieldPlugin extends Plugin {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       boolean canInstall = context.getPackageManager().canRequestPackageInstalls();
       if (!canInstall) {
-        try {
-          Intent settingsIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
-          settingsIntent.setData(Uri.parse("package:" + context.getPackageName()));
-          settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-          context.startActivity(settingsIntent);
-
-          JSObject payload = new JSObject();
-          payload.put("status", "permission_required");
-          payload.put("requiresUserAction", true);
-          payload.put("settingsOpened", true);
-          payload.put("message", "Allow install unknown apps, then tap update again.");
-          call.resolve(payload);
-          return;
-        } catch (Exception error) {
-          call.reject("Unable to open unknown apps settings: " + error.getMessage());
-          return;
-        }
+        boolean opened = openUnknownAppSourcesSettings(context);
+        JSObject payload = new JSObject();
+        payload.put("status", "permission_required");
+        payload.put("requiresUserAction", true);
+        payload.put("settingsOpened", opened);
+        payload.put(
+          "message",
+          opened
+            ? "Allow install unknown apps, then return to the app. Update will continue."
+            : "Please enable Install unknown apps for Vault in Android settings."
+        );
+        call.resolve(payload);
+        return;
       }
     }
 
@@ -418,6 +427,8 @@ public class VaultShieldPlugin extends Plugin {
       long downloadId = downloadManager.enqueue(request);
       registerApkDownloadReceiver(downloadManager);
       pendingApkDownloadId = downloadId;
+      pendingApkUri = null;
+      pendingApkFileName = fileName;
 
       JSObject payload = new JSObject();
       payload.put("status", "downloading");
@@ -479,6 +490,38 @@ public class VaultShieldPlugin extends Plugin {
     }
 
     requestPlayIntegrityToken(call, result, playIntegrityNonce, playIntegrityCloudProjectNumber);
+  }
+
+  @PluginMethod
+  public void openPendingApkInstaller(PluginCall call) {
+    Context context = getContext();
+    if (pendingApkUri == null) {
+      JSObject payload = new JSObject();
+      payload.put("status", "no_pending_apk");
+      payload.put("installerOpened", false);
+      call.resolve(payload);
+      return;
+    }
+
+    boolean installerOpened = false;
+    boolean downloadsOpened = false;
+    try {
+      installerOpened = openApkInstaller(context, pendingApkUri);
+      if (!installerOpened) {
+        downloadsOpened = openDownloadsUi(context);
+      }
+    } catch (Exception error) {
+      Log.e(TAG, "Unable to open pending APK installer", error);
+      downloadsOpened = openDownloadsUi(context);
+    }
+
+    JSObject payload = new JSObject();
+    payload.put("status", installerOpened ? "installer_opened" : "installer_blocked");
+    payload.put("installerOpened", installerOpened);
+    payload.put("downloadsOpened", downloadsOpened);
+    payload.put("fileName", pendingApkFileName);
+    payload.put("requiresUserAction", true);
+    call.resolve(payload);
   }
 
   @PluginMethod
@@ -558,7 +601,7 @@ public class VaultShieldPlugin extends Plugin {
         boolean accessibilityEnabled = enabledAccessibilityPackages.contains(packageName);
         boolean notificationEnabled = enabledNotificationPackages.contains(packageName);
         boolean deviceAdminActive = deviceAdminPackages.contains(packageName);
-        boolean unknownInstaller = !isTrustedInstaller(installer);
+        boolean unknownInstaller = isLikelyUnknownInstallerApp(pm, context, packageName, installer);
         boolean suspiciousKeyword =
           containsAnyKeyword(packageName.toLowerCase(Locale.US), HIGH_RISK_PACKAGE_KEYWORDS) ||
           containsAnyKeyword(packageName.toLowerCase(Locale.US), ADWARE_PACKAGE_KEYWORDS);
@@ -744,7 +787,6 @@ public class VaultShieldPlugin extends Plugin {
           return;
         }
 
-        pendingApkDownloadId = -1L;
         try {
           DownloadManager.Query query = new DownloadManager.Query();
           query.setFilterById(downloadId);
@@ -781,15 +823,41 @@ public class VaultShieldPlugin extends Plugin {
           Uri apkUri = downloadManager.getUriForDownloadedFile(downloadId);
           if (apkUri == null) {
             Log.e(TAG, "APK download completed but URI is null");
+            emitApkInstallEvent("download_failed", "Download completed but APK URI is unavailable", false, false, false);
             return;
           }
 
-          if (!openApkInstaller(context, apkUri)) {
-            Log.e(TAG, "No available activity can handle APK install intent");
+          pendingApkUri = apkUri;
+
+          boolean installerOpened = openApkInstaller(context, apkUri);
+          if (!installerOpened) {
+            Log.e(TAG, "No available activity can handle APK install intent; opening downloads UI");
+            boolean downloadsOpened = openDownloadsUi(context);
+            emitApkInstallEvent(
+              "installer_blocked",
+              downloadsOpened
+                ? "Installer was blocked by system policy. Downloads screen opened."
+                : "Installer was blocked by system policy. Open Downloads and install manually.",
+              true,
+              downloadsOpened,
+              false
+            );
+            return;
           }
+
+          emitApkInstallEvent("installer_opened", "Installer opened", true, false, true);
         } catch (Exception error) {
           Log.e(TAG, "Failed to open APK installer", error);
+          boolean downloadsOpened = openDownloadsUi(context);
+          emitApkInstallEvent(
+            "installer_error",
+            error.getMessage() == null ? "Unable to open installer" : error.getMessage(),
+            true,
+            downloadsOpened,
+            false
+          );
         } finally {
+          pendingApkDownloadId = -1L;
           unregisterApkDownloadReceiver();
         }
       }
@@ -842,6 +910,70 @@ public class VaultShieldPlugin extends Plugin {
     return false;
   }
 
+  private boolean openDownloadsUi(Context context) {
+    try {
+      Intent intent = new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS);
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      if (intent.resolveActivity(context.getPackageManager()) != null) {
+        context.startActivity(intent);
+        return true;
+      }
+    } catch (Exception error) {
+      Log.e(TAG, "Unable to open downloads UI", error);
+    }
+    return false;
+  }
+
+  private boolean openUnknownAppSourcesSettings(Context context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+      Intent legacySecurity = new Intent(Settings.ACTION_SECURITY_SETTINGS);
+      return safeStartActivity(context, legacySecurity) || safeStartActivity(context, new Intent(Settings.ACTION_SETTINGS));
+    }
+
+    Intent scopedUnknownSources = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+    scopedUnknownSources.setData(Uri.parse("package:" + context.getPackageName()));
+
+    Intent globalUnknownSources = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+    Intent securitySettings = new Intent(Settings.ACTION_SECURITY_SETTINGS);
+    Intent genericSettings = new Intent(Settings.ACTION_SETTINGS);
+
+    return safeStartActivity(context, scopedUnknownSources)
+      || safeStartActivity(context, globalUnknownSources)
+      || safeStartActivity(context, securitySettings)
+      || safeStartActivity(context, genericSettings);
+  }
+
+  private boolean safeStartActivity(Context context, Intent intent) {
+    try {
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      if (intent.resolveActivity(context.getPackageManager()) == null) {
+        return false;
+      }
+      context.startActivity(intent);
+      return true;
+    } catch (Exception ignored) {
+      return false;
+    }
+  }
+
+  private void emitApkInstallEvent(
+    String status,
+    String message,
+    boolean requiresUserAction,
+    boolean settingsOpened,
+    boolean installerOpened
+  ) {
+    JSObject payload = new JSObject();
+    payload.put("status", status);
+    payload.put("message", message == null ? "" : message);
+    payload.put("requiresUserAction", requiresUserAction);
+    payload.put("settingsOpened", settingsOpened);
+    payload.put("installerOpened", installerOpened);
+    payload.put("fileName", pendingApkFileName);
+    payload.put("downloadId", pendingApkDownloadId);
+    notifyListeners(APK_INSTALL_EVENT, payload, true);
+  }
+
   @NonNull
   private List<String> getStringList(JSArray value) {
     List<String> output = new ArrayList<>();
@@ -878,7 +1010,7 @@ public class VaultShieldPlugin extends Plugin {
 
       String normalized = packageName.toLowerCase(Locale.US);
       String installer = getInstallSource(pm, packageName);
-      boolean trustedInstaller = isTrustedInstaller(installer);
+      boolean trustedInstaller = !isLikelyUnknownInstallerApp(pm, getContext(), packageName, installer);
 
       if (!trustedInstaller) {
         unknownInstallerCount += 1;
@@ -953,6 +1085,45 @@ public class VaultShieldPlugin extends Plugin {
       }
     }
     return false;
+  }
+
+  private boolean isSystemPackage(PackageManager pm, String packageName) {
+    try {
+      ApplicationInfo appInfo;
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        appInfo = pm.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0));
+      } else {
+        //noinspection deprecation
+        appInfo = pm.getApplicationInfo(packageName, 0);
+      }
+
+      boolean system = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+      boolean updatedSystem = (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+      return system || updatedSystem;
+    } catch (Exception ignored) {
+      return false;
+    }
+  }
+
+  private boolean isLikelyUnknownInstallerApp(
+    PackageManager pm,
+    Context context,
+    String packageName,
+    String installerPackage
+  ) {
+    if (packageName == null || packageName.trim().isEmpty()) {
+      return false;
+    }
+
+    if (context != null && packageName.equals(context.getPackageName())) {
+      return false;
+    }
+
+    if (isSystemPackage(pm, packageName)) {
+      return false;
+    }
+
+    return !isTrustedInstaller(installerPackage);
   }
 
   @NonNull
