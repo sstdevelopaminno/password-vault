@@ -3,8 +3,8 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.passwordvault.app"
     compileSdk = rootProject.ext.compileSdkVersion
-    def resolvedVersionName = (project.findProperty("VERSION_NAME") ?: "16.6.17").toString()
-    def resolvedVersionCode = (project.findProperty("VERSION_CODE") ?: "16617").toString().toInteger()
+    def resolvedVersionName = (project.findProperty("VERSION_NAME") ?: "16.6.18").toString()
+    def resolvedVersionCode = (project.findProperty("VERSION_CODE") ?: "16618").toString().toInteger()
     defaultConfig {
         applicationId "com.passwordvault.app"
         minSdkVersion rootProject.ext.minSdkVersion
