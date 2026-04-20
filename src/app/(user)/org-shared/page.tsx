@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
+import { fetchWithSessionRetry } from '@/lib/api-client';
 
 type TeamRoom = {
  id: string;
@@ -61,7 +62,7 @@ export default function OrgSharedPage() {
 
  const loadRooms = useCallback(async () => {
  setLoading(true);
- const res = await fetch('/api/team-rooms', { cache: 'no-store' });
+ const res = await fetchWithSessionRetry('/api/team-rooms', { cache: 'no-store' });
  const body = (await res.json().catch(() => ({}))) as {
  error?: string;
  rooms?: Array<{ id: string; name: string; description?: string; updatedAt?: string; memberRole?: 'owner' | 'member' }>;
@@ -188,7 +189,7 @@ export default function OrgSharedPage() {
  setLoadingShareSuggestions(normalizedQuery.length >= 2);
 
  const endpoint = '/api/team-rooms/' + encodeURIComponent(roomId) + '/members' + (normalizedQuery ? '?query=' + encodeURIComponent(normalizedQuery) : '');
- const res = await fetch(endpoint, { cache: 'no-store' });
+ const res = await fetchWithSessionRetry(endpoint, { cache: 'no-store' });
  const body = (await res.json().catch(() => ({}))) as {
  error?: string;
  members?: Array<{ userId: string; fullName?: string; email?: string; memberRole?: 'owner' | 'member' }>;

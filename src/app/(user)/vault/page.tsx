@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
+import { fetchWithSessionRetry } from '@/lib/api-client';
 import { getOfflineCache, setOfflineCache } from '@/lib/offline-store';
 import { flushOfflineQueue, queueOfflineRequest } from '@/lib/offline-sync';
 import { useOutageState } from '@/lib/outage-detector';
@@ -192,7 +193,7 @@ export default function VaultPage() {
  const timer = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
  let res: Response;
  try {
- res = await fetch('/api/vault?' + params.toString(), { cache: 'no-store', signal: controller.signal });
+ res = await fetchWithSessionRetry('/api/vault?' + params.toString(), { cache: 'no-store', signal: controller.signal });
  } finally {
  window.clearTimeout(timer);
  }

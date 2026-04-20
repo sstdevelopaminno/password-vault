@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
+import { fetchWithSessionRetry } from '@/lib/api-client';
 
 type RoomInfo = { id: string; name: string; description: string };
 type TeamItem = { id: string; title: string; username: string; updatedAt: string; category: string; url?: string };
@@ -78,9 +79,9 @@ export default function TeamRoomPage() {
  if (!roomId) return;
  setLoading(true);
  const [roomRes, itemsRes, msgRes] = await Promise.all([
- fetch('/api/team-rooms/' + encodeURIComponent(roomId), { cache: 'no-store' }),
- fetch('/api/team-rooms/' + encodeURIComponent(roomId) + '/items?limit=50&page=1', { cache: 'no-store' }),
- fetch('/api/team-rooms/' + encodeURIComponent(roomId) + '/messages?limit=80', { cache: 'no-store' }),
+ fetchWithSessionRetry('/api/team-rooms/' + encodeURIComponent(roomId), { cache: 'no-store' }),
+ fetchWithSessionRetry('/api/team-rooms/' + encodeURIComponent(roomId) + '/items?limit=50&page=1', { cache: 'no-store' }),
+ fetchWithSessionRetry('/api/team-rooms/' + encodeURIComponent(roomId) + '/messages?limit=80', { cache: 'no-store' }),
  ]);
  const roomBody = (await roomRes.json().catch(() => ({}))) as { error?: string; room?: { id: string; name: string; description?: string } };
  const itemsBody = (await itemsRes.json().catch(() => ({}))) as {

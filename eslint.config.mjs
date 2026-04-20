@@ -19,10 +19,17 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".gradle-home/**",
+    ".vercel/**",
+    ".vercel-tmp/**",
+    ".tmp/**",
     "out/**",
     "build/**",
     "android/**/build/**",
+    "android/**/.gradle/**",
+    "android/app/src/main/assets/public/**",
     "ios/**/build/**",
+    "www/**",
     "next-env.d.ts",
   ]),
 ]);

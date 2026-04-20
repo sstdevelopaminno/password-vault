@@ -27,16 +27,16 @@ type AndroidApkReleasePayload = {
 };
 
 const rawVersionName = String(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION ?? "").trim();
-const rawVersionCode = Number(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION_CODE ?? "16614");
+const rawVersionCode = Number(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION_CODE ?? "16615");
 const rawDownloadUrl = String(process.env.NEXT_PUBLIC_ANDROID_APK_URL ?? "").trim();
 const rawPackageName = String(process.env.NEXT_PUBLIC_ANDROID_APK_PACKAGE_NAME ?? "").trim();
 const rawSigningKeySha256 = String(process.env.NEXT_PUBLIC_ANDROID_APK_SIGNING_SHA256 ?? "").trim();
 const rawPublishedAt = String(process.env.NEXT_PUBLIC_ANDROID_APK_PUBLISHED_AT ?? "").trim();
 
 export const DEFAULT_ANDROID_APK_RELEASE: AndroidApkRelease = {
-  versionName: rawVersionName || "16.6.14",
-  versionCode: Number.isFinite(rawVersionCode) && rawVersionCode > 0 ? Math.floor(rawVersionCode) : 16614,
-  downloadUrl: rawDownloadUrl || "https://password-vault-ivory.vercel.app/apk/vault-v16.6.14.apk",
+  versionName: rawVersionName || "16.6.15",
+  versionCode: Number.isFinite(rawVersionCode) && rawVersionCode > 0 ? Math.floor(rawVersionCode) : 16615,
+  downloadUrl: rawDownloadUrl || "https://password-vault-ivory.vercel.app/apk/vault-v16.6.15.apk",
   packageName: rawPackageName || DEFAULT_ANDROID_PACKAGE,
   signingKeySha256:
     rawSigningKeySha256 ||

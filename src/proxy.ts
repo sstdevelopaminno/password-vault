@@ -16,7 +16,21 @@ import {
 } from "@/lib/vault-risk-policy";
 
 const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
-const userPaths = ["/home", "/vault", "/org-shared", "/settings", "/requests", "/help-center"];
+const userPaths = [
+  "/home",
+  "/notes",
+  "/vault",
+  "/org-shared",
+  "/settings",
+  "/requests",
+  "/help-center",
+  "/contacts",
+  "/dialer",
+  "/phone-profile",
+  "/risk-alerts",
+  "/risk-check",
+  "/risk-tip",
+];
 const authEntryPaths = ["/login"];
 
 const publicApiPaths = new Set([
@@ -33,6 +47,8 @@ const publicApiPaths = new Set([
   "/api/auth/resend-signup-otp",
   "/api/auth/logout",
   "/api/android-release",
+  "/api/runtime/diagnostics",
+  "/api/version",
   "/api/notes/reminders/process",
   "/api/notifications/push/process",
 ]);
@@ -336,6 +352,13 @@ export const config = {
     "/settings/:path*",
     "/requests/:path*",
     "/help-center/:path*",
+    "/notes/:path*",
+    "/contacts/:path*",
+    "/dialer/:path*",
+    "/phone-profile/:path*",
+    "/risk-alerts/:path*",
+    "/risk-check/:path*",
+    "/risk-tip/:path*",
     "/dashboard/:path*",
     "/users/:path*",
     "/approvals/:path*",

@@ -3,12 +3,14 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.passwordvault.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    def resolvedVersionName = (project.findProperty("VERSION_NAME") ?: "16.6.13").toString()
+    def resolvedVersionCode = (project.findProperty("VERSION_CODE") ?: "16613").toString().toInteger()
     defaultConfig {
         applicationId "com.passwordvault.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 16610
-        versionName "16.6.10"
+        versionCode resolvedVersionCode
+        versionName resolvedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

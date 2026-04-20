@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
+import { fetchWithSessionRetry } from '@/lib/api-client';
 import { getOfflineCache, setOfflineCache } from '@/lib/offline-store';
 import { flushOfflineQueue, queueOfflineRequest } from '@/lib/offline-sync';
 import { useOutageState } from '@/lib/outage-detector';
@@ -141,7 +142,7 @@ export default function NotesPage() {
  });
  if (q) params.set('q', q);
  try {
- const res = await fetch('/api/notes?' + params.toString(), { cache: 'no-store' });
+ const res = await fetchWithSessionRetry('/api/notes?' + params.toString(), { cache: 'no-store' });
  const body = (await res.json().catch(() => ({}))) as { error?: string; notes?: NoteItem[]; pagination?: Pagination };
  setLoading(false);
  if (!res.ok) {
@@ -180,7 +181,7 @@ export default function NotesPage() {
  const params = new URLSearchParams({ page: '1', limit: '300' });
  if (q) params.set('q', q);
  try {
- const res = await fetch('/api/notes?' + params.toString(), { cache: 'no-store' });
+ const res = await fetchWithSessionRetry('/api/notes?' + params.toString(), { cache: 'no-store' });
  const body = (await res.json().catch(() => ({}))) as { notes?: NoteItem[] };
  if (res.ok) {
  setCalendarNotes(body.notes ?? []);

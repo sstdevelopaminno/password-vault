@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { PinModal } from '@/components/vault/pin-modal';
 import { useToast } from '@/components/ui/toast';
 import type { PinAction } from '@/lib/pin';
+import { fetchWithSessionRetry } from '@/lib/api-client';
 import { useI18n } from '@/i18n/provider';
 
 type TeamItemDetail = {
@@ -54,7 +55,7 @@ export default function TeamItemDetailPage() {
 
  const loadItem = useCallback(async () => {
  if (!itemId) return;
- const res = await fetch('/api/team-room-items/' + encodeURIComponent(itemId), { cache: 'no-store' });
+ const res = await fetchWithSessionRetry('/api/team-room-items/' + encodeURIComponent(itemId), { cache: 'no-store' });
  const body = (await res.json().catch(() => ({}))) as TeamItemDetail & { error?: string };
  if (!res.ok) {
  showToast(body.error ?? 'Failed to load item', 'error');
@@ -101,7 +102,7 @@ export default function TeamItemDetailPage() {
  async function openMoveModal() {
  if (!item?.roomId || moveLoading) return;
  setMoveLoading(true);
- const res = await fetch('/api/team-rooms', { cache: 'no-store' });
+ const res = await fetchWithSessionRetry('/api/team-rooms', { cache: 'no-store' });
  const body = (await res.json().catch(() => ({}))) as {
  error?: string;
  rooms?: Array<{ id: string; name?: string; memberRole?: 'owner' | 'member' }>;
