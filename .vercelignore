@@ -1,5 +1,7 @@
 .tmp 
 .tmp/**
+.env
+.env.*
 .gradle-home
 .gradle-home/**
 .next
