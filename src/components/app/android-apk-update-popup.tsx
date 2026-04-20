@@ -28,6 +28,39 @@ type AndroidReleaseApiPayload = {
 
 const ANDROID_PWA_PROMPT_SEEN_PREFIX = "pv_android_pwa_prompt_seen_";
 const FORCE_ANDROID_INSTALL_POPUP_EVENT = "pv:force-android-install-popup";
+const ANDROID_DISTRIBUTION_CHANNEL = String(process.env.NEXT_PUBLIC_ANDROID_DISTRIBUTION_CHANNEL ?? "store")
+  .trim()
+  .toLowerCase() === "apk"
+  ? "apk"
+  : "store";
+
+type AndroidStoreVendor = "samsung" | "vivo" | "huawei" | "xiaomi" | "oppo" | "default";
+
+function detectAndroidStoreVendor() {
+  if (typeof window === "undefined") return "default" as AndroidStoreVendor;
+  const ua = window.navigator.userAgent.toLowerCase();
+  if (ua.includes("samsung")) return "samsung" as AndroidStoreVendor;
+  if (ua.includes("vivo")) return "vivo" as AndroidStoreVendor;
+  if (ua.includes("huawei") || ua.includes("honor")) return "huawei" as AndroidStoreVendor;
+  if (ua.includes("xiaomi") || ua.includes("redmi") || ua.includes("poco")) return "xiaomi" as AndroidStoreVendor;
+  if (ua.includes("oppo") || ua.includes("realme") || ua.includes("oneplus")) return "oppo" as AndroidStoreVendor;
+  return "default" as AndroidStoreVendor;
+}
+
+function resolveAndroidStoreUrl(packageName: string) {
+  const playFallback = `https://play.google.com/store/apps/details?id=${encodeURIComponent(packageName)}`;
+  const byVendor: Record<AndroidStoreVendor, string> = {
+    samsung: String(process.env.NEXT_PUBLIC_ANDROID_STORE_URL_SAMSUNG ?? "").trim(),
+    vivo: String(process.env.NEXT_PUBLIC_ANDROID_STORE_URL_VIVO ?? "").trim(),
+    huawei: String(process.env.NEXT_PUBLIC_ANDROID_STORE_URL_HUAWEI ?? "").trim(),
+    xiaomi: String(process.env.NEXT_PUBLIC_ANDROID_STORE_URL_XIAOMI ?? "").trim(),
+    oppo: String(process.env.NEXT_PUBLIC_ANDROID_STORE_URL_OPPO ?? "").trim(),
+    default: String(process.env.NEXT_PUBLIC_ANDROID_STORE_URL_DEFAULT ?? "").trim(),
+  };
+  const play = String(process.env.NEXT_PUBLIC_ANDROID_STORE_URL_PLAY ?? "").trim() || playFallback;
+  const vendor = detectAndroidStoreVendor();
+  return byVendor[vendor] || byVendor.default || play || playFallback;
+}
 
 function defaultRelease() {
   const fallback = getDefaultAndroidReleasePayload();
@@ -70,6 +103,8 @@ export function AndroidApkUpdatePopup() {
   const capabilities = detectRuntimeCapabilities();
   const isAndroidRuntime = capabilities.isAndroid && !capabilities.isIos;
   const isAndroidWebRuntime = isAndroidRuntime && !capabilities.isCapacitorNative;
+  const isStoreDistribution = ANDROID_DISTRIBUTION_CHANNEL === "store";
+  const storeUrl = useMemo(() => resolveAndroidStoreUrl(release.packageName), [release.packageName]);
 
   const popupEligible = useMemo(() => isAndroidRuntime, [isAndroidRuntime]);
 
@@ -168,7 +203,7 @@ export function AndroidApkUpdatePopup() {
   }, [popupEligible]);
 
   useEffect(() => {
-    if (!capabilities.isCapacitorNative || !isAndroidRuntime) return;
+    if (isStoreDistribution || !capabilities.isCapacitorNative || !isAndroidRuntime) return;
 
     let mounted = true;
     let removeListener: (() => Promise<void>) | null = null;
@@ -203,10 +238,10 @@ export function AndroidApkUpdatePopup() {
         void removeListener();
       }
     };
-  }, [capabilities.isCapacitorNative, isAndroidRuntime, locale, toast]);
+  }, [capabilities.isCapacitorNative, isAndroidRuntime, isStoreDistribution, locale, toast]);
 
   useEffect(() => {
-    if (!capabilities.isCapacitorNative || !isAndroidRuntime || typeof window === "undefined") return;
+    if (isStoreDistribution || !capabilities.isCapacitorNative || !isAndroidRuntime || typeof window === "undefined") return;
 
     const onVisibilityChange = () => {
       if (document.visibilityState !== "visible") return;
@@ -227,25 +262,33 @@ export function AndroidApkUpdatePopup() {
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [capabilities.isCapacitorNative, isAndroidRuntime]);
+  }, [capabilities.isCapacitorNative, isAndroidRuntime, isStoreDistribution]);
 
   if (!popupEligible || !open) return null;
 
   const title = isAndroidWebRuntime
     ? locale === "th"
-      ? "แนะนำติดตั้งแอป Android บนเครื่องนี้"
-      : "Recommended: install Android app on this device"
+      ? isStoreDistribution ? "แนะนำติดตั้งแอปผ่าน Store" : "แนะนำติดตั้งแอป Android บนเครื่องนี้"
+      : isStoreDistribution ? "Install from trusted Store" : "Recommended: install Android app on this device"
     : locale === "th"
-      ? "ติดตั้งแอป Android เวอร์ชันล่าสุด"
-      : "Install the latest Android app";
+      ? isStoreDistribution ? "อัปเดตแอปผ่าน Store" : "ติดตั้งแอป Android เวอร์ชันล่าสุด"
+      : isStoreDistribution ? "Update via trusted Store" : "Install the latest Android app";
 
   const detail = isAndroidWebRuntime
     ? locale === "th"
-      ? `คุณกำลังใช้งานผ่าน PWA ฟีเจอร์โทร/รายชื่อจะเสถียรกว่าเมื่อใช้แอป Android เวอร์ชัน ${release.versionName}`
-      : `You are running in PWA mode. Calling/contacts are more stable in Android app ${release.versionName}.`
+      ? isStoreDistribution
+        ? "เพื่อหลีกเลี่ยงคำเตือนแอปไม่รู้จัก ให้ติดตั้งจาก Store ที่เชื่อถือได้ของอุปกรณ์"
+        : `คุณกำลังใช้งานผ่าน PWA ฟีเจอร์โทร/รายชื่อจะเสถียรกว่าเมื่อใช้แอป Android เวอร์ชัน ${release.versionName}`
+      : isStoreDistribution
+        ? "Install from a trusted store to avoid unknown-app warnings."
+        : `You are running in PWA mode. Calling/contacts are more stable in Android app ${release.versionName}.`
     : locale === "th"
-      ? `พร้อมอัปเดตเป็นเวอร์ชัน ${release.versionName} (${release.versionCode})`
-      : `Version ${release.versionName} (${release.versionCode}) is ready to install.`;
+      ? isStoreDistribution
+        ? `พร้อมเปิด Store เพื่ออัปเดตเป็นเวอร์ชัน ${release.versionName}`
+        : `พร้อมอัปเดตเป็นเวอร์ชัน ${release.versionName} (${release.versionCode})`
+      : isStoreDistribution
+        ? `Ready to open Store for version ${release.versionName}`
+        : `Version ${release.versionName} (${release.versionCode}) is ready to install.`;
 
   const compatibilityText = compatibility.canInstallOverExisting
     ? locale === "th"
@@ -256,8 +299,12 @@ export function AndroidApkUpdatePopup() {
       : "Package/signing mismatch detected. Reinstall may be required.";
 
   const installPolicyHint = locale === "th"
-    ? "หมายเหตุ: Android ทุกค่ายต้องให้ผู้ใช้ยืนยันการติดตั้งเอง ระบบไม่สามารถติดตั้งเงียบโดยไม่กดยืนยันได้"
-    : "Note: Android requires user confirmation for APK install on all vendors; silent install is not allowed.";
+    ? isStoreDistribution
+      ? "ช่องทางนี้จะเปิด Store โดยตรงเพื่อเลี่ยงการเตือน Unknown Apps"
+      : "หมายเหตุ: Android ทุกค่ายต้องให้ผู้ใช้ยืนยันการติดตั้งเอง ระบบไม่สามารถติดตั้งเงียบโดยไม่กดยืนยันได้"
+    : isStoreDistribution
+      ? "This flow opens trusted Store directly to avoid unknown-app warnings."
+      : "Note: Android requires user confirmation for APK install on all vendors; silent install is not allowed.";
 
   async function startNativeInstall(targetRelease: AndroidApkRelease) {
     const result = await installAndroidApkUpdate({
@@ -309,9 +356,21 @@ export function AndroidApkUpdatePopup() {
   }
 
   const installClick = async () => {
-    if (installing || !release.downloadUrl) return;
+    if (installing) return;
 
     setInstalling(true);
+    if (isStoreDistribution) {
+      setInstalling(false);
+      dismissPopup();
+      window.location.assign(storeUrl);
+      return;
+    }
+
+    if (!release.downloadUrl) {
+      setInstalling(false);
+      return;
+    }
+
     if (capabilities.isCapacitorNative) {
       await startNativeInstall(release);
       setInstalling(false);
@@ -362,17 +421,19 @@ export function AndroidApkUpdatePopup() {
           </p>
         </div>
 
-        <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
-          <p className="inline-flex items-center gap-1 font-semibold">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            {locale === "th" ? "สถานะความเข้ากันได้" : "Compatibility"}
-          </p>
-          <p className="mt-1">{compatibilityText}</p>
-        </div>
+        {!isStoreDistribution ? (
+          <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
+            <p className="inline-flex items-center gap-1 font-semibold">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {locale === "th" ? "สถานะความเข้ากันได้" : "Compatibility"}
+            </p>
+            <p className="mt-1">{compatibilityText}</p>
+          </div>
+        ) : null}
 
         <p className="mt-2 text-[11px] leading-5 text-slate-500">{installPolicyHint}</p>
 
-        {waitingInstallPermission ? (
+        {!isStoreDistribution && waitingInstallPermission ? (
           <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
             {locale === "th"
               ? "กำลังรอสิทธิ์ Install unknown apps เมื่อกลับจากหน้าตั้งค่า ระบบจะพยายามดาวน์โหลดต่อให้อัตโนมัติ"
@@ -384,15 +445,21 @@ export function AndroidApkUpdatePopup() {
           <Button type="button" variant="secondary" disabled={installing} onClick={dismissPopup}>
             {locale === "th" ? "ภายหลัง" : "Later"}
           </Button>
-          <Button type="button" onClick={() => void installClick()} disabled={installing || !release.downloadUrl}>
+          <Button type="button" onClick={() => void installClick()} disabled={installing || (!isStoreDistribution && !release.downloadUrl)}>
             <span className="inline-flex items-center gap-2">
               <Download className="h-4 w-4" />
-              {installing ? (locale === "th" ? "กำลังเริ่ม..." : "Starting...") : locale === "th" ? "ติดตั้งตอนนี้" : "Install now"}
+              {installing
+                ? (locale === "th" ? "กำลังเปิด..." : "Opening...")
+                : isStoreDistribution
+                  ? (locale === "th" ? "เปิด Store" : "Open Store")
+                  : locale === "th"
+                    ? "ติดตั้งตอนนี้"
+                    : "Install now"}
             </span>
           </Button>
         </div>
 
-        {pendingInstallerAvailable ? (
+        {!isStoreDistribution && pendingInstallerAvailable ? (
           <Button
             type="button"
             variant="secondary"
