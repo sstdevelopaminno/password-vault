@@ -1,3 +1,4 @@
+import packageJson from "../../package.json";
 import { DEFAULT_ANDROID_PACKAGE } from "@/lib/release-update";
 
 export const ANDROID_APK_PROMPT_SEEN_KEY = "pv_android_apk_prompt_seen_version";
@@ -26,29 +27,78 @@ type AndroidApkReleasePayload = {
   compatibility: AndroidApkCompatibility;
 };
 
-const rawVersionName = String(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION ?? "").trim();
-const rawVersionCode = Number(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION_CODE ?? "16618");
-const rawDownloadUrl = String(process.env.NEXT_PUBLIC_ANDROID_APK_URL ?? "").trim();
-const rawPackageName = String(process.env.NEXT_PUBLIC_ANDROID_APK_PACKAGE_NAME ?? "").trim();
-const rawSigningKeySha256 = String(process.env.NEXT_PUBLIC_ANDROID_APK_SIGNING_SHA256 ?? "").trim();
-const rawPublishedAt = String(process.env.NEXT_PUBLIC_ANDROID_APK_PUBLISHED_AT ?? "").trim();
-
-export const DEFAULT_ANDROID_APK_RELEASE: AndroidApkRelease = {
-  versionName: rawVersionName || "16.6.18",
-  versionCode: Number.isFinite(rawVersionCode) && rawVersionCode > 0 ? Math.floor(rawVersionCode) : 16618,
-  downloadUrl: rawDownloadUrl || "https://password-vault-ivory.vercel.app/apk/vault-v16.6.18.apk",
-  packageName: rawPackageName || DEFAULT_ANDROID_PACKAGE,
-  signingKeySha256:
-    rawSigningKeySha256 ||
-    "58:E9:92:5D:0F:6A:A3:DA:28:C8:57:EA:53:3B:4A:CB:5E:CB:CB:9B:8F:46:E3:A3:74:67:B9:E2:B0:DC:F7:4C",
-  publishedAt: rawPublishedAt || "2026-04-20",
-};
-
 function normalizeReleaseVersion(input: string) {
   const cleaned = input.trim().replace(/^v/i, "");
   if (!cleaned) return "0.0.0";
   return cleaned;
 }
+
+function parsePositiveInt(input: string) {
+  const value = Number(input);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.floor(value);
+}
+
+function deriveVersionCodeFromName(versionName: string) {
+  const matched = normalizeReleaseVersion(versionName).match(/^(\d+)\.(\d+)\.(\d+)(?:[.-].*)?$/);
+  if (!matched) return 0;
+  const major = Number.parseInt(matched[1], 10) || 0;
+  const minor = Number.parseInt(matched[2], 10) || 0;
+  const patch = Number.parseInt(matched[3], 10) || 0;
+  return Math.max(major * 1000 + minor * 100 + patch, 1);
+}
+
+function resolvePackageRelease() {
+  const packageVersion = normalizeReleaseVersion(String(packageJson.version ?? "").trim());
+  return {
+    versionName: packageVersion === "0.0.0" ? "" : packageVersion,
+    versionCode: deriveVersionCodeFromName(packageVersion),
+  };
+}
+
+const packageRelease = resolvePackageRelease();
+const overrideVersionName = normalizeReleaseVersion(String(process.env.ANDROID_APK_VERSION_OVERRIDE ?? "").trim());
+const legacyVersionName = normalizeReleaseVersion(String(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION ?? "").trim());
+const resolvedVersionName =
+  (overrideVersionName !== "0.0.0" ? overrideVersionName : "") ||
+  packageRelease.versionName ||
+  (legacyVersionName !== "0.0.0" ? legacyVersionName : "") ||
+  "0.0.0";
+
+const overrideVersionCode = parsePositiveInt(String(process.env.ANDROID_APK_VERSION_CODE_OVERRIDE ?? "").trim());
+const legacyVersionCode = parsePositiveInt(String(process.env.NEXT_PUBLIC_ANDROID_APK_VERSION_CODE ?? "").trim());
+const resolvedVersionCode =
+  overrideVersionCode || packageRelease.versionCode || legacyVersionCode || deriveVersionCodeFromName(resolvedVersionName) || 1;
+
+const expectedApkFileName = `vault-v${resolvedVersionName}.apk`;
+const releaseBaseUrl = String(process.env.ANDROID_APK_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? process.env.CAPACITOR_SERVER_URL ?? "")
+  .trim()
+  .replace(/\/+$/g, "");
+const defaultReleaseBaseUrl = releaseBaseUrl || "https://password-vault-ivory.vercel.app";
+const overrideDownloadUrl = String(process.env.ANDROID_APK_URL_OVERRIDE ?? "").trim();
+const legacyDownloadUrl = String(process.env.NEXT_PUBLIC_ANDROID_APK_URL ?? "").trim();
+const legacyDownloadUrlMatchesRelease = legacyDownloadUrl.includes(expectedApkFileName);
+const resolvedDownloadUrl =
+  overrideDownloadUrl ||
+  (legacyDownloadUrlMatchesRelease ? legacyDownloadUrl : "") ||
+  `${defaultReleaseBaseUrl}/apk/${expectedApkFileName}`;
+
+const rawPackageName = String(process.env.NEXT_PUBLIC_ANDROID_APK_PACKAGE_NAME ?? "").trim();
+const rawSigningKeySha256 = String(process.env.NEXT_PUBLIC_ANDROID_APK_SIGNING_SHA256 ?? "").trim();
+const overridePublishedAt = String(process.env.ANDROID_APK_PUBLISHED_AT_OVERRIDE ?? "").trim();
+const legacyPublishedAt = String(process.env.NEXT_PUBLIC_ANDROID_APK_PUBLISHED_AT ?? "").trim();
+const defaultPublishedAt = new Date().toISOString().slice(0, 10);
+
+export const DEFAULT_ANDROID_APK_RELEASE: AndroidApkRelease = {
+  versionName: resolvedVersionName,
+  versionCode: resolvedVersionCode,
+  downloadUrl: resolvedDownloadUrl,
+  packageName: rawPackageName || DEFAULT_ANDROID_PACKAGE,
+  signingKeySha256:
+    rawSigningKeySha256 ||
+    "58:E9:92:5D:0F:6A:A3:DA:28:C8:57:EA:53:3B:4A:CB:5E:CB:CB:9B:8F:46:E3:A3:74:67:B9:E2:B0:DC:F7:4C",
+  publishedAt: overridePublishedAt || legacyPublishedAt || defaultPublishedAt,
+};
 
 function toComparableVersionParts(input: string) {
   const cleaned = normalizeReleaseVersion(input)
@@ -132,4 +182,3 @@ export function getDefaultAndroidReleasePayload(): AndroidApkReleasePayload {
     compatibility: buildAndroidApkCompatibility(DEFAULT_ANDROID_APK_RELEASE),
   };
 }
-

@@ -23,6 +23,7 @@ import { readMobileContacts, type MobileContactsPermission } from '@/lib/mobile-
 import { readMdmOverview, type MdmOverview } from '@/lib/mdm-client';
 import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
 import { readPhoneProtectionEnabled, writePhoneProtectionEnabled } from '@/lib/phone-protection';
+import { APP_VERSION } from '@/lib/app-version';
 
 const FORCE_ANDROID_INSTALL_POPUP_EVENT = 'pv:force-android-install-popup';
 
@@ -89,7 +90,7 @@ export default function HomePage() {
   const [summary, setSummary] = useState<AlertsResponse['summary'] | null>(null);
   const [contactsCount, setContactsCount] = useState(0);
   const [, setContactsPermission] = useState<MobileContactsPermission>('unknown');
-  const [appVersion, setAppVersion] = useState('V16.6.10');
+  const [appVersion, setAppVersion] = useState(APP_VERSION);
   const [userRole, setUserRole] = useState('user');
   const [userStatus, setUserStatus] = useState('active');
   const [userFullName, setUserFullName] = useState('');
