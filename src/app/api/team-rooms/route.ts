@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { teamRoomCreateSchema } from "@/lib/validators";
 import { logAudit } from "@/lib/audit";
+import { pickPrimaryUserId, resolveAccessibleUserIds } from "@/lib/user-identity";
 
 type TeamRoomRecord = {
   id: string;
@@ -21,10 +22,15 @@ export async function GET() {
   }
 
   const admin = createAdminClient();
+  const memberUserIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
   const { data: membershipRows, error: membershipError } = await admin
     .from("team_room_members")
     .select("room_id,member_role")
-    .eq("user_id", auth.user.id);
+    .in("user_id", memberUserIds);
 
   if (membershipError) {
     return NextResponse.json({ error: membershipError.message }, { status: 400 });
@@ -50,7 +56,12 @@ export async function GET() {
 
   const roleMap = new Map<string, string>();
   for (const row of membershipRows ?? []) {
-    roleMap.set(String(row.room_id ?? ""), String(row.member_role ?? "member"));
+    const roomId = String(row.room_id ?? "");
+    if (!roomId) continue;
+    const role = String(row.member_role ?? "member");
+    if (role === "owner" || !roleMap.has(roomId)) {
+      roleMap.set(roomId, role);
+    }
   }
 
   const shaped = (rooms as TeamRoomRecord[] | null ?? []).map((room) => ({
@@ -80,12 +91,21 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+  const actorUserIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
+  const actorUserId = pickPrimaryUserId({
+    authUserId: auth.user.id,
+    accessibleUserIds: actorUserIds,
+  });
   const { data: insertedRoom, error: roomError } = await admin
     .from("team_rooms")
     .insert({
       name: parsed.data.name,
       description: parsed.data.description ? parsed.data.description : null,
-      created_by: auth.user.id,
+      created_by: actorUserId,
       updated_at: new Date().toISOString(),
     })
     .select("id,name,description,created_by,created_at,updated_at")
@@ -97,7 +117,7 @@ export async function POST(req: Request) {
 
   const { error: memberError } = await admin.from("team_room_members").insert({
     room_id: insertedRoom.id,
-    user_id: auth.user.id,
+    user_id: actorUserId,
     member_role: "owner",
   });
   if (memberError) {

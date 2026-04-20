@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { teamRoomMessageSchema } from "@/lib/validators";
 import { getTeamMemberContext, touchTeamRoomUpdatedAt } from "@/lib/team-room-access";
 import { logAudit } from "@/lib/audit";
+import { pickPrimaryUserId, resolveAccessibleUserIds } from "@/lib/user-identity";
 
 type MessageRow = {
   id: string;
@@ -36,7 +37,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
   }
 
   const admin = createAdminClient();
-  const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+  const memberUserIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
+  const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
   if (!member) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
@@ -104,7 +110,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
   }
 
   const admin = createAdminClient();
-  const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+  const memberUserIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
+  const actorUserId = pickPrimaryUserId({
+    authUserId: auth.user.id,
+    accessibleUserIds: memberUserIds,
+  });
+  const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
   if (!member) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
@@ -114,7 +129,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
     .from("team_room_messages")
     .insert({
       room_id: roomId,
-      sender_user_id: auth.user.id,
+      sender_user_id: actorUserId,
       message_type: "text",
       body_text: parsed.data.body,
       metadata_json: {},
@@ -136,7 +151,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
   const { data: profile } = await admin
     .from("profiles")
     .select("full_name,email")
-    .eq("id", auth.user.id)
+    .eq("id", actorUserId)
     .maybeSingle();
 
   return NextResponse.json({

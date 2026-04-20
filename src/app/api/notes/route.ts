@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { noteCreateSchema } from '@/lib/validators';
 import { syncNoteReminderJob } from '@/lib/note-reminders';
+import { pickPrimaryUserId, resolveAccessibleUserIds } from '@/lib/user-identity';
 
 type NoteRow = {
  id: string;
@@ -62,10 +63,15 @@ export async function GET(req: Request) {
  const to = from + limit - 1;
 
  const admin = createAdminClient();
+ const ownerIds = await resolveAccessibleUserIds({
+ admin: admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
  let query = admin
  .from('notes')
  .select('id,title,content,reminder_at,meeting_at,created_at,updated_at', { count: 'planned' })
- .eq('user_id', auth.user.id)
+ .in('user_id', ownerIds)
  .order('updated_at', { ascending: false })
  .order('id', { ascending: false })
  .range(from, to);
@@ -111,11 +117,20 @@ export async function POST(req: Request) {
  }
 
  const admin = createAdminClient();
+ const ownerIds = await resolveAccessibleUserIds({
+ admin: admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const ownerUserId = pickPrimaryUserId({
+ authUserId: auth.user.id,
+ accessibleUserIds: ownerIds,
+ });
  const nowIso = new Date().toISOString();
  const { data, error } = await admin
  .from('notes')
  .insert({
- user_id: auth.user.id,
+ user_id: ownerUserId,
  title: parsed.data.title,
  content: parsed.data.content,
  reminder_at: parsed.data.reminderAt,
@@ -131,7 +146,7 @@ export async function POST(req: Request) {
 
  await syncNoteReminderJob({
  noteId: String(data.id),
- userId: auth.user.id,
+ userId: ownerUserId,
  reminderAt: parsed.data.reminderAt,
  });
 

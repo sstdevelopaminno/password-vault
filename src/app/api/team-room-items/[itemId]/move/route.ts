@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { getTeamMemberContext, touchTeamRoomUpdatedAt } from '@/lib/team-room-access';
 import { teamRoomMoveItemSchema } from '@/lib/validators';
+import { pickPrimaryUserId, resolveAccessibleUserIds } from '@/lib/user-identity';
 
 type TeamItemRow = {
  id: string;
@@ -27,6 +28,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ itemId:
  }
 
  const admin = createAdminClient();
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const actorUserId = pickPrimaryUserId({
+ authUserId: auth.user.id,
+ accessibleUserIds: memberUserIds,
+ });
  const { data: item, error: itemError } = await admin
  .from('team_room_items')
  .select('id,room_id,title')
@@ -48,12 +58,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ itemId:
  return NextResponse.json({ error: 'Item is already in this room' }, { status: 400 });
  }
 
- const sourceMembership = await getTeamMemberContext({ admin, roomId: sourceRoomId, userId: auth.user.id });
+ const sourceMembership = await getTeamMemberContext({
+ admin,
+ roomId: sourceRoomId,
+ userId: auth.user.id,
+ userIds: memberUserIds,
+ });
  if (!sourceMembership) {
  return NextResponse.json({ error: 'Item not found' }, { status: 404 });
  }
 
- const targetMembership = await getTeamMemberContext({ admin, roomId: targetRoomId, userId: auth.user.id });
+ const targetMembership = await getTeamMemberContext({
+ admin,
+ roomId: targetRoomId,
+ userId: auth.user.id,
+ userIds: memberUserIds,
+ });
  if (!targetMembership) {
  return NextResponse.json({ error: 'Target room not found' }, { status: 404 });
  }
@@ -76,12 +96,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ itemId:
  title: row.title,
  source_room_id: sourceRoomId,
  target_room_id: targetRoomId,
- actor_user_id: auth.user.id,
+ actor_user_id: actorUserId,
  });
 
  await admin.from('team_room_messages').insert({
  room_id: targetRoomId,
- sender_user_id: auth.user.id,
+ sender_user_id: actorUserId,
  message_type: 'shared_item',
  body_text: null,
  metadata_json: {

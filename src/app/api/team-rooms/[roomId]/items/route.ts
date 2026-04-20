@@ -5,6 +5,7 @@ import { decryptText, encryptText } from '@/lib/crypto';
 import { vaultSchema } from '@/lib/validators';
 import { getTeamMemberContext, touchTeamRoomUpdatedAt } from '@/lib/team-room-access';
 import { logAudit } from '@/lib/audit';
+import { pickPrimaryUserId, resolveAccessibleUserIds } from '@/lib/user-identity';
 
 type TeamItemRow = {
  id: string;
@@ -36,7 +37,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
  }
 
  const admin = createAdminClient();
- const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
  if (!member) {
  return NextResponse.json({ error: 'Room not found' }, { status: 404 });
  }
@@ -100,7 +106,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  }
 
  const admin = createAdminClient();
- const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const actorUserId = pickPrimaryUserId({
+ authUserId: auth.user.id,
+ accessibleUserIds: memberUserIds,
+ });
+ const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
  if (!member) {
  return NextResponse.json({ error: 'Room not found' }, { status: 404 });
  }
@@ -110,7 +125,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  .from('team_room_items')
  .insert({
  room_id: roomId,
- created_by: auth.user.id,
+ created_by: actorUserId,
  source_vault_item_id: null,
  title: body.title,
  username_value_encrypted: encryptText(body.username),

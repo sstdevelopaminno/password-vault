@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { getTeamMemberContext, touchTeamRoomUpdatedAt } from '@/lib/team-room-access';
 import { teamRoomShareMemberSchema } from '@/lib/validators';
+import { resolveAccessibleUserIds } from '@/lib/user-identity';
 
 type MemberRow = {
  user_id: string;
@@ -40,7 +41,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
  }
 
  const admin = createAdminClient();
- const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
  if (!member) {
  return NextResponse.json({ error: 'Room not found' }, { status: 404 });
  }
@@ -55,10 +61,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
  }
 
  const memberRows = (members as MemberRow[] | null ?? []);
- const memberUserIds = memberRows.map((row) => row.user_id);
+ const roomMemberUserIds = memberRows.map((row) => row.user_id);
  const profilesById = new Map<string, { email: string; fullName: string }>();
- if (memberUserIds.length > 0) {
- const { data: profiles } = await admin.from('profiles').select('id,email,full_name').in('id', memberUserIds);
+ if (roomMemberUserIds.length > 0) {
+ const { data: profiles } = await admin.from('profiles').select('id,email,full_name').in('id', roomMemberUserIds);
  for (const row of (profiles as ProfileRow[] | null ?? [])) {
  profilesById.set(String(row.id), {
  email: String(row.email ?? ''),
@@ -67,8 +73,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ roomId: 
  }
  }
 
- const excludedUserIds = new Set<string>(memberUserIds);
- excludedUserIds.add(auth.user.id);
+ const excludedUserIds = new Set<string>(roomMemberUserIds);
+ for (const userId of memberUserIds) {
+ excludedUserIds.add(userId);
+ }
  let suggestions: ShareSuggestion[] = [];
 
  if (searchQuery.length >= 2) {
@@ -120,7 +128,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  }
 
  const admin = createAdminClient();
- const me = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const me = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
  if (!me) {
  return NextResponse.json({ error: 'Room not found' }, { status: 404 });
  }
@@ -144,7 +157,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  if (String(profile.status ?? '') !== 'active') {
  return NextResponse.json({ error: 'Target user is not active' }, { status: 400 });
  }
- if (String(profile.id) === auth.user.id) {
+ if (memberUserIds.includes(String(profile.id))) {
  return NextResponse.json({ error: 'You are already in this room' }, { status: 400 });
  }
 

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
 import { touchTeamRoomUpdatedAt } from "@/lib/team-room-access";
+import { resolveAccessibleUserIds } from "@/lib/user-identity";
 
 type TeamItemShareRow = {
   id: string;
@@ -31,12 +32,17 @@ export async function DELETE(_: NextRequest, context: { params: Promise<unknown>
 
   const admin = createAdminClient();
   const ownerId = auth.user.id;
+  const ownerIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
 
   const { data: item, error: itemError } = await admin
     .from("vault_items")
     .select("id")
     .eq("id", id)
-    .eq("owner_user_id", ownerId)
+    .in("owner_user_id", ownerIds)
     .maybeSingle();
 
   if (itemError) {
@@ -50,7 +56,7 @@ export async function DELETE(_: NextRequest, context: { params: Promise<unknown>
     .from("team_room_items")
     .select("id,room_id")
     .eq("source_vault_item_id", id)
-    .eq("created_by", ownerId);
+    .in("created_by", ownerIds);
 
   if (shareError) {
     return NextResponse.json({ error: shareError.message }, { status: 400 });
@@ -68,7 +74,7 @@ export async function DELETE(_: NextRequest, context: { params: Promise<unknown>
     .from("team_room_items")
     .delete()
     .in("id", shareIds)
-    .eq("created_by", ownerId);
+    .in("created_by", ownerIds);
 
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message }, { status: 400 });

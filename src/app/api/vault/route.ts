@@ -5,6 +5,7 @@ import { vaultSchema } from "@/lib/validators";
 import { logAudit } from "@/lib/audit";
 import { recordApiMetric } from "@/lib/api-metrics";
 import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
+import { resolveAccessibleUserIds } from "@/lib/user-identity";
 
 const ROUTE_PATH = "/api/vault";
 
@@ -37,8 +38,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const ownerId = data.user.id;
   const admin = createAdminClient();
+  const ownerIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: data.user.id,
+    authEmail: data.user.email,
+  });
 
   const { searchParams } = new URL(req.url);
   const limit = parseLimit(searchParams.get("limit"));
@@ -51,7 +56,7 @@ export async function GET(req: Request) {
   let query = admin
     .from("vault_items")
     .select("id,title,url,category,updated_at,username_value_encrypted", { count: "exact" })
-    .eq("owner_user_id", ownerId)
+    .in("owner_user_id", ownerIds)
     .order("updated_at", { ascending: false })
     .order("id", { ascending: false })
     .range(from, to);
@@ -74,7 +79,7 @@ export async function GET(req: Request) {
     const { data: shareRows } = await admin
       .from("team_room_items")
       .select("source_vault_item_id")
-      .eq("created_by", ownerId)
+      .in("created_by", ownerIds)
       .in("source_vault_item_id", itemIds);
 
     for (const row of (shareRows as TeamShareCountRow[] | null) ?? []) {
@@ -111,7 +116,7 @@ let storageUsedBytes = 0;
     const storageQuery = await admin
       .from("vault_items")
       .select("title,url,category,username_value_encrypted,secret_value_encrypted,notes_encrypted")
-      .eq("owner_user_id", ownerId);
+      .in("owner_user_id", ownerIds);
 
     if (!storageQuery.error) {
       storageUsedBytes = (storageQuery.data ?? []).reduce(function (sum, row) {

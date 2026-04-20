@@ -5,6 +5,7 @@ import { decryptText, encryptText } from "@/lib/crypto";
 import { requirePinAssertion } from "@/lib/pin-guard";
 import { getTeamMemberContext, touchTeamRoomUpdatedAt } from "@/lib/team-room-access";
 import { logAudit } from "@/lib/audit";
+import { resolveAccessibleUserIds } from "@/lib/user-identity";
 
 type TeamItemFullRow = {
   id: string;
@@ -25,6 +26,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ itemId: st
   }
 
   const admin = createAdminClient();
+  const memberUserIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
   const { data: item, error } = await admin
     .from("team_room_items")
     .select("id,room_id,title,username_value_encrypted,url,category,updated_at")
@@ -42,6 +48,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ itemId: st
     admin,
     roomId: String(item.room_id),
     userId: auth.user.id,
+    userIds: memberUserIds,
   });
   if (!member) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
@@ -78,6 +85,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ itemId
   if (pinCheck.ok === false) return pinCheck.response;
 
   const admin = createAdminClient();
+  const memberUserIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
   const { data: existing, error: existingError } = await admin
     .from("team_room_items")
     .select("id,room_id")
@@ -95,6 +107,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ itemId
     admin,
     roomId: String(existing.room_id),
     userId: auth.user.id,
+    userIds: memberUserIds,
   });
   if (!member) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
@@ -143,6 +156,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ itemI
   if (pinCheck.ok === false) return pinCheck.response;
 
   const admin = createAdminClient();
+  const memberUserIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
   const { data: existing, error: existingError } = await admin
     .from("team_room_items")
     .select("id,room_id")
@@ -159,6 +177,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ itemI
     admin,
     roomId: String(existing.room_id),
     userId: auth.user.id,
+    userIds: memberUserIds,
   });
   if (!member) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });

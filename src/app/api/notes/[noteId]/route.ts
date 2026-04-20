@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { noteUpdateSchema } from '@/lib/validators';
 import { syncNoteReminderJob } from '@/lib/note-reminders';
+import { resolveAccessibleUserIds } from '@/lib/user-identity';
 
 type NoteRow = {
  id: string;
@@ -28,25 +29,25 @@ function toClient(row: NoteRow) {
  };
 }
 
-async function getCurrentUserId() {
+export async function GET(_: Request, { params }: { params: Promise<{ noteId: string }> }) {
  const supabase = await createClient();
  const { data: auth } = await supabase.auth.getUser();
- return auth.user?.id ?? null;
-}
-
-export async function GET(_: Request, { params }: { params: Promise<{ noteId: string }> }) {
- const userId = await getCurrentUserId();
- if (!userId) {
+ if (!auth.user) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 
  const { noteId } = await params;
  const admin = createAdminClient();
+ const ownerIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
  const query = await admin
  .from('notes')
  .select('id,user_id,title,content,reminder_at,meeting_at,created_at,updated_at')
  .eq('id', noteId)
- .eq('user_id', userId)
+ .in('user_id', ownerIds)
  .maybeSingle();
 
  if (query.error) {
@@ -60,8 +61,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ noteId: st
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ noteId: string }> }) {
- const userId = await getCurrentUserId();
- if (!userId) {
+ const supabase = await createClient();
+ const { data: auth } = await supabase.auth.getUser();
+ if (!auth.user) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 
@@ -73,6 +75,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ noteId
 
  const { noteId } = await params;
  const admin = createAdminClient();
+ const ownerIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
  const nowIso = new Date().toISOString();
  const query = await admin
  .from('notes')
@@ -84,7 +91,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ noteId
  updated_at: nowIso,
  })
  .eq('id', noteId)
- .eq('user_id', userId)
+ .in('user_id', ownerIds)
  .select('id,user_id,title,content,reminder_at,meeting_at,created_at,updated_at')
  .maybeSingle();
 
@@ -97,7 +104,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ noteId
 
  await syncNoteReminderJob({
  noteId: String(query.data.id),
- userId,
+ userId: String(query.data.user_id ?? auth.user.id),
  reminderAt: parsed.data.reminderAt,
  });
 
@@ -110,19 +117,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ noteId
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ noteId: string }> }) {
- const userId = await getCurrentUserId();
- if (!userId) {
+ const supabase = await createClient();
+ const { data: auth } = await supabase.auth.getUser();
+ if (!auth.user) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 
  const { noteId } = await params;
  const admin = createAdminClient();
+ const ownerIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
 
  const current = await admin
  .from('notes')
  .select('id,title')
  .eq('id', noteId)
- .eq('user_id', userId)
+ .in('user_id', ownerIds)
  .maybeSingle();
 
  if (current.error) {
@@ -132,7 +145,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ noteId:
  return NextResponse.json({ error: 'Note not found' }, { status: 404 });
  }
 
- const deleted = await admin.from('notes').delete().eq('id', noteId).eq('user_id', userId);
+ const deleted = await admin.from('notes').delete().eq('id', noteId).in('user_id', ownerIds);
  if (deleted.error) {
  return NextResponse.json({ error: deleted.error.message }, { status: 400 });
  }

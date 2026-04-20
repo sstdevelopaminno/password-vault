@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveAccessibleUserIds } from '@/lib/user-identity';
 
 type NoteRow = {
  id: string;
@@ -31,13 +32,12 @@ function formatDate(raw: string | null, locale: string) {
  return date.toLocaleString(locale);
 }
 
-async function loadNote(noteId: string, userId: string) {
- const admin = createAdminClient();
+async function loadNote(noteId: string, userIds: string[], admin = createAdminClient()) {
  const query = await admin
  .from('notes')
  .select('id,title,content,reminder_at,meeting_at,updated_at')
  .eq('id', noteId)
- .eq('user_id', userId)
+ .in('user_id', userIds)
  .maybeSingle();
  if (query.error) throw new Error(query.error.message);
  return (query.data ?? null) as NoteRow | null;
@@ -51,7 +51,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ noteId: 
  }
 
  const { noteId } = await params;
- const note = await loadNote(noteId, auth.user.id);
+ const admin = createAdminClient();
+ const ownerIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const note = await loadNote(noteId, ownerIds, admin);
  if (!note) {
  return NextResponse.json({ error: 'Note not found' }, { status: 404 });
  }

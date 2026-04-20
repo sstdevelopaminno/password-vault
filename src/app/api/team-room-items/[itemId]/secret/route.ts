@@ -6,6 +6,7 @@ import { pinActionSchema } from "@/lib/validators";
 import { requirePinAssertion } from "@/lib/pin-guard";
 import { getTeamMemberContext } from "@/lib/team-room-access";
 import { logAudit } from "@/lib/audit";
+import { resolveAccessibleUserIds } from "@/lib/user-identity";
 
 export async function GET(req: Request, { params }: { params: Promise<{ itemId: string }> }) {
   const { itemId } = await params;
@@ -34,6 +35,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ itemId: 
   }
 
   const admin = createAdminClient();
+  const memberUserIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
   const { data: item, error } = await admin
     .from("team_room_items")
     .select("id,room_id,secret_value_encrypted")
@@ -51,6 +57,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ itemId: 
     admin,
     roomId: String(item.room_id),
     userId: auth.user.id,
+    userIds: memberUserIds,
   });
   if (!member) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });

@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { getTeamMemberContext, touchTeamRoomUpdatedAt } from '@/lib/team-room-access';
 import { teamRoomUpdateSchema } from '@/lib/validators';
+import { resolveAccessibleUserIds } from '@/lib/user-identity';
 
 type TeamRoomItemRow = {
  id: string;
@@ -138,7 +139,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ roomId: st
  }
 
  const admin = createAdminClient();
- const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
  if (!member) {
  return NextResponse.json({ error: 'Room not found' }, { status: 404 });
  }
@@ -185,7 +191,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ roomId
  }
 
  const admin = createAdminClient();
- const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
  if (!member) {
  return NextResponse.json({ error: 'Room not found' }, { status: 404 });
  }
@@ -240,7 +251,12 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ roomId:
  }
 
  const admin = createAdminClient();
- const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
  if (!member) {
  return NextResponse.json({ error: 'Room not found' }, { status: 404 });
  }

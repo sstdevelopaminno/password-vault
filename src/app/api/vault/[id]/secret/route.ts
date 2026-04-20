@@ -6,6 +6,7 @@ import { pinActionSchema } from "@/lib/validators";
 import { requirePinAssertion } from "@/lib/pin-guard";
 import { enqueuePushNotification, processPushQueue } from "@/lib/push-queue";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAccessibleUserIds } from "@/lib/user-identity";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,12 +36,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const ownerId = auth.user.id;
   const admin = createAdminClient();
+  const ownerIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
 
   const { data: item, error } = await admin
     .from("vault_items")
     .select("id,owner_user_id,title,secret_value_encrypted")
     .eq("id", id)
-    .eq("owner_user_id", ownerId)
+    .in("owner_user_id", ownerIds)
     .maybeSingle();
 
   if (error) {

@@ -5,6 +5,7 @@ import { decryptText } from '@/lib/crypto';
 import { teamRoomShareSchema } from '@/lib/validators';
 import { getTeamMemberContext, touchTeamRoomUpdatedAt } from '@/lib/team-room-access';
 import { logAudit } from '@/lib/audit';
+import { pickPrimaryUserId, resolveAccessibleUserIds } from '@/lib/user-identity';
 
 type VaultSourceItem = {
  id: string;
@@ -31,7 +32,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  }
 
  const admin = createAdminClient();
- const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id });
+ const memberUserIds = await resolveAccessibleUserIds({
+ admin,
+ authUserId: auth.user.id,
+ authEmail: auth.user.email,
+ });
+ const actorUserId = pickPrimaryUserId({
+ authUserId: auth.user.id,
+ accessibleUserIds: memberUserIds,
+ });
+ const member = await getTeamMemberContext({ admin, roomId, userId: auth.user.id, userIds: memberUserIds });
  if (!member) {
  return NextResponse.json({ error: 'Room not found' }, { status: 404 });
  }
@@ -40,7 +50,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  .from('vault_items')
  .select('id,title,username_value_encrypted,secret_value_encrypted,url,category,notes_encrypted')
  .eq('id', parsed.data.vaultItemId)
- .eq('owner_user_id', auth.user.id)
+ .in('owner_user_id', memberUserIds)
  .maybeSingle();
 
  if (sourceError) {
@@ -55,7 +65,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  .from('team_room_items')
  .insert({
  room_id: roomId,
- created_by: auth.user.id,
+ created_by: actorUserId,
  source_vault_item_id: sourceItem.id,
  title: sourceItem.title,
  username_value_encrypted: sourceItem.username_value_encrypted,
@@ -75,7 +85,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  const noteText = parsed.data.note ? parsed.data.note : null;
  const { error: messageError } = await admin.from('team_room_messages').insert({
  room_id: roomId,
- sender_user_id: auth.user.id,
+ sender_user_id: actorUserId,
  message_type: 'shared_item',
  body_text: noteText,
  metadata_json: {
