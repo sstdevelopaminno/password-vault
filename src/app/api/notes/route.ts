@@ -29,11 +29,24 @@ function parsePage(raw: string | null, fallback = 1) {
 }
 
 function normalizeQuery(raw: string | null) {
- return String(raw ?? '').trim();
+ return String(raw ?? '')
+ .normalize('NFKC')
+ .replace(/\s+/g, ' ')
+ .trim()
+ .slice(0, 180);
 }
 
 function escapeLike(value: string) {
- return value.replace(/[%_,]/g, ' ');
+ return value.replace(/[%_,]/g, ' ').trim();
+}
+
+function tokenizeQuery(value: string) {
+ if (!value) return [];
+ return value
+ .split(/\s+/)
+ .map((token) => escapeLike(token))
+ .filter((token) => token.length > 0)
+ .slice(0, 6);
 }
 
 function toClient(row: NoteRow) {
@@ -77,8 +90,14 @@ export async function GET(req: Request) {
  .range(from, to);
 
  if (q) {
- const safeQ = escapeLike(q);
- query = query.or('title.ilike.%' + safeQ + '%,content.ilike.%' + safeQ + '%');
+ const tokens = tokenizeQuery(q);
+ if (tokens.length === 0) {
+ query = query.or('title.ilike.%' + escapeLike(q) + '%,content.ilike.%' + escapeLike(q) + '%');
+ } else {
+ for (const token of tokens) {
+ query = query.or('title.ilike.%' + token + '%,content.ilike.%' + token + '%');
+ }
+ }
  }
 
  const { data, error, count } = await query;
@@ -148,6 +167,7 @@ export async function POST(req: Request) {
  noteId: String(data.id),
  userId: ownerUserId,
  reminderAt: parsed.data.reminderAt,
+ meetingAt: parsed.data.meetingAt,
  });
 
  await logAudit('note_created', {

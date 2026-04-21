@@ -8,6 +8,8 @@ import { useI18n } from "@/i18n/provider";
 import { setOfflineEncryptionPassphrase } from "@/lib/offline-store";
 import type { PinAction } from "@/lib/pin";
 
+let pinPreloadIssued = false;
+
 type PinModalProps = {
   action: PinAction;
   actionLabel: string;
@@ -23,12 +25,38 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSlowHint, setShowSlowHint] = useState(false);
+
   const lastAutoSubmittedPinRef = useRef("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const mountedRef = useRef(true);
+  const inFlightRef = useRef(false);
+  const requestAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestAbortRef.current?.abort();
+      requestAbortRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => inputRef.current?.focus(), 60);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (pinPreloadIssued) return;
+    pinPreloadIssued = true;
+    const controller = new AbortController();
+    void fetch("/api/pin/verify", {
+      method: "POST",
+      headers: { "x-pin-preload": "1" },
+      cache: "no-store",
+      signal: controller.signal,
+    }).catch(() => {});
+    return () => controller.abort();
   }, []);
 
   const slots = useMemo(() => Array.from({ length: 6 }, (_, i) => pin[i] ?? ""), [pin]);
@@ -38,35 +66,39 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
   const verifyingText = locale === "th" ? "กำลังยืนยัน..." : "Verifying...";
   const verifyFailed = locale === "th" ? "ยืนยัน PIN ไม่สำเร็จ" : "PIN verification failed";
   const networkFailed = locale === "th" ? "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่" : "Network error. Please try again.";
-  const timeoutFailed =
-    locale === "th"
-      ? "หมดเวลาการยืนยัน PIN กรุณาลองใหม่"
-      : "PIN verification timed out. Please retry.";
+  const timeoutFailed = locale === "th" ? "หมดเวลาการยืนยัน PIN กรุณาลองใหม่" : "PIN verification timed out. Please retry.";
   const slowProcessing = locale === "th" ? "ระบบกำลังประมวลผล กรุณารอสักครู่..." : "System is processing. Please wait...";
   const closeText = locale === "th" ? "ปิด" : "Close";
 
   const verify = useCallback(async () => {
-    if (loading || pin.length !== 6) return;
+    const currentPin = pin.replace(/\D/g, "").slice(0, 6);
+    if (inFlightRef.current || currentPin.length !== 6) return;
+    inFlightRef.current = true;
 
-    setLoading(true);
-    setError("");
-    setShowSlowHint(false);
+    if (mountedRef.current) {
+      setLoading(true);
+      setError("");
+      setShowSlowHint(false);
+    }
 
     const slowHintTimer = window.setTimeout(() => {
+      if (!mountedRef.current) return;
       setShowSlowHint(true);
     }, 5000);
 
     const verifyTimeoutMs = process.env.NODE_ENV === "development" ? 0 : 60000;
     const maxAttempts = 2;
     let completed = false;
+    let errorShown = false;
 
     try {
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-        const controller = verifyTimeoutMs > 0 ? new AbortController() : null;
+        const controller = new AbortController();
+        requestAbortRef.current = controller;
         const requestTimeout =
           verifyTimeoutMs > 0
             ? window.setTimeout(() => {
-                controller?.abort();
+                controller.abort();
               }, verifyTimeoutMs)
             : null;
 
@@ -75,8 +107,8 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
             method: "POST",
             headers: { "Content-Type": "application/json" },
             cache: "no-store",
-            ...(controller ? { signal: controller.signal } : {}),
-            body: JSON.stringify({ pin, action, targetItemId }),
+            signal: controller.signal,
+            body: JSON.stringify({ pin: currentPin, action, targetItemId }),
           });
 
           const body = (await res.json().catch(() => ({ error: verifyFailed }))) as {
@@ -85,14 +117,19 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
           };
 
           if (!res.ok || !body.assertionToken) {
-            setError(body.error ?? verifyFailed);
+            if (mountedRef.current) {
+              setError(body.error ?? verifyFailed);
+            }
+            errorShown = true;
             completed = true;
             break;
           }
 
-          onPinCaptured?.(pin);
-          setOfflineEncryptionPassphrase(pin);
-          setPin("");
+          onPinCaptured?.(currentPin);
+          setOfflineEncryptionPassphrase(currentPin);
+          if (mountedRef.current) {
+            setPin("");
+          }
           onClose?.();
           void Promise.resolve(onVerified(body.assertionToken));
           completed = true;
@@ -104,30 +141,42 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
           if (canRetry) {
             await new Promise((resolve) => window.setTimeout(resolve, 350));
           } else if (isAbort) {
-            setError(timeoutFailed);
+            if (mountedRef.current) {
+              setError(timeoutFailed);
+            }
+            errorShown = true;
             completed = true;
             break;
           } else {
-            setError(networkFailed);
+            if (mountedRef.current) {
+              setError(networkFailed);
+            }
+            errorShown = true;
             completed = true;
             break;
           }
         } finally {
+          if (requestAbortRef.current === controller) {
+            requestAbortRef.current = null;
+          }
           if (requestTimeout) {
             window.clearTimeout(requestTimeout);
           }
         }
       }
 
-      if (!completed && !error) {
+      if (!completed && !errorShown && mountedRef.current) {
         setError(networkFailed);
       }
     } finally {
       window.clearTimeout(slowHintTimer);
-      setLoading(false);
-      setShowSlowHint(false);
+      inFlightRef.current = false;
+      if (mountedRef.current) {
+        setLoading(false);
+        setShowSlowHint(false);
+      }
     }
-  }, [action, error, loading, networkFailed, onClose, onPinCaptured, onVerified, pin, targetItemId, timeoutFailed, verifyFailed]);
+  }, [action, networkFailed, onClose, onPinCaptured, onVerified, pin, targetItemId, timeoutFailed, verifyFailed]);
 
   useEffect(() => {
     if (pin.length !== 6 || loading) return;
@@ -148,7 +197,9 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
       <div className="w-full max-w-[480px] animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <Card className="space-y-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">{confirmPrefix} {actionLabel}</h3>
+            <h3 className="text-sm font-semibold">
+              {confirmPrefix} {actionLabel}
+            </h3>
             <button
               type="button"
               onClick={onClose}
@@ -196,7 +247,9 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
           {!error && showSlowHint ? <p className="text-xs text-slate-500">{slowProcessing}</p> : null}
 
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={onClose} disabled={loading}>{closeText}</Button>
+            <Button variant="secondary" onClick={onClose} disabled={loading}>
+              {closeText}
+            </Button>
             <Button className="bg-gradient-to-r from-blue-600 to-indigo-500 text-white" onClick={() => void verify()} disabled={loading || pin.length !== 6}>
               {loading ? verifyingText : verifyText}
             </Button>
@@ -206,3 +259,4 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
     </div>
   );
 }
+

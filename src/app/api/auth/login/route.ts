@@ -37,7 +37,14 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    const payload = (await req.json().catch(() => null)) as
+      | { email?: unknown; password?: unknown }
+      | null;
+    if (!payload) {
+      return NextResponse.json({ error: "Invalid or empty JSON body." }, { status: 400 });
+    }
+
+    const { email, password } = payload;
     const normalizedEmail = String(email ?? "").trim().toLowerCase();
     const normalizedPassword = String(password ?? "");
 

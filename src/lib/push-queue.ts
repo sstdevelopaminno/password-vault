@@ -68,6 +68,7 @@ type ProcessOutcome = {
 };
 
 let vapidConfigured = false;
+const DEFAULT_PUSH_TTL_SEC = 60 * 60 * 24; // 24h
 
 function clampPriority(input: number | undefined) {
   const value = Number(input ?? 5);
@@ -88,6 +89,12 @@ function plusSecondsIso(seconds: number) {
 function normalizeError(error: unknown) {
   if (error instanceof Error) return error.message;
   return String(error ?? "Unknown error");
+}
+
+function getPushTtlSeconds() {
+  const raw = Number(process.env.PUSH_NOTIFICATION_TTL_SECONDS ?? DEFAULT_PUSH_TTL_SEC);
+  if (!Number.isFinite(raw)) return DEFAULT_PUSH_TTL_SEC;
+  return Math.min(60 * 60 * 24 * 7, Math.max(60, Math.floor(raw)));
 }
 
 function getVapidPublicKey() {
@@ -297,7 +304,7 @@ async function processQueueRow(row: PushQueueRow): Promise<ProcessOutcome> {
           },
         },
         payload,
-        { TTL: 60 },
+        { TTL: getPushTtlSeconds() },
       );
       successCount += 1;
     } catch (error) {

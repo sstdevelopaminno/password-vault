@@ -96,6 +96,21 @@ async function cachePageResponse(request, response) {
   const cache = await caches.open(PAGE_CACHE_NAME);  
   await cache.put(request, response.clone());  
 }  
+
+function parsePushPayload(eventData) {
+  if (!eventData) return null;
+  try {
+    return eventData.json();
+  } catch {
+    try {
+      const text = eventData.text();
+      if (!text) return null;
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  }
+}
   
 async function offlineNavigationResponse(request) {  
   if (shouldCacheNavigationPage(request)) {
@@ -163,7 +178,7 @@ self.addEventListener('fetch', function (event) {
   
 self.addEventListener('push', function (event) {  
   if (!event.data) return;  
-  const payload = event.data.json();  
+  const payload = parsePushPayload(event.data) || {};  
   let title = 'Vault';  
   let body = '';  
   let href = '/home';  
@@ -171,15 +186,13 @@ self.addEventListener('push', function (event) {
   let image = undefined;  
   let vibrate = [120, 80, 120];  
   let requireInteraction = false;  
-  if (payload) {  
-    if (payload.title) title = payload.title;  
-    if (payload.body) body = payload.body;  
-    if (payload.href) href = payload.href;  
-    if (payload.tag) tag = payload.tag;  
-    if (payload.image) image = payload.image;  
-    if (payload.vibrate) vibrate = payload.vibrate;  
-    if (payload.requireInteraction) requireInteraction = true;  
-  }  
+  if (payload.title) title = payload.title;  
+  if (payload.body) body = payload.body;  
+  if (payload.href) href = payload.href;  
+  if (payload.tag) tag = payload.tag;  
+  if (payload.image) image = payload.image;  
+  if (payload.vibrate) vibrate = payload.vibrate;  
+  if (payload.requireInteraction) requireInteraction = true;  
   
   const options = {  
     body: body,  

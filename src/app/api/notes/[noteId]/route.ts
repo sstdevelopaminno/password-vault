@@ -106,6 +106,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ noteId
  noteId: String(query.data.id),
  userId: String(query.data.user_id ?? auth.user.id),
  reminderAt: parsed.data.reminderAt,
+ meetingAt: parsed.data.meetingAt,
  });
 
  await logAudit('note_updated', {

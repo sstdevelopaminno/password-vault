@@ -20,6 +20,7 @@ type NoteRow = {
  user_id: string;
  title: string;
  reminder_at: string | null;
+ meeting_at: string | null;
 };
 
 type ReminderRecipientRow = {
@@ -59,67 +60,102 @@ function normalizeError(error: unknown) {
  return String(error ?? 'Unknown error');
 }
 
+function uniqueIsoReminderTimes(values: Array<string | null | undefined>) {
+ const seen = new Set<string>();
+ for (const value of values) {
+ const iso = toIsoOrNull(value);
+ if (iso) seen.add(iso);
+ }
+ return Array.from(seen.values()).sort();
+}
+
 export async function syncNoteReminderJob(input: {
  noteId: string;
  userId: string;
  reminderAt: string | null;
+ meetingAt?: string | null;
 }) {
  const admin = createAdminClient();
  const nowIso = new Date().toISOString();
- const nextReminder = toIsoOrNull(input.reminderAt);
+ const expectedReminders = uniqueIsoReminderTimes([input.reminderAt, input.meetingAt]);
+ const activeJobsQuery = await admin
+ .from('note_reminder_jobs')
+ .select('id,reminder_at,status')
+ .eq('note_id', input.noteId)
+ .in('status', ['pending', 'processing']);
 
- if (!nextReminder) {
- await admin
+ if (activeJobsQuery.error) {
+ throw new Error(activeJobsQuery.error.message);
+ }
+
+ const activeJobs = (activeJobsQuery.data ?? []) as Array<{
+ id: number;
+ reminder_at: string;
+ status: ReminderJobStatus;
+ }>;
+
+ if (expectedReminders.length === 0) {
+ const activeIds = activeJobs.map((job) => Number(job.id)).filter((id) => Number.isFinite(id));
+ if (activeIds.length > 0) {
+ const cancelled = await admin
  .from('note_reminder_jobs')
  .update({
  status: 'cancelled',
  updated_at: nowIso,
  last_error: 'Reminder removed',
  })
- .eq('note_id', input.noteId)
- .in('status', ['pending', 'processing']);
+ .in('id', activeIds);
+ if (cancelled.error) {
+ throw new Error(cancelled.error.message);
+ }
+ }
  return;
  }
 
- await admin
+ const expectedSet = new Set(expectedReminders);
+ const obsoleteJobIds = activeJobs
+ .filter((job) => {
+ const current = toIsoOrNull(job.reminder_at);
+ return !current || !expectedSet.has(current);
+ })
+ .map((job) => Number(job.id))
+ .filter((id) => Number.isFinite(id));
+
+ if (obsoleteJobIds.length > 0) {
+ const cancelled = await admin
  .from('note_reminder_jobs')
  .update({
  status: 'cancelled',
  updated_at: nowIso,
  last_error: 'Reminder rescheduled',
  })
- .eq('note_id', input.noteId)
- .neq('reminder_at', nextReminder)
- .in('status', ['pending', 'processing']);
-
- const existing = await admin
- .from('note_reminder_jobs')
- .select('id')
- .eq('note_id', input.noteId)
- .eq('status', 'pending')
- .eq('reminder_at', nextReminder)
- .maybeSingle();
-
- if (existing.error) {
- throw new Error(existing.error.message);
+ .in('id', obsoleteJobIds);
+ if (cancelled.error) {
+ throw new Error(cancelled.error.message);
  }
- if (existing.data?.id) {
- return;
  }
 
+ const activeReminderSet = new Set(
+ activeJobs
+ .map((job) => toIsoOrNull(job.reminder_at))
+ .filter((value): value is string => Boolean(value)),
+ );
+
+ for (const reminderAt of expectedReminders) {
+ if (activeReminderSet.has(reminderAt)) continue;
  const inserted = await admin.from('note_reminder_jobs').insert({
  note_id: input.noteId,
  user_id: input.userId,
- reminder_at: nextReminder,
+ reminder_at: reminderAt,
  status: 'pending',
  attempt_count: 0,
  max_attempts: 8,
- next_retry_at: nextReminder,
+ next_retry_at: reminderAt,
  updated_at: nowIso,
  });
-
  if (inserted.error && inserted.error.code !== '23505') {
  throw new Error(inserted.error.message);
+ }
  }
 }
 
@@ -171,7 +207,7 @@ async function loadTargetNote(job: ReminderJobRow) {
  const admin = createAdminClient();
  const noteQuery = await admin
  .from('notes')
- .select('id,user_id,title,reminder_at')
+ .select('id,user_id,title,reminder_at,meeting_at')
  .eq('id', job.note_id)
  .eq('user_id', job.user_id)
  .maybeSingle();
@@ -260,25 +296,37 @@ export async function processNoteReminderJobs(options?: { batchSize?: number }):
  }
 
  const jobReminder = toIsoOrNull(job.reminder_at);
- const noteReminder = toIsoOrNull(note.reminder_at);
- if (!jobReminder || !noteReminder || jobReminder !== noteReminder) {
+ const reminderCandidates = uniqueIsoReminderTimes([note.reminder_at, note.meeting_at]);
+ const reminderCandidateSet = new Set(reminderCandidates);
+ if (!jobReminder || !reminderCandidateSet.has(jobReminder)) {
  await markJob(job.id, { status: 'cancelled', last_error: 'Reminder no longer valid' });
  summary.cancelled += 1;
  continue;
  }
 
+ const noteReminder = toIsoOrNull(note.reminder_at);
+ const noteMeeting = toIsoOrNull(note.meeting_at);
+ const dueKind =
+ noteReminder === jobReminder && noteMeeting === jobReminder
+ ? 'meeting_and_reminder'
+ : noteMeeting === jobReminder
+ ? 'meeting'
+ : 'reminder';
+ const pushTitle = dueKind === 'meeting' ? 'Meeting reminder' : 'Note reminder';
+
  const pushQueued = await enqueuePushNotification({
  userId: note.user_id,
  kind: 'general',
- title: 'Note reminder',
+ title: pushTitle,
  message: note.title,
  href: '/notes',
  priority: 7,
- tag: 'note-reminder-' + note.id + '-' + noteReminder,
+ tag: 'note-reminder-' + note.id + '-' + dueKind + '-' + jobReminder,
  payload: {
  kind: 'note_reminder',
  noteId: note.id,
- reminderAt: noteReminder,
+ reminderAt: jobReminder,
+ dueKind: dueKind,
  },
  });
 
@@ -293,7 +341,7 @@ export async function processNoteReminderJobs(options?: { batchSize?: number }):
  toEmail: targetEmail,
  noteTitle: note.title,
  noteId: note.id,
- reminderAt: noteReminder,
+ reminderAt: jobReminder,
  });
  emailResult = sent;
  if (sent.ok) {

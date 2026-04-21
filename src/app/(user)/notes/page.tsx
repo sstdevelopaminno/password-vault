@@ -1,16 +1,18 @@
 ﻿'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BellRing, Calendar, ChevronLeft, ChevronRight, Clock3, Edit3, Eye, EyeOff, FileDown, FileText, Plus, Search, Share2, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { BellRing, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Copy, Edit3, FileText, ImageUp, Loader2, Plus, Search, Share2, Sparkles, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { PinModal } from '@/components/vault/pin-modal';
 import { useI18n } from '@/i18n/provider';
 import { fetchWithSessionRetry } from '@/lib/api-client';
 import { getOfflineCache, setOfflineCache } from '@/lib/offline-store';
 import { flushOfflineQueue, queueOfflineRequest } from '@/lib/offline-sync';
 import { useOutageState } from '@/lib/outage-detector';
+import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
 
 type NoteItem = {
  id: string;
@@ -39,6 +41,27 @@ type DueNoticeItem = {
  title: string;
 };
 
+type CalendarDatePopup = {
+ dateKey: string;
+ notes: NoteItem[];
+ activeNoteId: string;
+};
+
+type SaveOverlayState = {
+ stage: 'saving' | 'success';
+ message: string;
+};
+
+type OcrLanguageCode = 'tha+eng' | 'tha' | 'eng';
+type DateFieldTarget = 'reminder' | 'meeting';
+
+type DateTimePickerState = {
+ target: DateFieldTarget;
+ monthCursor: Date;
+ selectedDateKey: string;
+ selectedTime: string;
+};
+
 function toLocalDateTimeInputValue(raw: string | null) {
  if (!raw) return '';
  const date = new Date(raw);
@@ -65,16 +88,127 @@ function dateKeyFromIso(raw: string | null) {
  return y + '-' + m + '-' + d;
 }
 
+function dateKeyFromLocalDate(input: Date) {
+ const y = input.getFullYear();
+ const m = String(input.getMonth() + 1).padStart(2, '0');
+ const d = String(input.getDate()).padStart(2, '0');
+ return y + '-' + m + '-' + d;
+}
+
+function timeValueFromDate(input: Date) {
+ const hour = String(input.getHours()).padStart(2, '0');
+ const minute = String(input.getMinutes()).padStart(2, '0');
+ return hour + ':' + minute;
+}
+
+function formatDateTimeDraftLabel(raw: string, isTh: boolean) {
+ if (!raw) return isTh ? 'ยังไม่ได้เลือกวันเวลา' : 'No date/time selected';
+ const date = new Date(raw);
+ if (Number.isNaN(date.getTime())) return isTh ? 'รูปแบบวันเวลาไม่ถูกต้อง' : 'Invalid date/time';
+ return date.toLocaleString(isTh ? 'th-TH' : 'en-US', {
+ year: 'numeric',
+ month: 'long',
+ day: 'numeric',
+ hour: '2-digit',
+ minute: '2-digit',
+ });
+}
+
+function normalizeTimeValue(input: string) {
+ if (!input || !/^\d{2}:\d{2}$/.test(input)) return '09:00';
+ return input;
+}
+
 function safeFilename(input: string) {
  return input.trim().replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_').replace(/\s+/g, ' ').slice(0, 80) || 'note';
 }
 
+function normalizeSearchInput(raw: string) {
+ return raw.normalize('NFKC').replace(/\s+/g, ' ').trim();
+}
+
 function notesCacheKey(page: number, q: string) {
- return 'pv_notes_cache_v1:' + page + ':' + q.trim().toLowerCase();
+ return 'pv_notes_cache_v1:' + page + ':' + normalizeSearchInput(q).toLowerCase();
 }
 
 function notesCalendarCacheKey(q: string) {
- return 'pv_notes_calendar_cache_v1:' + q.trim().toLowerCase();
+ return 'pv_notes_calendar_cache_v1:' + normalizeSearchInput(q).toLowerCase();
+}
+
+const NATIVE_NOTE_REMINDER_STORAGE_KEY = 'pv_native_note_reminders_v1';
+const NATIVE_NOTE_REMINDER_MAX = 240;
+const NATIVE_NOTE_REMINDER_HORIZON_MS = 365 * 24 * 60 * 60 * 1000;
+
+type NativeReminderPlan = {
+ id: number;
+ noteId: string;
+ kind: 'reminder' | 'meeting';
+ at: string;
+ title: string;
+ signature: string;
+};
+
+function buildNativeReminderId(noteId: string, kind: 'reminder' | 'meeting', at: string) {
+ const source = noteId + ':' + kind + ':' + at;
+ let hash = 2166136261;
+ for (let i = 0; i < source.length; i += 1) {
+ hash ^= source.charCodeAt(i);
+ hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+ }
+ return 100000 + (Math.abs(hash >>> 0) % 2000000000);
+}
+
+function readNativeReminderMap() {
+ if (typeof window === 'undefined') return {} as Record<string, string>;
+ try {
+ const raw = window.localStorage.getItem(NATIVE_NOTE_REMINDER_STORAGE_KEY);
+ if (!raw) return {};
+ const parsed = JSON.parse(raw) as Record<string, string>;
+ if (!parsed || typeof parsed !== 'object') return {};
+ return parsed;
+ } catch {
+ return {};
+ }
+}
+
+function writeNativeReminderMap(value: Record<string, string>) {
+ if (typeof window === 'undefined') return;
+ try {
+ window.localStorage.setItem(NATIVE_NOTE_REMINDER_STORAGE_KEY, JSON.stringify(value));
+ } catch {
+ // ignore local storage failures
+ }
+}
+
+function buildNativeReminderPlans(notes: NoteItem[]) {
+ const now = Date.now();
+ const upperBound = now + NATIVE_NOTE_REMINDER_HORIZON_MS;
+ const plans: NativeReminderPlan[] = [];
+
+ for (const note of notes) {
+ const candidates: Array<{ kind: 'reminder' | 'meeting'; at: string | null }> = [
+ { kind: 'reminder', at: note.reminderAt },
+ { kind: 'meeting', at: note.meetingAt },
+ ];
+
+ for (const candidate of candidates) {
+ if (!candidate.at) continue;
+ const when = new Date(candidate.at).getTime();
+ if (Number.isNaN(when) || when <= now || when > upperBound) continue;
+ const id = buildNativeReminderId(note.id, candidate.kind, candidate.at);
+ plans.push({
+ id: id,
+ noteId: note.id,
+ kind: candidate.kind,
+ at: candidate.at,
+ title: note.title,
+ signature: note.id + '|' + candidate.kind + '|' + candidate.at + '|' + note.title,
+ });
+ }
+ }
+
+ plans.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+ return plans.slice(0, NATIVE_NOTE_REMINDER_MAX);
 }
 
 export default function NotesPage() {
@@ -83,9 +217,12 @@ export default function NotesPage() {
  const isTh = locale === 'th';
  const { isOfflineMode } = useOutageState();
  const wasOfflineRef = useRef(isOfflineMode);
+ const runtimeCapabilities = useMemo(() => detectRuntimeCapabilities(), []);
+ const isNativeApp = runtimeCapabilities.isCapacitorNative;
 
  const [notes, setNotes] = useState<NoteItem[]>([]);
  const [calendarNotes, setCalendarNotes] = useState<NoteItem[]>([]);
+ const [hasCalendarSnapshot, setHasCalendarSnapshot] = useState(false);
  const [pagination, setPagination] = useState<Pagination>({
  page: 1,
  limit: 20,
@@ -112,16 +249,34 @@ export default function NotesPage() {
  const [draftReminder, setDraftReminder] = useState('');
  const [draftMeeting, setDraftMeeting] = useState('');
  const [saving, setSaving] = useState(false);
+ const [saveOverlay, setSaveOverlay] = useState<SaveOverlayState | null>(null);
+ const [ocrRunning, setOcrRunning] = useState(false);
+ const [ocrProgress, setOcrProgress] = useState(0);
+ const [ocrLanguage, setOcrLanguage] = useState<OcrLanguageCode>('tha+eng');
+ const [ocrPreviewOpen, setOcrPreviewOpen] = useState(false);
+ const [ocrPreviewText, setOcrPreviewText] = useState('');
+ const [dateTimePickerState, setDateTimePickerState] = useState<DateTimePickerState | null>(null);
 
  const [deleteTarget, setDeleteTarget] = useState<NoteItem | null>(null);
+ const [pendingEditPinTarget, setPendingEditPinTarget] = useState<NoteItem | null>(null);
+ const [pendingDeletePinTarget, setPendingDeletePinTarget] = useState<NoteItem | null>(null);
+ const [pendingViewPinTarget, setPendingViewPinTarget] = useState<NoteItem | null>(null);
+ const [pendingSharePinTarget, setPendingSharePinTarget] = useState<NoteItem | null>(null);
+ const [pendingCopyPinTarget, setPendingCopyPinTarget] = useState<NoteItem | null>(null);
+ const [pendingPdfPinTarget, setPendingPdfPinTarget] = useState<NoteItem | null>(null);
+ const [paperPreviewNote, setPaperPreviewNote] = useState<NoteItem | null>(null);
+ const [calendarDatePopup, setCalendarDatePopup] = useState<CalendarDatePopup | null>(null);
+ const [pendingCalendarDatePin, setPendingCalendarDatePin] = useState<CalendarDatePopup | null>(null);
  const [deleting, setDeleting] = useState(false);
- const [expandedNoteIds, setExpandedNoteIds] = useState<Record<string, boolean>>({});
  const [dueQueue, setDueQueue] = useState<DueNoticeItem[]>([]);
  const [activeDueNotice, setActiveDueNotice] = useState<DueNoticeItem | null>(null);
  const paperSectionRef = useRef<HTMLDivElement | null>(null);
  const calendarSectionRef = useRef<HTMLDivElement | null>(null);
  const notesRequestRef = useRef<AbortController | null>(null);
  const calendarRequestRef = useRef<AbortController | null>(null);
+ const nativeReminderSyncTimerRef = useRef<number | null>(null);
+ const saveOverlayTimerRef = useRef<number | null>(null);
+ const imageOcrInputRef = useRef<HTMLInputElement | null>(null);
  const notesRequestVersionRef = useRef(0);
  const calendarRequestVersionRef = useRef(0);
  const backgroundCalendarRefreshTickRef = useRef(0);
@@ -133,10 +288,16 @@ export default function NotesPage() {
  return map;
  }, [calendarNotes, notes]);
 
- useEffect(() => {
- const timer = window.setTimeout(() => setSearchDebounced(search.trim()), 260);
+useEffect(() => {
+ const timer = window.setTimeout(() => setSearchDebounced(normalizeSearchInput(search)), 320);
  return () => window.clearTimeout(timer);
  }, [search]);
+
+ useEffect(() => {
+ if (editorOpen) return;
+ setOcrPreviewOpen(false);
+ setDateTimePickerState(null);
+ }, [editorOpen]);
 
  const loadNotes = useCallback(
  async (page = pagination.page, q = searchDebounced) => {
@@ -215,6 +376,7 @@ export default function NotesPage() {
  if (requestVersion !== calendarRequestVersionRef.current) return;
  if (res.ok) {
  setCalendarNotes(body.notes ?? []);
+ setHasCalendarSnapshot(true);
  await setOfflineCache(notesCalendarCacheKey(q), { notes: body.notes ?? [] });
  return;
  }
@@ -227,11 +389,93 @@ export default function NotesPage() {
  const cached = await getOfflineCache<{ notes: NoteItem[] }>(notesCalendarCacheKey(q));
  if (cached?.notes) {
  setCalendarNotes(cached.notes);
+ setHasCalendarSnapshot(true);
  }
  }
  },
  [isOfflineMode, searchDebounced],
  );
+
+ const syncNativeNoteReminders = useCallback(
+ async (sourceNotes: NoteItem[]) => {
+ if (typeof window === 'undefined' || !isNativeApp) return;
+
+ const plans = buildNativeReminderPlans(sourceNotes);
+ try {
+ const plugin = await import('@capacitor/local-notifications');
+ const permission = await plugin.LocalNotifications.checkPermissions();
+ const display = String(permission.display ?? '').toLowerCase();
+ if (display !== 'granted') return;
+
+ const previousMap = readNativeReminderMap();
+ const nextMap: Record<string, string> = {};
+ for (const plan of plans) {
+ nextMap[String(plan.id)] = plan.signature;
+ }
+
+ const cancelIds = Object.keys(previousMap)
+ .filter((id) => !(id in nextMap) || nextMap[id] !== previousMap[id])
+ .map((id) => Number(id))
+ .filter((id) => Number.isFinite(id));
+
+ if (cancelIds.length > 0) {
+ await plugin.LocalNotifications.cancel({
+ notifications: cancelIds.map((id) => ({ id: id })),
+ });
+ }
+
+ const scheduleList = plans.filter((plan) => {
+ const key = String(plan.id);
+ return previousMap[key] !== plan.signature;
+ });
+
+ if (scheduleList.length > 0) {
+ await plugin.LocalNotifications.schedule({
+ notifications: scheduleList.map((plan) => ({
+ id: plan.id,
+ title: plan.kind === 'meeting'
+ ? (isTh ? 'แจ้งเตือนนัดหมาย' : 'Meeting reminder')
+ : (isTh ? 'แจ้งเตือนโน้ต' : 'Note reminder'),
+ body: plan.title,
+ schedule: {
+ at: new Date(plan.at),
+ allowWhileIdle: true,
+ },
+ actionTypeId: 'OPEN_APP',
+ extra: {
+ href: '/notes',
+ noteId: plan.noteId,
+ kind: plan.kind,
+ at: plan.at,
+ },
+ })),
+ });
+ }
+
+ writeNativeReminderMap(nextMap);
+ } catch {
+ // ignore native scheduling failures
+ }
+ },
+ [isNativeApp, isTh],
+ );
+
+ useEffect(() => {
+ if (typeof window === 'undefined' || !isNativeApp || !hasCalendarSnapshot) return;
+ if (nativeReminderSyncTimerRef.current) {
+ window.clearTimeout(nativeReminderSyncTimerRef.current);
+ }
+ nativeReminderSyncTimerRef.current = window.setTimeout(() => {
+ void syncNativeNoteReminders(calendarNotes);
+ }, 320);
+
+ return () => {
+ if (nativeReminderSyncTimerRef.current) {
+ window.clearTimeout(nativeReminderSyncTimerRef.current);
+ nativeReminderSyncTimerRef.current = null;
+ }
+ };
+ }, [calendarNotes, hasCalendarSnapshot, isNativeApp, syncNativeNoteReminders]);
 
  useEffect(() => {
  void loadNotes(1, searchDebounced);
@@ -272,28 +516,24 @@ export default function NotesPage() {
  return () => {
  notesRequestRef.current?.abort();
  calendarRequestRef.current?.abort();
+ if (nativeReminderSyncTimerRef.current) {
+ window.clearTimeout(nativeReminderSyncTimerRef.current);
+ nativeReminderSyncTimerRef.current = null;
+ }
+ if (saveOverlayTimerRef.current) {
+ window.clearTimeout(saveOverlayTimerRef.current);
+ saveOverlayTimerRef.current = null;
+ }
  };
  }, []);
-
- useEffect(() => {
- if (typeof window === 'undefined') return;
- const existing = new Set(notes.map((note) => note.id));
- setExpandedNoteIds((prev) => {
- const next: Record<string, boolean> = {};
- for (const noteId of Object.keys(prev)) {
- if (existing.has(noteId) && prev[noteId]) next[noteId] = true;
- }
- return next;
- });
- }, [notes]);
 
  useEffect(() => {
  if (typeof window === 'undefined' || calendarNotes.length === 0) return;
 
  const scanDueNotices = () => {
  const now = Date.now();
- const lowerBound = now - 24 * 60 * 60 * 1000;
- const upperBound = now + 20 * 1000;
+ const lowerBound = now - 10 * 60 * 1000;
+ const upperBound = now + 5 * 1000;
  const discovered: DueNoticeItem[] = [];
 
  for (const note of calendarNotes) {
@@ -338,7 +578,7 @@ export default function NotesPage() {
  };
 
  scanDueNotices();
- const timer = window.setInterval(scanDueNotices, 20000);
+ const timer = window.setInterval(scanDueNotices, 5000);
  return () => window.clearInterval(timer);
  }, [calendarNotes]);
 
@@ -388,6 +628,28 @@ export default function NotesPage() {
  return cells;
  }, [monthCursor]);
 
+ const dateTimePickerMonthLabel = useMemo(() => {
+ if (!dateTimePickerState) return '';
+ return dateTimePickerState.monthCursor.toLocaleDateString(isTh ? 'th-TH' : 'en-US', {
+ month: 'long',
+ year: 'numeric',
+ });
+ }, [dateTimePickerState, isTh]);
+
+ const dateTimePickerCells = useMemo(() => {
+ if (!dateTimePickerState) return [] as Array<Date | null>;
+ const year = dateTimePickerState.monthCursor.getFullYear();
+ const month = dateTimePickerState.monthCursor.getMonth();
+ const first = new Date(year, month, 1);
+ const startOffset = (first.getDay() + 6) % 7;
+ const daysInMonth = new Date(year, month + 1, 0).getDate();
+ const cells: Array<Date | null> = [];
+ for (let i = 0; i < startOffset; i += 1) cells.push(null);
+ for (let day = 1; day <= daysInMonth; day += 1) cells.push(new Date(year, month, day));
+ while (cells.length % 7 !== 0) cells.push(null);
+ return cells;
+ }, [dateTimePickerState]);
+
  const dateCountMap = useMemo(() => {
  const map = new Map<string, number>();
  for (const note of calendarNotes) {
@@ -399,15 +661,32 @@ export default function NotesPage() {
  return map;
  }, [calendarNotes]);
 
- const selectedDateNotes = useMemo(
- () =>
- calendarNotes.filter((note) => {
- const meetingKey = dateKeyFromIso(note.meetingAt);
- const reminderKey = dateKeyFromIso(note.reminderAt);
- return meetingKey === selectedDateKey || reminderKey === selectedDateKey;
- }),
- [calendarNotes, selectedDateKey],
- );
+ const calendarNotesByDate = useMemo(() => {
+ const buckets = new Map<string, Map<string, NoteItem>>();
+
+ const addToBucket = (dateKey: string | null, note: NoteItem) => {
+ if (!dateKey) return;
+ const existing = buckets.get(dateKey);
+ if (existing) {
+ existing.set(note.id, note);
+ return;
+ }
+ const bucket = new Map<string, NoteItem>();
+ bucket.set(note.id, note);
+ buckets.set(dateKey, bucket);
+ };
+
+ for (const note of calendarNotes) {
+ addToBucket(dateKeyFromIso(note.meetingAt), note);
+ addToBucket(dateKeyFromIso(note.reminderAt), note);
+ }
+
+ const normalized = new Map<string, NoteItem[]>();
+ for (const [dateKey, bucket] of buckets) {
+ normalized.set(dateKey, Array.from(bucket.values()));
+ }
+ return normalized;
+ }, [calendarNotes]);
 
  function openCreate() {
  setEditingId(null);
@@ -415,6 +694,12 @@ export default function NotesPage() {
  setDraftContent('');
  setDraftReminder('');
  setDraftMeeting('');
+ setSaveOverlay(null);
+ setOcrRunning(false);
+ setOcrProgress(0);
+ setOcrPreviewOpen(false);
+ setOcrPreviewText('');
+ setDateTimePickerState(null);
  setEditorOpen(true);
  }
 
@@ -424,7 +709,205 @@ export default function NotesPage() {
  setDraftContent(note.content);
  setDraftReminder(toLocalDateTimeInputValue(note.reminderAt));
  setDraftMeeting(toLocalDateTimeInputValue(note.meetingAt));
+ setSaveOverlay(null);
+ setOcrRunning(false);
+ setOcrProgress(0);
+ setOcrPreviewOpen(false);
+ setOcrPreviewText('');
+ setDateTimePickerState(null);
  setEditorOpen(true);
+ }
+
+ function fillDateTimeNow(target: DateFieldTarget) {
+ const nowLocal = toLocalDateTimeInputValue(new Date().toISOString());
+ if (target === 'reminder') {
+ setDraftReminder(nowLocal);
+ return;
+ }
+ setDraftMeeting(nowLocal);
+ }
+
+ function clearDateTime(target: DateFieldTarget) {
+ if (target === 'reminder') {
+ setDraftReminder('');
+ return;
+ }
+ setDraftMeeting('');
+ }
+
+ function openDateTimePicker(target: DateFieldTarget) {
+ const source = target === 'reminder' ? draftReminder : draftMeeting;
+ const seeded = source ? new Date(source) : new Date();
+ const base = Number.isNaN(seeded.getTime()) ? new Date() : seeded;
+ setDateTimePickerState({
+ target: target,
+ monthCursor: new Date(base.getFullYear(), base.getMonth(), 1),
+ selectedDateKey: dateKeyFromLocalDate(base),
+ selectedTime: timeValueFromDate(base),
+ });
+ }
+
+ function shiftDateTimePickerMonth(delta: number) {
+ setDateTimePickerState((prev) => {
+ if (!prev) return prev;
+ return {
+ ...prev,
+ monthCursor: new Date(prev.monthCursor.getFullYear(), prev.monthCursor.getMonth() + delta, 1),
+ };
+ });
+ }
+
+ function confirmDateTimePicker() {
+ const snapshot = dateTimePickerState;
+ if (!snapshot) return;
+ const selectedValue = snapshot.selectedDateKey + 'T' + normalizeTimeValue(snapshot.selectedTime);
+ if (snapshot.target === 'reminder') {
+ setDraftReminder(selectedValue);
+ } else {
+ setDraftMeeting(selectedValue);
+ }
+ setDateTimePickerState(null);
+ }
+
+ function clearDateTimePickerValue() {
+ const snapshot = dateTimePickerState;
+ if (!snapshot) return;
+ clearDateTime(snapshot.target);
+ setDateTimePickerState(null);
+ }
+
+ function showSaveSuccessOverlay(message: string) {
+ setSaveOverlay({ stage: 'success', message: message });
+ if (saveOverlayTimerRef.current) {
+ window.clearTimeout(saveOverlayTimerRef.current);
+ }
+ saveOverlayTimerRef.current = window.setTimeout(() => {
+ setSaveOverlay(null);
+ saveOverlayTimerRef.current = null;
+ }, 1100);
+ }
+
+ function triggerImageOcrPicker() {
+ imageOcrInputRef.current?.click();
+ }
+
+ function applyOcrPreview(mode: 'append' | 'replace') {
+ const text = ocrPreviewText.trim();
+ if (!text) return;
+ if (mode === 'replace') {
+ setDraftContent(text);
+ } else {
+ setDraftContent((prev) => {
+ const current = prev.trim();
+ if (!current) return text;
+ return current + '\n\n' + text;
+ });
+ }
+ setOcrPreviewOpen(false);
+ setOcrPreviewText('');
+ showToast(isTh ? 'เพิ่มข้อความจากภาพแล้ว' : 'Image text added', 'success');
+ }
+
+ async function handleImageOcrInput(event: ChangeEvent<HTMLInputElement>) {
+ const file = event.target.files?.[0] ?? null;
+ event.target.value = '';
+ if (!file) return;
+
+ setOcrRunning(true);
+ setOcrProgress(0);
+ let worker: { recognize: (input: File) => Promise<{ data?: { text?: string } }>; terminate: () => Promise<void> } | null = null;
+ try {
+ const tesseract = await import('tesseract.js');
+ const createWorker = tesseract.createWorker as unknown as (
+ langs?: string | string[],
+ oem?: number,
+ options?: { logger?: (message: { status?: string; progress?: number }) => void },
+ ) => Promise<{ recognize: (input: File) => Promise<{ data?: { text?: string } }>; terminate: () => Promise<void> }>;
+
+ const selectedLanguage = ocrLanguage === 'tha' ? 'tha' : ocrLanguage === 'eng' ? 'eng' : 'tha+eng';
+ worker = await createWorker(selectedLanguage, 1, {
+ logger: (message) => {
+ if (message.status === 'recognizing text') {
+ setOcrProgress(Math.max(0, Math.min(1, Number(message.progress ?? 0))));
+ }
+ },
+ });
+ const result = await worker.recognize(file);
+
+ const extracted = String(result.data?.text ?? '').replace(/\r\n/g, '\n').trim();
+ if (!extracted) {
+ showToast(isTh ? 'ไม่พบข้อความจากภาพ' : 'No text found in image', 'error');
+ return;
+ }
+ setOcrPreviewText(extracted);
+ setOcrPreviewOpen(true);
+ showToast(isTh ? 'สแกนเสร็จแล้ว ตรวจสอบข้อความก่อนบันทึก' : 'Scan complete. Review text before insert.', 'success');
+ } catch {
+ showToast(
+ isTh ? 'สแกนรูปไม่สำเร็จ กรุณาลองใหม่ (ต้องมีอินเทอร์เน็ตครั้งแรก)' : 'Image scan failed. Please retry (first run needs internet).',
+ 'error',
+ );
+ } finally {
+ if (worker) {
+ await worker.terminate().catch(() => {});
+ }
+ setOcrRunning(false);
+ setOcrProgress(0);
+ }
+ }
+
+ function resetPendingPinTargets() {
+ setPendingEditPinTarget(null);
+ setPendingDeletePinTarget(null);
+ setPendingViewPinTarget(null);
+ setPendingSharePinTarget(null);
+ setPendingCopyPinTarget(null);
+ setPendingPdfPinTarget(null);
+ }
+
+ function requestEditWithPin(note: NoteItem) {
+ resetPendingPinTargets();
+ setPendingEditPinTarget(note);
+ }
+
+ function requestDeleteWithPin(note: NoteItem) {
+ resetPendingPinTargets();
+ setPendingDeletePinTarget(note);
+ }
+
+ function requestViewWithPin(note: NoteItem) {
+ resetPendingPinTargets();
+ setPendingViewPinTarget(note);
+ }
+
+ function requestShareWithPin(note: NoteItem) {
+ resetPendingPinTargets();
+ setPendingSharePinTarget(note);
+ }
+
+ function requestCopyWithPin(note: NoteItem) {
+ resetPendingPinTargets();
+ setPendingCopyPinTarget(note);
+ }
+
+ function requestPdfWithPin(note: NoteItem) {
+ resetPendingPinTargets();
+ setPendingPdfPinTarget(note);
+ }
+
+ function handleCalendarDateClick(dateKey: string) {
+ setSelectedDateKey(dateKey);
+ const notesOnDate = calendarNotesByDate.get(dateKey) ?? [];
+ if (notesOnDate.length === 0) {
+ setCalendarDatePopup(null);
+ setPendingCalendarDatePin(null);
+ return;
+ }
+ setPendingCalendarDatePin({
+ dateKey: dateKey,
+ notes: notesOnDate,
+ activeNoteId: notesOnDate[0].id,
+ });
  }
 
  function goToNotesMenu(target: 'paper' | 'calendar' | 'create') {
@@ -438,10 +921,6 @@ export default function NotesPage() {
  const section = target === 'paper' ? paperSectionRef.current : calendarSectionRef.current;
  section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
  }, 90);
- }
-
- function toggleContent(noteId: string) {
- setExpandedNoteIds((prev) => ({ ...prev, [noteId]: !prev[noteId] }));
  }
 
  function closeDuePopup() {
@@ -463,6 +942,7 @@ export default function NotesPage() {
 async function saveNote() {
  const title = draftTitle.trim();
  const content = draftContent.trim();
+ if (saving) return;
  if (!title) {
  showToast(isTh ? 'กรุณากรอกชื่อโน้ต' : 'Please enter note title', 'error');
  return;
@@ -473,6 +953,10 @@ async function saveNote() {
  }
 
  setSaving(true);
+ setSaveOverlay({
+ stage: 'saving',
+ message: isTh ? 'กำลังบันทึกโน้ต โปรดรอสักครู่...' : 'Saving note, please wait...',
+ });
  const payload = {
  title,
  content,
@@ -482,6 +966,7 @@ async function saveNote() {
 
 const endpoint = editingId ? '/api/notes/' + encodeURIComponent(editingId) : '/api/notes';
 const method = editingId ? 'PATCH' : 'POST';
+ try {
  if (isOfflineMode) {
  const now = new Date().toISOString();
  const optimisticId = editingId ?? ('offline-note-' + Date.now());
@@ -513,12 +998,14 @@ const method = editingId ? 'PATCH' : 'POST';
  { feature: 'notes', label: editingId ? 'Edit note' : 'Create note' },
  );
  setSaving(false);
+ showSaveSuccessOverlay(isTh ? 'บันทึกออฟไลน์เรียบร้อย รอซิงก์อัตโนมัติ' : 'Saved offline. Waiting for sync.');
  showToast(isTh ? 'บันทึกแบบออฟไลน์แล้ว รอซิงก์อัตโนมัติ' : 'Saved offline. Waiting for sync.', 'success');
  setEditorOpen(false);
  setEditingId(null);
  return;
  }
-const res = await fetch(endpoint, {
+
+ const res = await fetch(endpoint, {
  method,
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify(payload),
@@ -526,15 +1013,22 @@ const res = await fetch(endpoint, {
  const body = (await res.json().catch(() => ({}))) as { error?: string };
  setSaving(false);
  if (!res.ok) {
+ setSaveOverlay(null);
  showToast(body.error ?? (isTh ? 'บันทึกโน้ตไม่สำเร็จ' : 'Failed to save note'), 'error');
  return;
  }
 
+ showSaveSuccessOverlay(isTh ? 'บันทึกสำเร็จ' : 'Saved successfully');
  showToast(isTh ? 'บันทึกโน้ตแล้ว' : 'Note saved', 'success');
  setEditorOpen(false);
  setEditingId(null);
  await loadNotes(pagination.page, searchDebounced);
  if (viewMode === 'calendar') await loadCalendarNotes(searchDebounced);
+ } catch {
+ setSaving(false);
+ setSaveOverlay(null);
+ showToast(isTh ? 'บันทึกโน้ตไม่สำเร็จ' : 'Failed to save note', 'error');
+ }
  }
 
 async function confirmDeleteNote() {
@@ -568,22 +1062,28 @@ setDeleting(true);
  if (viewMode === 'calendar') await loadCalendarNotes(searchDebounced);
  }
 
- async function shareNote(note: NoteItem) {
+ function canShareNoteText(note: NoteItem, text: string) {
+ if (!navigator.share) return false;
+ if (typeof navigator.canShare === 'function') {
  try {
- const text = buildShareableText(note);
- if (navigator.share) {
- try {
- await navigator.share({ title: note.title, text });
- showToast(isTh ? 'แชร์โน้ตแล้ว' : 'Note shared', 'success');
- return;
- } catch (error) {
- if ((error as Error).name === 'AbortError') return;
+ return navigator.canShare({ title: note.title, text });
+ } catch {
+ return false;
  }
+ }
+ return true;
  }
 
+ async function copyNoteText(note: NoteItem, fromShareFallback = false) {
+ try {
+ const text = buildShareableText(note);
  if (navigator.clipboard?.writeText) {
  await navigator.clipboard.writeText(text);
- showToast(isTh ? 'คัดลอกข้อความโน้ตแล้ว' : 'Note text copied', 'success');
+ if (fromShareFallback) {
+ showToast(isTh ? 'แชร์ไม่ได้ จึงคัดลอกหัวข้อและข้อความให้แล้ว' : 'Share unavailable, copied title and content instead', 'success');
+ } else {
+ showToast(isTh ? 'คัดลอกหัวข้อและข้อความโน้ตแล้ว' : 'Copied note title and content', 'success');
+ }
  return;
  }
 
@@ -596,41 +1096,88 @@ setDeleting(true);
  textarea.select();
  document.execCommand('copy');
  document.body.removeChild(textarea);
- showToast(isTh ? 'คัดลอกข้อความโน้ตแล้ว' : 'Note text copied', 'success');
+ if (fromShareFallback) {
+ showToast(isTh ? 'แชร์ไม่ได้ จึงคัดลอกหัวข้อและข้อความให้แล้ว' : 'Share unavailable, copied title and content instead', 'success');
+ } else {
+ showToast(isTh ? 'คัดลอกหัวข้อและข้อความโน้ตแล้ว' : 'Copied note title and content', 'success');
+ }
+ } catch {
+ showToast(isTh ? 'คัดลอกข้อความไม่สำเร็จ' : 'Failed to copy note text', 'error');
+ }
+ }
+
+ async function shareNote(note: NoteItem) {
+ try {
+ const text = buildShareableText(note);
+ const shareReady = canShareNoteText(note, text);
+
+ if (isNativeApp) {
+ if (shareReady) {
+ try {
+ await navigator.share({ title: note.title, text });
+ showToast(isTh ? 'แชร์โน้ตแล้ว' : 'Note shared', 'success');
+ return;
+ } catch (error) {
+ if ((error as Error).name === 'AbortError') return;
+ }
+ }
+ await copyNoteText(note, true);
+ return;
+ }
+
+ if (shareReady) {
+ try {
+ await navigator.share({ title: note.title, text });
+ showToast(isTh ? 'แชร์โน้ตแล้ว' : 'Note shared', 'success');
+ return;
+ } catch (error) {
+ if ((error as Error).name === 'AbortError') return;
+ }
+ }
+
+ await copyNoteText(note, true);
  } catch {
  showToast(isTh ? 'แชร์ไฟล์ไม่สำเร็จ' : 'Failed to share file', 'error');
  }
  }
 
- async function downloadText(note: NoteItem) {
+ async function downloadPdf(note: NoteItem) {
  try {
- const blob = new Blob([buildShareableText(note)], { type: 'text/plain;charset=utf-8' });
- const url = URL.createObjectURL(blob);
+ const url = '/api/notes/' + encodeURIComponent(note.id) + '/export?format=pdf&print=1&locale=' + encodeURIComponent(isTh ? 'th-TH' : 'en-US');
+ const res = await fetch(url, { method: 'GET' });
+ if (!res.ok) throw new Error('pdf_export_failed');
+ const blob = await res.blob();
+ const objectUrl = URL.createObjectURL(blob);
  const a = document.createElement('a');
- a.href = url;
- a.download = safeFilename(note.title) + '.txt';
+ a.href = objectUrl;
+ a.download = safeFilename(note.title) + '.pdf';
  document.body.appendChild(a);
  a.click();
  a.remove();
- window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+ window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
  } catch {
- showToast(isTh ? 'ดาวน์โหลดไฟล์ไม่สำเร็จ' : 'Failed to download file', 'error');
- }
- }
-
- function exportPdf(note: NoteItem) {
- const url = '/api/notes/' + encodeURIComponent(note.id) + '/export?format=pdf&print=1&locale=' + encodeURIComponent(isTh ? 'th-TH' : 'en-US');
- const popup = window.open(url, '_blank', 'noopener,noreferrer');
+ try {
+ const fallbackUrl = '/api/notes/' + encodeURIComponent(note.id) + '/export?format=pdf&print=1&locale=' + encodeURIComponent(isTh ? 'th-TH' : 'en-US');
+ const popup = window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
  if (!popup) {
- window.location.href = url;
+ window.location.href = fallbackUrl;
+ }
+ } catch {
+ showToast(isTh ? 'ดาวน์โหลด PDF ไม่สำเร็จ' : 'Failed to download PDF', 'error');
+ }
  }
  }
 
  const weekLabels = isTh ? ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+ const ocrLanguageOptions: Array<{ code: OcrLanguageCode; label: string }> = [
+ { code: 'tha+eng', label: isTh ? 'ไทย+อังกฤษ' : 'TH+EN' },
+ { code: 'tha', label: isTh ? 'ไทย' : 'TH' },
+ { code: 'eng', label: isTh ? 'อังกฤษ' : 'EN' },
+ ];
  const activeDueNote = activeDueNotice ? allKnownNotes.get(activeDueNotice.noteId) ?? null : null;
 
  return (
- <section className='space-y-4 pb-24 pt-2'>
+ <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.7rem)] sm:pt-2'>
  <header className='space-y-1'>
  <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{isTh ? 'โน้ต' : 'Notes'}</h1>
  <p className='text-sm leading-6 text-slate-500'>
@@ -689,64 +1236,79 @@ setDeleting(true);
  </div>
 
  {viewMode === 'paper' ? (
- <div ref={paperSectionRef} id='notes-paper-section' className='space-y-2.5'>
+ <div ref={paperSectionRef} id='notes-paper-section' className='space-y-3 sm:space-y-4'>
  {loading && notes.length === 0 ? <p className='text-center text-sm text-slate-500'>{isTh ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
  {!loading && notes.length === 0 ? (
  <Card className='space-y-1 text-center'>
  <p className='text-sm font-semibold text-slate-700'>{isTh ? 'ยังไม่มีโน้ต' : 'No notes yet'}</p>
  </Card>
  ) : null}
- {notes.map((note) => (
- <Card key={note.id} className='space-y-3 rounded-[20px] border border-slate-200/80 bg-white/90 p-3 shadow-[0_10px_24px_rgba(15,23,42,0.08)]'>
- <div className='flex items-start justify-between gap-2'>
-<div className='min-w-0'>
-<p className='line-clamp-1 text-[18px] font-semibold text-slate-900'>{note.title}</p>
- {note.pending ? <p className='text-[11px] font-semibold text-amber-600'>{isTh ? 'รอซิงก์' : 'Pending sync'}</p> : null}
-<p className='text-[11px] font-medium text-slate-400'>
- {isTh ? 'โหมดกระดาษ' : 'Paper view'}
- </p>
+ {notes.map((note) => {
+ const updatedLabel = new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US');
+ const reminderLabel = note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-';
+ const meetingLabel = note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-';
+ const scheduleTimes = [note.reminderAt, note.meetingAt]
+ .filter((value): value is string => Boolean(value))
+ .map((value) => new Date(value).getTime())
+ .filter((value) => !Number.isNaN(value));
+ const nearestFuture = scheduleTimes.filter((value) => value >= Date.now()).sort((a, b) => a - b)[0];
+ const statusLabel = note.pending
+ ? (isTh ? 'รอซิงก์ข้อมูล' : 'Pending sync')
+ : nearestFuture
+ ? (isTh ? 'วางแผนล่วงหน้า' : 'Scheduled ahead')
+ : (isTh ? 'โน้ตทั่วไป' : 'General note');
+ const statusTone = note.pending
+ ? 'bg-amber-50 text-amber-700 ring-amber-200'
+ : nearestFuture
+ ? 'bg-sky-50 text-sky-700 ring-sky-200'
+ : 'bg-slate-100 text-slate-600 ring-slate-200';
+
+ return (
+ <Card
+ key={note.id}
+ className='space-y-2.5 rounded-[30px] border border-white/80 bg-gradient-to-br from-slate-100/85 via-slate-50 to-slate-100/70 p-3 sm:space-y-3 sm:p-3.5 shadow-[0_16px_36px_rgba(15,23,42,0.1)]'
+ >
+ <div className='flex items-start gap-2.5 sm:gap-3'>
+ <span className='inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/85 text-slate-500 shadow-[0_8px_18px_rgba(15,23,42,0.1)] sm:h-14 sm:w-14'>
+ <FileText className='h-[18px] w-[18px] sm:h-5 sm:w-5' />
+ </span>
+ <div className='min-w-0 flex-1'>
+ <div className='flex flex-wrap items-center gap-1.5'>
+ <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ' + statusTone}>{statusLabel}</span>
+ </div>
+ <p className='mt-1 line-clamp-1 text-[21px] font-semibold leading-[1.25] tracking-[-0.01em] text-slate-900 sm:text-[24px]'>{note.title}</p>
+ <p className='mt-0.5 text-[11px] font-medium leading-5 text-slate-500 sm:mt-1 sm:text-[12px]'>{isTh ? 'เอกสารบันทึกสำคัญประจำวัน' : 'Personal note and reminders'}</p>
+ <p className='mt-1.5 text-[11px] font-semibold text-slate-400 sm:mt-2 sm:text-xs'>{isTh ? 'อัปเดตล่าสุด' : 'Updated'} {updatedLabel}</p>
  </div>
  <button
  type='button'
- onClick={() => toggleContent(note.id)}
- className='inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700'
+ onClick={() => requestViewWithPin(note)}
+ aria-label={isTh ? 'เปิดเนื้อหาแบบกระดาษ' : 'Open paper-style content'}
+ className='inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-white/90 bg-white/85 text-slate-500 transition hover:border-sky-200 hover:bg-white hover:text-sky-700 sm:h-11 sm:w-11'
  >
- {expandedNoteIds[note.id] ? (
- <>
- <EyeOff className='h-3.5 w-3.5' />
- {isTh ? 'ซ่อนเนื้อหา' : 'Hide'}
- </>
- ) : (
- <>
- <Eye className='h-3.5 w-3.5' />
- {isTh ? 'ดูเนื้อหา' : 'View'}
- </>
- )}
+ <ChevronRight className='h-4 w-4' />
  </button>
  </div>
- {expandedNoteIds[note.id] ? (
- <div className='rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50 to-slate-100 px-3 py-2.5'>
- <p className='whitespace-pre-wrap break-words text-sm leading-6 text-slate-700'>{note.content}</p>
+ <div className='flex flex-wrap gap-1.5 text-[10px] font-medium text-slate-600 sm:text-[11px]'>
+ <span className='inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/80 px-2 py-1 sm:px-2.5'>
+ <Clock3 className='h-3.5 w-3.5 text-slate-400' />
+ {isTh ? 'เตือน' : 'Reminder'} {reminderLabel}
+ </span>
+ <span className='inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/80 px-2 py-1 sm:px-2.5'>
+ <Calendar className='h-3.5 w-3.5 text-slate-400' />
+ {isTh ? 'นัดหมาย' : 'Meeting'} {meetingLabel}
+ </span>
  </div>
- ) : (
- <div className='rounded-xl border border-dashed border-slate-200 bg-white/75 px-3 py-2 text-xs text-slate-500'>
- {isTh ? 'เนื้อหาถูกซ่อนอยู่ กด "ดูเนื้อหา" เพื่อเปิดอ่าน' : 'Content is hidden. Tap "View" to read.'}
- </div>
- )}
- <div className='grid grid-cols-1 gap-1 text-xs text-slate-500'>
- <p>{isTh ? 'อัปเดตล่าสุด' : 'Updated'}: {new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US')}</p>
- <p>{isTh ? 'เตือน' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
- <p>{isTh ? 'นัดหมาย' : 'Meeting'}: {note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
- </div>
- <div className='grid grid-cols-6 gap-1.5'>
- <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => openEdit(note)}><Edit3 className='h-4 w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0 text-rose-600' onClick={() => setDeleteTarget(note)}><Trash2 className='h-4 w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => void shareNote(note)}><Share2 className='h-4 w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-9 rounded-xl px-0' onClick={() => exportPdf(note)}><FileDown className='h-4 w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='col-span-2 h-9 rounded-xl text-[11px]' onClick={() => void downloadText(note)}>{isTh ? 'ไฟล์ .txt' : '.txt file'}</Button>
+ <div className='flex flex-wrap gap-1.5 sm:gap-2'>
+ <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-slate-200/80 bg-white/80 p-0 text-slate-600 hover:border-sky-200 hover:text-sky-700 sm:h-9 sm:w-9' onClick={() => requestEditWithPin(note)}><Edit3 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-slate-200/80 bg-white/80 p-0 text-rose-600 hover:border-rose-200 hover:text-rose-700 sm:h-9 sm:w-9' onClick={() => requestDeleteWithPin(note)}><Trash2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-slate-200/80 bg-white/80 p-0 text-slate-600 hover:border-sky-200 hover:text-sky-700 sm:h-9 sm:w-9' onClick={() => requestShareWithPin(note)}><Share2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-slate-200/80 bg-white/80 p-0 text-slate-600 hover:border-sky-200 hover:text-sky-700 sm:h-9 sm:w-9' onClick={() => requestCopyWithPin(note)}><Copy className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 rounded-full border border-slate-200/80 bg-white/85 px-2.5 text-[10px] font-semibold text-slate-700 hover:border-sky-200 hover:text-sky-700 sm:h-9 sm:px-3 sm:text-[11px]' onClick={() => requestPdfWithPin(note)}>{isTh ? 'ไฟล์ PDF' : 'PDF file'}</Button>
  </div>
  </Card>
- ))}
+ );
+ })}
  <div className='flex items-center justify-between gap-2'>
  <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page - 1, searchDebounced)} disabled={!pagination.hasPrev || loading}>{isTh ? 'ก่อนหน้า' : 'Prev'}</Button>
  <p className='text-xs font-semibold text-slate-500'>{isTh ? 'หน้า' : 'Page'} {pagination.page} / {pagination.totalPages}</p>
@@ -772,7 +1334,7 @@ setDeleting(true);
  <button
  key={key}
  type='button'
- onClick={() => setSelectedDateKey(key)}
+ onClick={() => handleCalendarDateClick(key)}
  className={'relative h-12 rounded-xl border text-xs transition ' + (active ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200')}
  >
  {date.getDate()}
@@ -781,33 +1343,117 @@ setDeleting(true);
  );
  })}
  </div>
- <div className='space-y-2 border-t border-slate-200 pt-2'>
- <p className='text-xs font-semibold text-slate-600'>{isTh ? 'รายการวันที่เลือก' : 'Items on selected date'}: {selectedDateKey || '-'}</p>
- {selectedDateNotes.length === 0 ? <p className='text-xs text-slate-500'>{isTh ? 'ไม่มีรายการนัดหมายในวันนี้' : 'No schedule items on this date'}</p> : selectedDateNotes.map((note) => (
-<div key={note.id} className='rounded-xl border border-slate-200 bg-white px-3 py-2'>
-<p className='text-sm font-semibold text-slate-800'>{note.title}</p>
- {note.pending ? <p className='text-[11px] font-semibold text-amber-600'>{isTh ? 'รอซิงก์' : 'Pending sync'}</p> : null}
-<div className='mt-1 space-y-1 text-[11px] text-slate-500'>
- <p className='inline-flex items-center gap-1'><Clock3 className='h-3 w-3' /> {isTh ? 'เตือน' : 'Reminder'}: {note.reminderAt ? new Date(note.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
- <p className='inline-flex items-center gap-1'><Calendar className='h-3 w-3' /> {isTh ? 'นัดหมาย' : 'Meeting'}: {note.meetingAt ? new Date(note.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
+ </Card>
  </div>
- <div className='mt-2'>
+ )}
+
+ {calendarDatePopup ? (
+ <div className='fixed inset-0 z-[91] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-[3px]'>
+ <div className='w-full max-w-[760px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
+ <div className='flex items-start justify-between gap-3'>
+ <div>
+ <p className='text-xs font-semibold uppercase tracking-[0.1em] text-slate-500'>{isTh ? 'รายการวันเลือก' : 'Selected date notes'}</p>
+ <h3 className='mt-1 text-base font-semibold text-slate-900 sm:text-lg'>{calendarDatePopup.dateKey}</h3>
+ </div>
+ <button
+ type='button'
+ onClick={() => setCalendarDatePopup(null)}
+ className='rounded-full p-1 text-slate-500 transition hover:bg-slate-100'
+ aria-label={isTh ? 'ปิดรายการวันเลือก' : 'Close selected date notes'}
+ >
+ <X className='h-5 w-5' />
+ </button>
+ </div>
+
+ <p className='mt-1 text-xs text-slate-500'>
+ {isTh ? `ทั้งหมด ${calendarDatePopup.notes.length} รายการ` : `${calendarDatePopup.notes.length} item(s)`}
+ </p>
+
+ {calendarDatePopup.notes.length > 1 ? (
+ <div className='mt-3 flex gap-2 overflow-x-auto pb-1'>
+ {calendarDatePopup.notes.map((note, index) => {
+ const active = note.id === calendarDatePopup.activeNoteId;
+ return (
+ <button
+ key={note.id}
+ type='button'
+ onClick={() =>
+ setCalendarDatePopup((prev) => {
+ if (!prev) return prev;
+ return { ...prev, activeNoteId: note.id };
+ })
+ }
+ className={
+ 'inline-flex min-w-[130px] shrink-0 items-center rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ' +
+ (active
+ ? 'border-blue-300 bg-blue-50 text-blue-700'
+ : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200')
+ }
+ >
+ <span className='line-clamp-2'>{index + 1}. {note.title}</span>
+ </button>
+ );
+ })}
+ </div>
+ ) : null}
+
+ {(() => {
+ const activeNote =
+ calendarDatePopup.notes.find((item) => item.id === calendarDatePopup.activeNoteId) ??
+ calendarDatePopup.notes[0] ??
+ null;
+ if (!activeNote) return null;
+ return (
+ <div className='mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3 sm:px-4'>
+ <p className='text-sm font-semibold text-slate-900 sm:text-base'>{activeNote.title}</p>
+ {activeNote.pending ? <p className='mt-1 text-[11px] font-semibold text-amber-600'>{isTh ? 'รอซิงก์' : 'Pending sync'}</p> : null}
+ <div className='mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500'>
+ <p className='inline-flex items-center gap-1'><Clock3 className='h-3 w-3' /> {isTh ? 'เตือน' : 'Reminder'}: {activeNote.reminderAt ? new Date(activeNote.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
+ <p className='inline-flex items-center gap-1'><Calendar className='h-3 w-3' /> {isTh ? 'นัดหมาย' : 'Meeting'}: {activeNote.meetingAt ? new Date(activeNote.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
+ </div>
+ <div className='mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5'>
+ <p className='whitespace-pre-wrap break-words text-sm leading-6 text-slate-700'>{activeNote.content}</p>
+ </div>
+ <div className='mt-3 flex justify-end'>
  <Button
  type='button'
- size='sm'
  variant='secondary'
- className='h-8 rounded-lg px-2.5 text-[11px]'
- onClick={() => openEdit(note)}
+ size='sm'
+ className='h-8 rounded-lg px-3 text-[11px]'
+ onClick={() => {
+ setCalendarDatePopup(null);
+ setPaperPreviewNote(activeNote);
+ }}
  >
- {isTh ? 'เปิดโน้ต' : 'Open note'}
+ {isTh ? 'เปิดแบบกระดาษ A4' : 'Open A4 view'}
  </Button>
  </div>
  </div>
- ))}
+ );
+ })()}
+
+ <div className='mt-4 flex justify-end'>
+ <Button type='button' variant='secondary' className='rounded-xl px-4' onClick={() => setCalendarDatePopup(null)}>
+ {isTh ? 'ปิด' : 'Close'}
+ </Button>
  </div>
- </Card>
  </div>
-)}
+ </div>
+ ) : null}
+
+ {pendingCalendarDatePin ? (
+ <PinModal
+ action='view_secret'
+ actionLabel={isTh ? 'เปิดดูรายการวันที่เลือก' : 'View selected date notes'}
+ targetItemId={pendingCalendarDatePin.activeNoteId}
+ onVerified={() => {
+ const target = pendingCalendarDatePin;
+ setPendingCalendarDatePin(null);
+ if (target) setCalendarDatePopup(target);
+ }}
+ onClose={() => setPendingCalendarDatePin(null)}
+ />
+ ) : null}
 
  {activeDueNotice ? (
  <div className='fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[3px]'>
@@ -852,7 +1498,7 @@ setDeleting(true);
  onClick={() => {
  if (activeDueNote) {
  setViewMode('paper');
- openEdit(activeDueNote);
+ requestEditWithPin(activeDueNote);
  }
  closeDuePopup();
  }}
@@ -862,6 +1508,129 @@ setDeleting(true);
  </div>
  </div>
  </div>
+ ) : null}
+
+ {paperPreviewNote ? (
+ <div className='fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-[3px]'>
+ <div className='w-full max-w-[920px] animate-slide-up rounded-[26px] border border-slate-200/90 bg-slate-50/95 p-3 shadow-2xl sm:p-4'>
+ <div className='mb-3 flex items-start justify-between gap-3'>
+ <div>
+ <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'มุมมองกระดาษ A4' : 'A4 paper view'}</p>
+ <h3 className='mt-1 line-clamp-1 text-base font-semibold text-slate-900 sm:text-lg'>{paperPreviewNote.title}</h3>
+ </div>
+ <button
+ type='button'
+ onClick={() => setPaperPreviewNote(null)}
+ className='rounded-full p-1 text-slate-500 transition hover:bg-slate-200/70'
+ aria-label={isTh ? 'ปิดหน้ากระดาษ' : 'Close paper view'}
+ >
+ <X className='h-5 w-5' />
+ </button>
+ </div>
+ <div className='mx-auto w-full max-w-[794px] rounded-[10px] border border-slate-300/90 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.18)]'>
+ <div className='max-h-[calc(100dvh-250px)] overflow-y-auto px-5 py-6 sm:px-10 sm:py-10'>
+ <h4 className='text-[24px] font-semibold leading-tight text-slate-900 sm:text-[30px]'>{paperPreviewNote.title}</h4>
+ <p className='mt-2 text-[11px] font-medium text-slate-500 sm:text-xs'>
+ {isTh ? 'อัปเดตล่าสุด' : 'Updated'} {new Date(paperPreviewNote.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US')}
+ </p>
+ <div className='mt-6 border-t border-slate-200 pt-5'>
+ <p className='whitespace-pre-wrap break-words text-[15px] leading-8 text-slate-800 sm:text-[16px]'>
+ {paperPreviewNote.content}
+ </p>
+ </div>
+ </div>
+ </div>
+ <div className='mt-3 flex justify-end'>
+ <Button type='button' variant='secondary' className='rounded-xl px-4' onClick={() => setPaperPreviewNote(null)}>
+ {isTh ? 'ปิด' : 'Close'}
+ </Button>
+ </div>
+ </div>
+ </div>
+ ) : null}
+
+ {pendingViewPinTarget ? (
+ <PinModal
+ action='view_secret'
+ actionLabel={isTh ? 'เปิดดูเนื้อหาโน้ต' : 'View note content'}
+ targetItemId={pendingViewPinTarget.id}
+ onVerified={() => {
+ const target = pendingViewPinTarget;
+ setPendingViewPinTarget(null);
+ if (target) setPaperPreviewNote(target);
+ }}
+ onClose={() => setPendingViewPinTarget(null)}
+ />
+ ) : null}
+
+ {pendingDeletePinTarget ? (
+ <PinModal
+ action='delete_secret'
+ actionLabel={isTh ? 'ลบโน้ตนี้' : 'Delete this note'}
+ targetItemId={pendingDeletePinTarget.id}
+ onVerified={() => {
+ const target = pendingDeletePinTarget;
+ setPendingDeletePinTarget(null);
+ if (target) setDeleteTarget(target);
+ }}
+ onClose={() => setPendingDeletePinTarget(null)}
+ />
+ ) : null}
+
+ {pendingEditPinTarget ? (
+ <PinModal
+ action='edit_secret'
+ actionLabel={isTh ? 'แก้ไขโน้ตนี้' : 'Edit this note'}
+ targetItemId={pendingEditPinTarget.id}
+ onVerified={() => {
+ const target = pendingEditPinTarget;
+ setPendingEditPinTarget(null);
+ if (target) openEdit(target);
+ }}
+ onClose={() => setPendingEditPinTarget(null)}
+ />
+ ) : null}
+
+ {pendingSharePinTarget ? (
+ <PinModal
+ action='copy_secret'
+ actionLabel={isTh ? 'แชร์โน้ตนี้' : 'Share this note'}
+ targetItemId={pendingSharePinTarget.id}
+ onVerified={() => {
+ const target = pendingSharePinTarget;
+ setPendingSharePinTarget(null);
+ if (target) void shareNote(target);
+ }}
+ onClose={() => setPendingSharePinTarget(null)}
+ />
+ ) : null}
+
+ {pendingCopyPinTarget ? (
+ <PinModal
+ action='copy_secret'
+ actionLabel={isTh ? 'คัดลอกโน้ตนี้' : 'Copy this note'}
+ targetItemId={pendingCopyPinTarget.id}
+ onVerified={() => {
+ const target = pendingCopyPinTarget;
+ setPendingCopyPinTarget(null);
+ if (target) void copyNoteText(target);
+ }}
+ onClose={() => setPendingCopyPinTarget(null)}
+ />
+ ) : null}
+
+ {pendingPdfPinTarget ? (
+ <PinModal
+ action='copy_secret'
+ actionLabel={isTh ? 'บันทึกเป็น PDF' : 'Save as PDF'}
+ targetItemId={pendingPdfPinTarget.id}
+ onVerified={() => {
+ const target = pendingPdfPinTarget;
+ setPendingPdfPinTarget(null);
+ if (target) void downloadPdf(target);
+ }}
+ onClose={() => setPendingPdfPinTarget(null)}
+ />
  ) : null}
 
  {deleteTarget ? (
@@ -887,23 +1656,221 @@ setDeleting(true);
  <div className='mx-auto my-3 w-full max-w-[460px] max-h-[calc(100dvh-24px)] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
  <h2 className='text-base font-semibold'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
- <button type='button' onClick={() => setEditorOpen(false)} className='rounded-full p-1 text-slate-500 hover:bg-slate-100'><X className='h-5 w-5' /></button>
+ <button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
  </div>
  <div className='space-y-3'>
  <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} />
+ <div className='space-y-2 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5'>
+ <div className='flex flex-wrap items-center justify-between gap-2'>
+ <p className='text-[11px] font-semibold text-slate-600'>{isTh ? 'เนื้อหาแบบกระดาษ A4' : 'A4 paper content'}</p>
+ <div className='flex flex-wrap items-center justify-end gap-1.5'>
+ <div className='inline-flex items-center rounded-xl border border-slate-200 bg-white p-1'>
+ {ocrLanguageOptions.map((option) => (
+ <button
+ key={option.code}
+ type='button'
+ className={
+ 'rounded-lg px-2 py-1 text-[10px] font-semibold transition ' +
+ (ocrLanguage === option.code
+ ? 'bg-indigo-100 text-indigo-700'
+ : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700')
+ }
+ onClick={() => setOcrLanguage(option.code)}
+ disabled={ocrRunning || saving}
+ >
+ {option.label}
+ </button>
+ ))}
+ </div>
+ <input
+ ref={imageOcrInputRef}
+ type='file'
+ accept='image/*'
+ capture='environment'
+ className='hidden'
+ onChange={handleImageOcrInput}
+ />
+ <Button
+ type='button'
+ variant='secondary'
+ size='sm'
+ className='h-8 rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700'
+ onClick={triggerImageOcrPicker}
+ disabled={ocrRunning || saving}
+ >
+ {ocrRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <ImageUp className='mr-1 h-3.5 w-3.5' />}
+ {isTh ? 'สแกนรูปดึงข้อความ' : 'Scan image to text'}
+ </Button>
+ </div>
+ </div>
  <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-sm text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
- <label className='text-xs font-medium text-slate-600'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</label>
- <Input type='datetime-local' value={draftReminder} onChange={(e) => setDraftReminder(e.target.value)} />
- <p className='-mt-1 text-[11px] leading-5 text-slate-500'>
+ {ocrRunning ? (
+ <div className='rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2'>
+ <p className='flex items-center gap-1 text-[11px] font-semibold text-sky-700'>
+ <Sparkles className='h-3.5 w-3.5' />
+ {isTh ? 'กำลังสแกนข้อความจากภาพ...' : 'Extracting text from image...'}
+ </p>
+ <div className='mt-2 h-1.5 w-full rounded-full bg-sky-100'>
+ <div className='h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 transition-all duration-300' style={{ width: Math.max(6, Math.round(ocrProgress * 100)) + '%' }} />
+ </div>
+ </div>
+ ) : null}
+ <p className='text-[11px] leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ และจะแสดงหน้าพรีวิวก่อนนำข้อความลงเนื้อหา' : 'Supports Thai/English OCR and shows a preview before inserting text.'}</p>
+ </div>
+ <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-3'>
+ <div className='mb-2 flex items-center justify-between gap-2'>
+ <label className='text-xs font-semibold text-slate-700'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</label>
+ <div className='flex items-center gap-1'>
+ <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-[10px]' onClick={() => fillDateTimeNow('reminder')}>{isTh ? 'ตอนนี้' : 'Now'}</Button>
+ <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-[10px]' onClick={() => clearDateTime('reminder')}>{isTh ? 'ล้าง' : 'Clear'}</Button>
+ </div>
+ </div>
+ <button
+ type='button'
+ onClick={() => openDateTimePicker('reminder')}
+ className='flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-left text-[13px] text-slate-700 transition hover:border-sky-300 hover:bg-white'
+ >
+ <span className='line-clamp-1'>{formatDateTimeDraftLabel(draftReminder, isTh)}</span>
+ <Calendar className='h-4 w-4 text-slate-500' />
+ </button>
+ <p className='mt-2 text-[11px] leading-5 text-slate-500'>
  {isTh ? 'เมื่อถึงเวลา ระบบจะส่งแจ้งเตือนในแอป/พุช และอีเมล (ถ้าตั้งค่าอีเมลเซิร์ฟเวอร์ไว้)' : 'When due, the app sends in-app/push and email reminders (if email provider is configured).'}
  </p>
- <label className='text-xs font-medium text-slate-600'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</label>
- <Input type='datetime-local' value={draftMeeting} onChange={(e) => setDraftMeeting(e.target.value)} />
+ </div>
+ <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-3'>
+ <div className='mb-2 flex items-center justify-between gap-2'>
+ <label className='text-xs font-semibold text-slate-700'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</label>
+ <div className='flex items-center gap-1'>
+ <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-[10px]' onClick={() => fillDateTimeNow('meeting')}>{isTh ? 'ตอนนี้' : 'Now'}</Button>
+ <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-[10px]' onClick={() => clearDateTime('meeting')}>{isTh ? 'ล้าง' : 'Clear'}</Button>
+ </div>
+ </div>
+ <button
+ type='button'
+ onClick={() => openDateTimePicker('meeting')}
+ className='flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-left text-[13px] text-slate-700 transition hover:border-violet-300 hover:bg-white'
+ >
+ <span className='line-clamp-1'>{formatDateTimeDraftLabel(draftMeeting, isTh)}</span>
+ <Calendar className='h-4 w-4 text-slate-500' />
+ </button>
+ </div>
  </div>
  <div className='mt-4 grid grid-cols-2 gap-2'>
- <Button type='button' variant='secondary' className='w-full' onClick={() => setEditorOpen(false)}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
- <Button type='button' className='w-full' onClick={() => void saveNote()} disabled={saving}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
+ <Button type='button' variant='secondary' className='w-full' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
+ <Button type='button' className='w-full' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
  </div>
+ </div>
+ </div>
+ ) : null}
+ {ocrPreviewOpen ? (
+ <div className='fixed inset-0 z-[96] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-[3px]'>
+ <div className='w-full max-w-[680px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
+ <div className='flex items-start justify-between gap-2'>
+ <div>
+ <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'พรีวิว OCR' : 'OCR preview'}</p>
+ <h3 className='mt-1 text-base font-semibold text-slate-900'>{isTh ? 'ตรวจสอบข้อความจากภาพก่อนเพิ่มลงโน้ต' : 'Review extracted text before adding'}</h3>
+ </div>
+ <button type='button' onClick={() => setOcrPreviewOpen(false)} className='rounded-full p-1 text-slate-500 transition hover:bg-slate-100'>
+ <X className='h-5 w-5' />
+ </button>
+ </div>
+ <textarea
+ value={ocrPreviewText}
+ onChange={(event) => setOcrPreviewText(event.target.value)}
+ className='mt-3 min-h-[220px] max-h-[46dvh] w-full resize-y rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm leading-6 text-slate-800 outline-none focus:border-sky-300'
+ />
+ <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3'>
+ <Button type='button' variant='secondary' className='w-full' onClick={() => setOcrPreviewOpen(false)}>
+ {isTh ? 'ปิด' : 'Close'}
+ </Button>
+ <Button type='button' variant='secondary' className='w-full' onClick={() => applyOcrPreview('replace')}>
+ {isTh ? 'แทนที่ข้อความเดิม' : 'Replace content'}
+ </Button>
+ <Button type='button' className='w-full' onClick={() => applyOcrPreview('append')}>
+ {isTh ? 'เพิ่มต่อท้ายเนื้อหา' : 'Append to content'}
+ </Button>
+ </div>
+ </div>
+ </div>
+ ) : null}
+ {dateTimePickerState ? (
+ <div className='fixed inset-0 z-[97] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-[3px]'>
+ <div className='w-full max-w-[420px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
+ <div className='flex items-start justify-between gap-2'>
+ <div>
+ <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'เลือกวันเวลา' : 'Pick date/time'}</p>
+ <h3 className='mt-1 text-base font-semibold text-slate-900'>
+ {dateTimePickerState.target === 'reminder'
+ ? (isTh ? 'เวลาแจ้งเตือน' : 'Reminder time')
+ : (isTh ? 'วันเวลานัดหมาย' : 'Meeting time')}
+ </h3>
+ </div>
+ <button type='button' onClick={() => setDateTimePickerState(null)} className='rounded-full p-1 text-slate-500 transition hover:bg-slate-100'>
+ <X className='h-5 w-5' />
+ </button>
+ </div>
+ <div className='mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+ <div className='mb-2 flex items-center justify-between gap-2'>
+ <Button type='button' variant='secondary' size='sm' className='h-8 rounded-lg px-2.5' onClick={() => shiftDateTimePickerMonth(-1)}>
+ <ChevronLeft className='h-4 w-4' />
+ </Button>
+ <p className='text-sm font-semibold text-slate-800'>{dateTimePickerMonthLabel}</p>
+ <Button type='button' variant='secondary' size='sm' className='h-8 rounded-lg px-2.5' onClick={() => shiftDateTimePickerMonth(1)}>
+ <ChevronRight className='h-4 w-4' />
+ </Button>
+ </div>
+ <div className='grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500'>
+ {weekLabels.map((item, index) => <div key={item + String(index)}>{item}</div>)}
+ </div>
+ <div className='mt-1 grid grid-cols-7 gap-1'>
+ {dateTimePickerCells.map((date, index) => {
+ if (!date) return <div key={'picker-empty-' + String(index)} className='h-9 rounded-lg border border-transparent' />;
+ const key = dateKeyFromLocalDate(date);
+ const active = key === dateTimePickerState.selectedDateKey;
+ return (
+ <button
+ key={key}
+ type='button'
+ onClick={() => setDateTimePickerState((prev) => (prev ? { ...prev, selectedDateKey: key } : prev))}
+ className={
+ 'h-9 rounded-lg border text-xs transition ' +
+ (active ? 'border-sky-300 bg-sky-100 text-sky-800' : 'border-slate-200 bg-white text-slate-700 hover:border-sky-200')
+ }
+ >
+ {date.getDate()}
+ </button>
+ );
+ })}
+ </div>
+ <div className='mt-3 space-y-2'>
+ <label className='text-xs font-semibold text-slate-600'>{isTh ? 'เวลา' : 'Time'}</label>
+ <input
+ type='time'
+ value={dateTimePickerState.selectedTime}
+ onChange={(event) => setDateTimePickerState((prev) => (prev ? { ...prev, selectedTime: event.target.value } : prev))}
+ className='h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-sky-300'
+ />
+ </div>
+ </div>
+ <div className='mt-3 grid grid-cols-2 gap-2'>
+ <Button type='button' variant='secondary' className='w-full' onClick={clearDateTimePickerValue}>
+ {isTh ? 'ล้างวันเวลา' : 'Clear'}
+ </Button>
+ <Button type='button' className='w-full' onClick={confirmDateTimePicker}>
+ {isTh ? 'ยืนยันวันเวลา' : 'Apply'}
+ </Button>
+ </div>
+ </div>
+ </div>
+ ) : null}
+ {saveOverlay ? (
+ <div className='pointer-events-none fixed inset-0 z-[98] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-[2px]'>
+ <div className='w-full max-w-[320px] animate-slide-up rounded-3xl border border-white/50 bg-white/95 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.28)]'>
+ <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white shadow-[0_10px_25px_rgba(59,130,246,0.4)]'>
+ {saveOverlay.stage === 'saving' ? <Loader2 className='h-6 w-6 animate-spin' /> : <CheckCircle2 className='h-6 w-6' />}
+ </div>
+ <p className='mt-3 text-center text-base font-semibold text-slate-900'>{saveOverlay.stage === 'saving' ? (isTh ? 'กำลังบันทึก' : 'Saving') : (isTh ? 'สำเร็จ' : 'Success')}</p>
+ <p className='mt-1 text-center text-sm leading-6 text-slate-600'>{saveOverlay.message}</p>
  </div>
  </div>
  ) : null}

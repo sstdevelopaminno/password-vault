@@ -173,6 +173,28 @@ async function waitForControllerChange(timeoutMs: number) {
 export function Providers(props: ProvidersProps) {
   useEffect(function () {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    if (process.env.NODE_ENV !== 'production') {
+      void navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        void Promise.all(registrations.map(function (registration) {
+          return registration.unregister();
+        }));
+      }).catch(function () {
+        // ignore unregister failure in dev
+      });
+      if ('caches' in window) {
+        void caches.keys().then(function (names) {
+          const removable = names.filter(function (name) {
+            return name.startsWith('pv-static-') || name.startsWith('pv-pages-');
+          });
+          void Promise.all(removable.map(function (name) {
+            return caches.delete(name);
+          }));
+        }).catch(function () {
+          // ignore cache cleanup failure in dev
+        });
+      }
+      return;
+    }
     const swUrl = '/sw.js?build=' + encodeURIComponent(props.runtimeBuildMarker);
     navigator.serviceWorker.register(swUrl, { scope: '/' }).catch(function () {
       // ignore register failure in dev
