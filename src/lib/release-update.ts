@@ -18,7 +18,7 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.6.19",
+    version: "V16.6.20",
     releasedOn: "2026-04-21",
     titleTh: "อัปเดต Android แบบแตะครั้งเดียว และปรับปรุง Vault Shield",
     titleEn: "APK/PWA Stability Round and Twice-Daily Install Reminder",
@@ -33,7 +33,7 @@ const RELEASE_HISTORY: ReleaseEntry[] = [
       "Added PWA install reminder policy for non-installed devices: max 2 prompts per day.",
       "Added reminder spacing control to avoid noisy repeated prompts.",
       "Confirmed install reminder flow does not affect 6-digit security PIN logic.",
-      "Bumped Android/APK release to 16.6.19 (versionCode 16619).",
+      "Bumped Android/APK release to 16.6.20 (versionCode 16620).",
       "Kept APK update popup flow active for Android runtime update/install guidance.",
     ],
   },
