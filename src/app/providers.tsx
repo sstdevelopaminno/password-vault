@@ -1,6 +1,7 @@
 'use client';
 
 import { createElement, useEffect, type ReactNode } from 'react';
+import { AndroidApkUpdatePopup } from '@/components/app/android-apk-update-popup';
 import { HeadsUpNotificationProvider } from '@/components/notifications/heads-up-provider';
 import { ToastProvider } from '@/components/ui/toast';
 import { I18nProvider } from '@/i18n/provider';
@@ -211,13 +212,7 @@ export function Providers(props: ProvidersProps) {
       if (disposed) return;
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       const pathname = window.location.pathname;
-      if (
-        pathname.startsWith('/login') ||
-        pathname.startsWith('/register') ||
-        pathname.startsWith('/forgot-password') ||
-        pathname.startsWith('/verify-otp') ||
-        pathname.startsWith('/auth/callback')
-      ) {
+      if (pathname.startsWith('/auth/callback')) {
         return;
       }
 
@@ -402,6 +397,7 @@ export function Providers(props: ProvidersProps) {
       createElement(
         HeadsUpNotificationProvider,
         null,
+        createElement(AndroidApkUpdatePopup, null),
         props.children,
       ),
     ),

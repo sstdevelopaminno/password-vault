@@ -4,8 +4,10 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
+import { APP_VERSION } from "@/lib/app-version";
 import { createClient } from "@/lib/supabase/client";
-import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
+import { detectRuntimeCapabilities, getRuntimeModeLabel } from "@/lib/pwa-runtime";
+import type { RuntimePlatformMode } from "@/lib/pwa-runtime";
 import {
   getNativeOAuthRedirectUrl,
   getWebOAuthRedirectUrl,
@@ -26,6 +28,13 @@ type LoginResponse = {
   pendingApproval?: boolean;
   autoApproved?: boolean;
   retryAfterSec?: number;
+};
+
+type AndroidReleaseResponse = {
+  ok?: boolean;
+  release?: {
+    versionName?: string;
+  };
 };
 
 const LOGIN_TIMEOUT_MS = 12_000;
@@ -159,8 +168,42 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [runtimeMode, setRuntimeMode] = useState<RuntimePlatformMode>("browser-tab");
+  const [latestApkVersion, setLatestApkVersion] = useState("");
 
   const flowNotes = [t("register.createdPending")];
+
+  useEffect(() => {
+    const runtime = detectRuntimeCapabilities();
+    setRuntimeMode(runtime.mode);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/android-release", {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async function (response) {
+        const body = (await response.json().catch(function () {
+          return {};
+        })) as AndroidReleaseResponse;
+
+        const version = String(body.release?.versionName ?? "").trim();
+        if (response.ok && version) {
+          setLatestApkVersion(version);
+        }
+      })
+      .catch(function () {
+        // ignore silent diagnostics in login footer
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -390,6 +433,11 @@ export default function LoginPage() {
 
             <div className="space-y-1">
               <h1 className="text-xl font-semibold">{t("login.title")}</h1>
+              <p className="text-xs text-slate-500">
+                {locale === "th"
+                  ? `โหมด: ${getRuntimeModeLabel(runtimeMode, locale)} | แอป ${APP_VERSION}${latestApkVersion ? ` | APK ล่าสุด ${latestApkVersion}` : ""}`
+                  : `Mode: ${getRuntimeModeLabel(runtimeMode, locale)} | App ${APP_VERSION}${latestApkVersion ? ` | Latest APK ${latestApkVersion}` : ""}`}
+              </p>
             </div>
           </div>
 
