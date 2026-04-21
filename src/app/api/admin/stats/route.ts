@@ -11,8 +11,10 @@ type StatsPayload = {
   recentSensitiveActions24h: number; 
 }; 
  
-const STATS_CACHE_MS = 15_000; 
+const STATS_CACHE_MS = 45_000; 
+const STATS_STALE_MS = 5 * 60 * 1000;
 let statsCacheExpiresAt = 0; 
+let statsCacheUpdatedAt = 0;
 let statsCachePayload: StatsPayload = { 
   totalUsers: 0, 
   activeUsers: 0, 
@@ -48,7 +50,17 @@ export async function GET() {
     admin.from('approval_requests').select('id', { count: 'exact', head: true }).gte('reviewed_at', since24h), 
     admin.from('audit_logs').select('id', { count: 'exact', head: true }).gte('created_at', since24h), 
   ]); 
- 
+
+  const responses = [usersRes, activeUsersRes, adminsRes, pendingApprovalsRes, reviewedTodayRes, logsRes];
+  const firstError = responses.find((entry) => Boolean(entry.error))?.error;
+  if (firstError) {
+    const hasStaleCache = statsCacheUpdatedAt > 0 && Date.now() - statsCacheUpdatedAt <= STATS_STALE_MS;
+    if (hasStaleCache) {
+      return NextResponse.json(statsCachePayload, { headers: { 'x-stats-cache': 'stale' } });
+    }
+    return NextResponse.json({ error: 'Unable to load admin stats right now' }, { status: 503 });
+  }
+
   statsCachePayload = { 
     totalUsers: usersRes.count ?? 0, 
     activeUsers: activeUsersRes.count ?? 0, 
@@ -58,6 +70,7 @@ export async function GET() {
     recentSensitiveActions24h: logsRes.count ?? 0, 
   }; 
   statsCacheExpiresAt = Date.now() + STATS_CACHE_MS; 
- 
+  statsCacheUpdatedAt = Date.now();
+
   return NextResponse.json(statsCachePayload, { headers: { 'x-stats-cache': 'miss' } }); 
 }

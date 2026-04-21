@@ -120,6 +120,11 @@ export default function NotesPage() {
  const [activeDueNotice, setActiveDueNotice] = useState<DueNoticeItem | null>(null);
  const paperSectionRef = useRef<HTMLDivElement | null>(null);
  const calendarSectionRef = useRef<HTMLDivElement | null>(null);
+ const notesRequestRef = useRef<AbortController | null>(null);
+ const calendarRequestRef = useRef<AbortController | null>(null);
+ const notesRequestVersionRef = useRef(0);
+ const calendarRequestVersionRef = useRef(0);
+ const backgroundCalendarRefreshTickRef = useRef(0);
 
  const allKnownNotes = useMemo(() => {
  const map = new Map<string, NoteItem>();
@@ -135,6 +140,11 @@ export default function NotesPage() {
 
  const loadNotes = useCallback(
  async (page = pagination.page, q = searchDebounced) => {
+ const requestVersion = notesRequestVersionRef.current + 1;
+ notesRequestVersionRef.current = requestVersion;
+ notesRequestRef.current?.abort();
+ const controller = new AbortController();
+ notesRequestRef.current = controller;
  setLoading(true);
  const params = new URLSearchParams({
  page: String(page),
@@ -142,8 +152,13 @@ export default function NotesPage() {
  });
  if (q) params.set('q', q);
  try {
- const res = await fetchWithSessionRetry('/api/notes?' + params.toString(), { cache: 'no-store' });
+ const res = await fetchWithSessionRetry(
+ '/api/notes?' + params.toString(),
+ { cache: 'no-store', signal: controller.signal },
+ { attempts: 2, delayMs: 220 },
+ );
  const body = (await res.json().catch(() => ({}))) as { error?: string; notes?: NoteItem[]; pagination?: Pagination };
+ if (requestVersion !== notesRequestVersionRef.current) return;
  setLoading(false);
  if (!res.ok) {
  if (isOfflineMode) {
@@ -160,7 +175,12 @@ export default function NotesPage() {
  setNotes(body.notes ?? []);
  if (body.pagination) setPagination(body.pagination);
  await setOfflineCache(notesCacheKey(page, q), { notes: body.notes ?? [], pagination: body.pagination });
- } catch {
+ } catch (error) {
+ if (error instanceof DOMException && error.name === 'AbortError') {
+ if (requestVersion === notesRequestVersionRef.current) setLoading(false);
+ return;
+ }
+ if (requestVersion !== notesRequestVersionRef.current) return;
  setLoading(false);
  if (isOfflineMode) {
  const cached = await getOfflineCache<{ notes: NoteItem[]; pagination?: Pagination }>(notesCacheKey(page, q));
@@ -178,17 +198,29 @@ export default function NotesPage() {
 
  const loadCalendarNotes = useCallback(
  async (q = searchDebounced) => {
- const params = new URLSearchParams({ page: '1', limit: '300' });
+ const requestVersion = calendarRequestVersionRef.current + 1;
+ calendarRequestVersionRef.current = requestVersion;
+ calendarRequestRef.current?.abort();
+ const controller = new AbortController();
+ calendarRequestRef.current = controller;
+ const params = new URLSearchParams({ page: '1', limit: '140' });
  if (q) params.set('q', q);
  try {
- const res = await fetchWithSessionRetry('/api/notes?' + params.toString(), { cache: 'no-store' });
+ const res = await fetchWithSessionRetry(
+ '/api/notes?' + params.toString(),
+ { cache: 'no-store', signal: controller.signal },
+ { attempts: 2, delayMs: 220 },
+ );
  const body = (await res.json().catch(() => ({}))) as { notes?: NoteItem[] };
+ if (requestVersion !== calendarRequestVersionRef.current) return;
  if (res.ok) {
  setCalendarNotes(body.notes ?? []);
  await setOfflineCache(notesCalendarCacheKey(q), { notes: body.notes ?? [] });
  return;
  }
- } catch {
+ } catch (error) {
+ if (error instanceof DOMException && error.name === 'AbortError') return;
+ if (requestVersion !== calendarRequestVersionRef.current) return;
  // ignore fetch failure
  }
  if (isOfflineMode) {
@@ -206,13 +238,20 @@ export default function NotesPage() {
  }, [loadNotes, searchDebounced]);
 
  useEffect(() => {
+ if (viewMode === 'calendar' || calendarNotes.length === 0) {
  void loadCalendarNotes(searchDebounced);
- }, [loadCalendarNotes, searchDebounced]);
+ }
+ }, [calendarNotes.length, loadCalendarNotes, searchDebounced, viewMode]);
 
  useEffect(() => {
  const timer = window.setInterval(() => {
  if (viewMode !== 'calendar') {
  void loadNotes(pagination.page, searchDebounced);
+ backgroundCalendarRefreshTickRef.current += 1;
+ if (backgroundCalendarRefreshTickRef.current % 4 === 0) {
+ void loadCalendarNotes(searchDebounced);
+ }
+ return;
  }
  void loadCalendarNotes(searchDebounced);
  }, 30000);
@@ -228,6 +267,13 @@ export default function NotesPage() {
  }
  wasOfflineRef.current = isOfflineMode;
  }, [isOfflineMode, loadCalendarNotes, loadNotes, pagination.page, searchDebounced]);
+
+ useEffect(() => {
+ return () => {
+ notesRequestRef.current?.abort();
+ calendarRequestRef.current?.abort();
+ };
+ }, []);
 
  useEffect(() => {
  if (typeof window === 'undefined') return;

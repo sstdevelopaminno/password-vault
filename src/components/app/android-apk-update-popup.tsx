@@ -346,10 +346,10 @@ export function AndroidApkUpdatePopup() {
     ? locale === "th"
       ? isStoreDistribution
         ? "เพื่อหลีกเลี่ยงคำเตือนแอปไม่รู้จัก ให้ติดตั้งจาก Store ที่เชื่อถือได้ของอุปกรณ์"
-        : `คุณกำลังใช้งานผ่าน PWA ฟีเจอร์โทร/รายชื่อจะเสถียรกว่าเมื่อใช้แอป Android เวอร์ชัน ${release.versionName}`
+        : `คุณกำลังใช้งานผ่าน PWA แนะนำติดตั้งแอป Android เวอร์ชัน ${release.versionName} เพื่อประสิทธิภาพและความเสถียรที่ดีกว่า`
       : isStoreDistribution
         ? "Install from a trusted store to avoid unknown-app warnings."
-        : `You are running in PWA mode. Calling/contacts are more stable in Android app ${release.versionName}.`
+        : `You are running in PWA mode. Install Android app ${release.versionName} for better performance and stability.`
     : locale === "th"
       ? isStoreDistribution
         ? `พร้อมเปิด Store เพื่ออัปเดตเป็นเวอร์ชัน ${release.versionName}`

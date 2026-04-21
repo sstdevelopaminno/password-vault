@@ -505,8 +505,8 @@ export default function RegisterPage() {
             <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
               <p>
                 {isThai
-                  ? "1) ระบบมีฟังก์ชันหลักด้านความปลอดภัย เช่น OTP, PIN, Face Login, การเข้ารหัสข้อมูล, และการติดตามสถานะความเสี่ยงอุปกรณ์"
-                  : "1) The app includes OTP, PIN, Face Login, data encryption, and device risk monitoring features."}
+                  ? "1) ระบบมีฟังก์ชันหลักด้านความปลอดภัย เช่น OTP, PIN และการเข้ารหัสข้อมูล"
+                  : "1) The app includes core security features such as OTP, PIN, and data encryption."}
               </p>
               <p>
                 {isThai

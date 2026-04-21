@@ -133,15 +133,12 @@ npm run cap:sync:android
 npm run apk:android:release
 ```
 
+Repo hygiene policy:
+- Keep only the latest APK in `public/apk/`
+- Store historical APKs in GitHub Releases assets
+
 Detailed release steps and compatibility rules:
 - `docs/android-apk-release-guide.md`
-
-## Vault Shield API
-- `POST /api/security/risk-evaluate`
-  - Input: device/app/network risk snapshot (from Android native plugin + runtime context)
-  - Output: `score`, `severity`, `actions`, and policy TTL for response handling
-- `GET /api/security/risk-state`
-  - Returns active policy and latest assessed risk details (including Play Integrity verdict)
 
 ## GitHub Actions (1+2)
 - Auto release on tag: `.github/workflows/android-apk-release-on-tag.yml`
@@ -163,9 +160,4 @@ node scripts/check-otp-env.mjs --probe-email=ops@your-domain.com
 # Optional: probe both EngageLab/Resend and Supabase OTP in one run
 node scripts/check-otp-env.mjs --probe-email=user@your-domain.com --probe-supabase
 
-# 2) Smoke test Face Login + PIN flow (requires local app running)
-npm run smoke:face-auth
-
-# Optional stricter mode (fails if recovery OTP request is not 2xx)
-node scripts/smoke-face-auth.mjs --strict-otp-request
 ```

@@ -9,9 +9,6 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
-import { PinSessionGate } from "@/components/auth/pin-session-gate";
-import { FacePinLoginGate } from "@/components/auth/face-pin-login-gate";
-import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/lib/pin-session";
 
 const POLL_MS = 5000;
 const ACCESS_CHECK_ART_URL =
@@ -24,10 +21,6 @@ type ProfilePayload = {
   email?: string;
   needsOtpVerification?: boolean;
   pendingApproval?: boolean;
-  hasPin?: boolean;
-  faceAuthEnabled?: boolean;
-  pinSessionEnabled?: boolean;
-  pinSessionTimeoutSec?: unknown;
   userId?: string;
   error?: string;
   recoverable?: boolean;
@@ -84,11 +77,6 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [lastAutoOtp, setLastAutoOtp] = useState("");
-  const [hasPin, setHasPin] = useState(false);
-  const [faceAuthEnabled, setFaceAuthEnabled] = useState(false);
-  const [pinSessionEnabled, setPinSessionEnabled] = useState(true);
-  const [pinSessionTimeoutSec, setPinSessionTimeoutSec] = useState(DEFAULT_PIN_SESSION_TIMEOUT_SEC);
-  const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
@@ -156,12 +144,6 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         }
 
         setEmail(String(body.email ?? ""));
-        setHasPin(Boolean(body.hasPin));
-        setFaceAuthEnabled(Boolean(body.faceAuthEnabled));
-        setPinSessionEnabled(body.pinSessionEnabled !== false);
-        setPinSessionTimeoutSec(clampPinSessionTimeoutSec(body.pinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC));
-        setUserId(String(body.userId ?? ""));
-
         if (Boolean(body.needsOtpVerification)) {
           setMode("otp");
           return;
@@ -283,14 +265,6 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   }, [loadProfile, mode]);
 
   useEffect(() => {
-    if (mode !== "active" || hasPin || !pinSessionEnabled) return;
-    const timer = window.setInterval(() => {
-      void loadProfile(false);
-    }, 2500);
-    return () => window.clearInterval(timer);
-  }, [loadProfile, mode, hasPin, pinSessionEnabled]);
-
-  useEffect(() => {
     if (mode !== "otp" || loading) return;
     if (otp.length !== 6) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -303,13 +277,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   }, [lastAutoOtp, loading, mode, otp, verifyOtpNow]);
 
   if (mode === "active") {
-    return (
-      <FacePinLoginGate enabled={faceAuthEnabled} hasPin={hasPin}>
-        <PinSessionGate hasPin={hasPin} userId={userId} pinSessionEnabled={pinSessionEnabled} pinSessionTimeoutSec={pinSessionTimeoutSec}>
-          {props.children}
-        </PinSessionGate>
-      </FacePinLoginGate>
-    );
+    return <>{props.children}</>;
   }
 
   const resendDisabled = resendLoading || resendIn !== 0;

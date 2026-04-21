@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   ACTIVE_SESSION_COOKIE,
-  FACE_PIN_SESSION_COOKIE,
   getSharedCookieOptions,
 } from "@/lib/session-security";
 import { clearVaultRiskPolicyCookie } from "@/lib/vault-risk-policy";
@@ -48,13 +47,6 @@ export async function POST() {
 
   response.cookies.set({
     name: ACTIVE_SESSION_COOKIE,
-    value: "",
-    httpOnly: true,
-    ...getSharedCookieOptions(),
-    maxAge: 0,
-  });
-  response.cookies.set({
-    name: FACE_PIN_SESSION_COOKIE,
     value: "",
     httpOnly: true,
     ...getSharedCookieOptions(),

@@ -1,19 +1,26 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+let adminClient: SupabaseClient | null = null;
+
+function requireEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY") {
+  const value = process.env[name];
+  if (!value || !value.trim()) {
+    throw new Error(`Missing required Supabase env: ${name}`);
+  }
+  return value;
+}
 
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRole) {
-    throw new Error("Missing Supabase admin credentials");
-  }
-
-  return createClient(url, serviceRole, {
+  if (adminClient) return adminClient;
+  const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceRole = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  adminClient = createClient(url, serviceRole, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
   });
+  return adminClient;
 }
 
 export type ResolvedAuthProfile = {
@@ -24,14 +31,20 @@ export type ResolvedAuthProfile = {
   status: "pending_approval" | "active" | "disabled";
   pin_hash: string | null;
   email_verified_at: string | null;
-  face_auth_enabled: boolean;
-  face_enrolled_at: string | null;
 };
 
 const AUTH_PROFILE_SELECT_COLUMNS =
-  "id,email,full_name,role,status,pin_hash,email_verified_at,face_auth_enabled,face_enrolled_at";
+  "id,email,full_name,role,status,pin_hash,email_verified_at";
 
 export type AuthUserSummary = {
+  id: string;
+  email: string;
+  email_confirmed_at: string | null;
+  banned_until: string | null;
+  last_sign_in_at: string | null;
+};
+
+type AuthUserLookupRpcRow = {
   id: string;
   email: string;
   email_confirmed_at: string | null;
@@ -93,6 +106,28 @@ export async function findAuthUserByEmail(email: string): Promise<AuthUserSummar
   if (cached !== undefined) return cached;
 
   const admin = createAdminClient();
+  try {
+    const lookedUp = await admin.rpc("find_auth_user_by_email", { p_email: normalizedEmail });
+    if (!lookedUp.error) {
+      const row = (Array.isArray(lookedUp.data) ? lookedUp.data[0] : lookedUp.data) as AuthUserLookupRpcRow | null;
+      if (row?.id) {
+        const found = {
+          id: String(row.id),
+          email: String(row.email ?? normalizedEmail),
+          email_confirmed_at: row.email_confirmed_at ? String(row.email_confirmed_at) : null,
+          banned_until: row.banned_until ? String(row.banned_until) : null,
+          last_sign_in_at: row.last_sign_in_at ? String(row.last_sign_in_at) : null,
+        };
+        setCachedAuthUserByEmail(normalizedEmail, found);
+        return found;
+      }
+      setCachedAuthUserByEmail(normalizedEmail, null);
+      return null;
+    }
+  } catch {
+    // Fallback to listUsers scan only when RPC is unavailable.
+  }
+
   const perPage = 1000;
   const maxPages = Number(process.env.AUTH_LIST_USERS_MAX_PAGES ?? 50);
   const safeMaxPages = Number.isFinite(maxPages) && maxPages > 0 ? Math.min(200, Math.floor(maxPages)) : 50;
@@ -210,8 +245,8 @@ export async function resolveProfileForAuthUser(input: {
       id: input.userId,
       email: normalizedEmail,
       full_name: fallbackName,
-      role: "user",
-      status: "active",
+      role: "pending",
+      status: "pending_approval",
     })
     .select(AUTH_PROFILE_SELECT_COLUMNS)
     .maybeSingle();
@@ -246,6 +281,16 @@ export async function resolveProfileForAuthUser(input: {
 
   if (!inserted.data?.id) {
     throw new Error("Profile creation failed");
+  }
+
+  const pendingApproval = await admin
+    .from("approval_requests")
+    .insert({
+      user_id: input.userId,
+      request_status: "pending",
+    });
+  if (pendingApproval.error) {
+    throw new Error(pendingApproval.error.message);
   }
 
   return { profile: inserted.data as ResolvedAuthProfile, source: "created" };

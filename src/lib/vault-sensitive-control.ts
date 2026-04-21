@@ -1,15 +1,15 @@
 import type { NextResponse } from "next/server";
 import { getSharedCookieOptions } from "@/lib/session-security";
 
-export const VAULT_SYNC_CONTROL_COOKIE = "pv_sync_control_v1";
+export const VAULT_SENSITIVE_CONTROL_COOKIE = "pv_sensitive_control_v1";
 
-const VAULT_SYNC_CONTROL_VERSION = 1;
-const VAULT_SYNC_CONTROL_TTL_SEC = 60 * 60 * 24 * 30; // 30 days
+const VAULT_SENSITIVE_CONTROL_VERSION = 1;
+const VAULT_SENSITIVE_CONTROL_TTL_SEC = 60 * 60 * 24 * 30; // 30 days
 
-export type VaultSyncControlCookie = {
+export type VaultSensitiveControlCookie = {
   version: 1;
   userId: string;
-  allowSyncWhenRiskBlocked: boolean;
+  allowSensitiveDataWhenRiskBlocked: boolean;
   updatedAt: string;
 };
 
@@ -20,22 +20,22 @@ function toIso(value: unknown) {
   return parsed.toISOString();
 }
 
-export function parseVaultSyncControlCookie(value: string | undefined | null): VaultSyncControlCookie | null {
+export function parseVaultSensitiveControlCookie(value: string | undefined | null): VaultSensitiveControlCookie | null {
   if (!value) return null;
   try {
     const raw = JSON.parse(decodeURIComponent(value)) as Record<string, unknown>;
     const version = Number(raw.version ?? 0);
     const userId = String(raw.userId ?? "").trim();
-    const allowSyncWhenRiskBlocked = raw.allowSyncWhenRiskBlocked === true;
+    const allowSensitiveDataWhenRiskBlocked = raw.allowSensitiveDataWhenRiskBlocked === true;
     const updatedAt = toIso(raw.updatedAt);
 
-    if (version !== VAULT_SYNC_CONTROL_VERSION) return null;
+    if (version !== VAULT_SENSITIVE_CONTROL_VERSION) return null;
     if (!userId || !updatedAt) return null;
 
     return {
       version: 1,
       userId,
-      allowSyncWhenRiskBlocked,
+      allowSensitiveDataWhenRiskBlocked,
       updatedAt,
     };
   } catch {
@@ -43,45 +43,45 @@ export function parseVaultSyncControlCookie(value: string | undefined | null): V
   }
 }
 
-export function isVaultSyncRiskOverrideEnabled(
+export function isVaultSensitiveRiskOverrideEnabled(
   value: string | undefined | null,
   userId: string | undefined | null,
 ) {
-  const parsed = parseVaultSyncControlCookie(value);
+  const parsed = parseVaultSensitiveControlCookie(value);
   if (!parsed) return false;
   if (!userId || parsed.userId !== userId) return false;
-  return parsed.allowSyncWhenRiskBlocked === true;
+  return parsed.allowSensitiveDataWhenRiskBlocked === true;
 }
 
-export function setVaultSyncRiskOverrideCookie(
+export function setVaultSensitiveRiskOverrideCookie(
   response: NextResponse,
   userId: string,
-  allowSyncWhenRiskBlocked: boolean,
+  allowSensitiveDataWhenRiskBlocked: boolean,
 ) {
-  if (!allowSyncWhenRiskBlocked) {
-    clearVaultSyncRiskOverrideCookie(response);
+  if (!allowSensitiveDataWhenRiskBlocked) {
+    clearVaultSensitiveRiskOverrideCookie(response);
     return;
   }
 
-  const payload: VaultSyncControlCookie = {
+  const payload: VaultSensitiveControlCookie = {
     version: 1,
     userId,
-    allowSyncWhenRiskBlocked: true,
+    allowSensitiveDataWhenRiskBlocked: true,
     updatedAt: new Date().toISOString(),
   };
 
   response.cookies.set({
-    name: VAULT_SYNC_CONTROL_COOKIE,
+    name: VAULT_SENSITIVE_CONTROL_COOKIE,
     value: encodeURIComponent(JSON.stringify(payload)),
     httpOnly: true,
     ...getSharedCookieOptions(),
-    maxAge: VAULT_SYNC_CONTROL_TTL_SEC,
+    maxAge: VAULT_SENSITIVE_CONTROL_TTL_SEC,
   });
 }
 
-export function clearVaultSyncRiskOverrideCookie(response: NextResponse) {
+export function clearVaultSensitiveRiskOverrideCookie(response: NextResponse) {
   response.cookies.set({
-    name: VAULT_SYNC_CONTROL_COOKIE,
+    name: VAULT_SENSITIVE_CONTROL_COOKIE,
     value: "",
     httpOnly: true,
     ...getSharedCookieOptions(),

@@ -18,24 +18,9 @@ export type RiskCheckResult = {
   checkedAt: string;
 };
 
-export type PhoneAlert = {
-  id: string;
-  number: string;
-  level: PhoneRiskLevel;
-  message: string;
-  detectedAt: string;
-  reports: number;
-};
-
 const SAFE_NUMBERS = new Set(['021234567', '028881111', '0812229000']);
 const HIGH_RISK_PATTERNS = [/^1900/, /^02?9{3,}/, /^09(?:0|7)0{2,}/];
 
-export const PHONE_CONTACTS: PhoneContact[] = [
-  { id: 'c1', name: 'แม่', number: '081-222-9000', label: 'family' },
-  { id: 'c2', name: 'บริษัท A', number: '02-888-1111', label: 'work' },
-  { id: 'c3', name: 'ร้านค้า', number: '093-441-7712', label: 'service' },
-  { id: 'c4', name: 'ไม่ทราบชื่อ', number: '097-000-1111', label: 'unknown' },
-];
 
 function normalize(input: string) {
   return input.replace(/[^0-9]/g, '');
@@ -143,24 +128,4 @@ export function buildPhoneProfile(rawNumber: string) {
     firstSeenAt: new Date(Date.now() - 86400000 * 11).toISOString(),
     lastSeenAt: new Date(Date.now() - 120000).toISOString(),
   };
-}
-
-export function listRiskAlerts() {
-  const seedNumbers = ['097-000-1111', '091-998-7788', '02-123-4567'];
-  return seedNumbers.map((number, index): PhoneAlert => {
-    const risk = toRisk(number);
-    return {
-      id: `a${index + 1}`,
-      number,
-      level: risk.level,
-      message:
-        risk.level === 'high_risk'
-          ? 'ตรวจพบพฤติกรรมหลอกลวงจากหลายผู้ใช้'
-          : risk.level === 'suspicious'
-          ? 'มีการรายงานต่อเนื่อง ควรตรวจสอบก่อนรับสาย'
-          : 'ไม่พบความเสี่ยงใหม่ในช่วงล่าสุด',
-      detectedAt: new Date(Date.now() - index * 900000).toISOString(),
-      reports: risk.level === 'high_risk' ? 34 : risk.level === 'suspicious' ? 12 : 0,
-    };
-  });
 }

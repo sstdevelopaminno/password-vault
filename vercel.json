@@ -7,6 +7,10 @@
     {
       "path": "/api/notifications/push/process",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/maintenance/cleanup-operational-data",
+      "schedule": "0 4 * * *"
     }
   ]
 }

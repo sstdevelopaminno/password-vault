@@ -4,15 +4,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { profileOtpPurposeSchema } from '@/lib/validators';
 import { logAudit } from '@/lib/audit';
-import { verifyPinAssertionToken } from '@/lib/pin';
-import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from '@/lib/pin-session';
 
 export async function PATCH(req: Request) {
   const body = await req.json();
   const parsedPurpose = profileOtpPurposeSchema.safeParse(body.purpose);
   if (
     !parsedPurpose.success ||
-    !['change_profile', 'change_email', 'change_password', 'change_pin_security'].includes(parsedPurpose.data)
+    !['change_profile', 'change_email', 'change_password'].includes(parsedPurpose.data)
   ) {
     return NextResponse.json({ error: 'Unsupported update purpose' }, { status: 400 });
   }
@@ -55,61 +53,10 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: true, message: 'Email changed successfully.' });
   }
 
-  if (parsedPurpose.data === 'change_pin_security') {
-    const pinSessionEnabled = Boolean(body.pinSessionEnabled);
-    const pinSessionTimeoutSec = clampPinSessionTimeoutSec(
-      body.pinSessionTimeoutSec,
-      DEFAULT_PIN_SESSION_TIMEOUT_SEC,
-    );
-    const currentMetadata =
-      auth.user.user_metadata && typeof auth.user.user_metadata === 'object'
-        ? { ...(auth.user.user_metadata as Record<string, unknown>) }
-        : {};
-    currentMetadata.pv_pin_session_enabled = pinSessionEnabled;
-    currentMetadata.pv_pin_session_timeout_sec = pinSessionTimeoutSec;
-
-    const { error: metadataError } = await admin.auth.admin.updateUserById(auth.user.id, {
-      user_metadata: currentMetadata,
-    });
-
-    if (metadataError) {
-      return NextResponse.json({ error: metadataError.message }, { status: 400 });
-    }
-
-    await logAudit('pin_session_security_changed', {
-      actor_user_id: auth.user.id,
-      pin_session_enabled: pinSessionEnabled,
-      pin_session_timeout_sec: pinSessionTimeoutSec,
-    });
-
-    return NextResponse.json({
-      ok: true,
-      pinSessionEnabled,
-      pinSessionTimeoutSec,
-      message: pinSessionEnabled
-        ? 'PIN session lock enabled.'
-        : 'PIN session lock disabled.',
-    });
-  }
-
   if (parsedPurpose.data === 'change_password') {
     const newPassword = String(body.newPassword ?? '');
     if (newPassword.length < 8) {
       return NextResponse.json({ error: 'New password must be at least 8 chars' }, { status: 400 });
-    }
-
-    const assertionToken = String(req.headers.get('x-pin-assertion') ?? body.pinAssertionToken ?? '');
-    if (!assertionToken) {
-      return NextResponse.json({ error: 'PIN verification required' }, { status: 403 });
-    }
-
-    const pinOk = verifyPinAssertionToken(assertionToken, {
-      userId: auth.user.id,
-      action: 'edit_secret',
-    });
-
-    if (!pinOk) {
-      return NextResponse.json({ error: 'Invalid PIN assertion' }, { status: 403 });
     }
 
     const { error: pwdError } = await admin.auth.admin.updateUserById(auth.user.id, { password: newPassword });
@@ -117,7 +64,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: pwdError.message }, { status: 400 });
     }
 
-    await logAudit('profile_password_changed', { actor_user_id: auth.user.id, pin_verified: true });
+    await logAudit('profile_password_changed', { actor_user_id: auth.user.id });
     return NextResponse.json({ ok: true, message: 'Password changed successfully.' });
   }
 

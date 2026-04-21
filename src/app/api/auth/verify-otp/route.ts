@@ -3,6 +3,39 @@ import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/adm
 import { createClient } from "@/lib/supabase/server";
 import { signupOtpVerifySchema } from "@/lib/validators";
 
+const PENDING_STATUSES = new Set(["pending_approval", "pending", "awaiting_approval"]);
+
+function isPendingStatus(status: string) {
+  return PENDING_STATUSES.has(String(status ?? "").toLowerCase());
+}
+
+async function ensurePendingApprovalRequest(admin: ReturnType<typeof createAdminClient>, userId: string) {
+  const { data: existingPending, error: existingPendingError } = await admin
+    .from("approval_requests")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("request_status", "pending")
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPendingError) {
+    throw new Error(existingPendingError.message);
+  }
+
+  if (existingPending?.id) {
+    return;
+  }
+
+  const { error: insertApprovalError } = await admin.from("approval_requests").insert({
+    user_id: userId,
+    request_status: "pending",
+  });
+
+  if (insertApprovalError) {
+    throw new Error(insertApprovalError.message);
+  }
+}
+
 export async function POST(req: Request) {
   const payload = await req.json();
   const parsed = signupOtpVerifySchema.safeParse(payload);
@@ -55,8 +88,6 @@ export async function POST(req: Request) {
     .from("profiles")
     .update({
       email_verified_at: new Date().toISOString(),
-      status: "active",
-      role: profile.role === "pending" ? "user" : profile.role,
       email: String(user.email ?? normalizedEmail).toLowerCase(),
     })
     .eq("id", user.id);
@@ -64,13 +95,18 @@ export async function POST(req: Request) {
   if (updateProfileError) {
     return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
   }
+  await ensurePendingApprovalRequest(admin, user.id);
+
+  const pendingApproval = isPendingStatus(profile.status);
 
   return NextResponse.json({
     ok: true,
-    pendingApproval: false,
-    approved: true,
+    pendingApproval,
+    approved: !pendingApproval,
     agreementRequired: true,
-    message: "OTP verified. Your account is now active.",
+    message: pendingApproval
+      ? "OTP verified. Your account is pending admin approval."
+      : "OTP verified. Your account is now active.",
   });
 }
 

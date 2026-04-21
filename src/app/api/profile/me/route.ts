@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { resolveProfileForAuthUser } from "@/lib/supabase/admin";
-import { clampPinSessionTimeoutSec, DEFAULT_PIN_SESSION_TIMEOUT_SEC } from "@/lib/pin-session";
 import { hasSupabaseAuthCookie } from "@/lib/session-security";
 
 const PENDING_STATUSES = new Set(["pending_approval", "pending", "awaiting_approval"]);
@@ -39,34 +38,15 @@ export async function GET() {
   });
   const profile = resolved.profile;
 
-  let status = String(profile.status ?? "active");
+  const status = String(profile.status ?? "active");
   const role = String(profile.role ?? "pending");
   const emailVerifiedAt = profile.email_verified_at
     ? String(profile.email_verified_at)
     : auth.user.email_confirmed_at
       ? String(auth.user.email_confirmed_at)
       : "";
-  if (isPendingStatus(status)) {
-    status = "active";
-  }
-
   const needsOtpVerification = !emailVerifiedAt;
-  const pendingApproval = false;
-  const hasPin = Boolean(profile.pin_hash);
-  const faceAuthEnabled = Boolean(profile.face_auth_enabled);
-  const faceEnrolledAt = profile.face_enrolled_at ? String(profile.face_enrolled_at) : null;
-  const pinSessionEnabled =
-    auth.user.user_metadata && typeof auth.user.user_metadata === "object"
-      ? (auth.user.user_metadata as Record<string, unknown>).pv_pin_session_enabled !== false
-      : true;
-  const pinSessionTimeoutSec =
-    auth.user.user_metadata && typeof auth.user.user_metadata === "object"
-      ? clampPinSessionTimeoutSec(
-          (auth.user.user_metadata as Record<string, unknown>).pv_pin_session_timeout_sec,
-          DEFAULT_PIN_SESSION_TIMEOUT_SEC,
-        )
-      : DEFAULT_PIN_SESSION_TIMEOUT_SEC;
-
+  const pendingApproval = isPendingStatus(status);
   return NextResponse.json({
     ok: true,
     userId: String(auth.user.id),
@@ -75,11 +55,6 @@ export async function GET() {
     role,
     status,
     emailVerifiedAt,
-    hasPin,
-    faceAuthEnabled,
-    faceEnrolledAt,
-    pinSessionEnabled,
-    pinSessionTimeoutSec,
     needsOtpVerification,
     pendingApproval,
     autoApproved: false,

@@ -26,7 +26,7 @@ export function AndroidApkDownloadButton({ className = "" }: AndroidApkDownloadB
 
   const buttonLabel =
     locale === "th"
-      ? `ดาวน์โหลด APK Android v${DEFAULT_ANDROID_APK_RELEASE.versionName}`
+      ? `ดาวน์โหลดและติดตั้ง APK Android v${DEFAULT_ANDROID_APK_RELEASE.versionName}`
       : `Download Android APK v${DEFAULT_ANDROID_APK_RELEASE.versionName}`;
 
   return (
@@ -58,18 +58,18 @@ export function AndroidApkDownloadButton({ className = "" }: AndroidApkDownloadB
 
       <p className="text-[11px] text-slate-500">
         {locale === "th"
-          ? `package: ${DEFAULT_ANDROID_APK_RELEASE.packageName} • รองรับอัปเดตทับแอปเดิม`
+          ? `package: ${DEFAULT_ANDROID_APK_RELEASE.packageName} • รองรับการติดตั้งทับแอปเดิม`
           : `package: ${DEFAULT_ANDROID_APK_RELEASE.packageName} • supports in-place upgrade`}
       </p>
       <p className="text-[11px] text-slate-500">
         {locale === "th"
-          ? `รองรับตั้งแต่ Android 7.0+ (API 24) • แนะนำ Android ${recommendedAndroidMajor}+ เพื่อความเสถียรสูง`
+          ? `รองรับ Android 7.0+ (API 24) • แนะนำ Android ${recommendedAndroidMajor}+ เพื่อความเสถียรสูง`
           : `Supports Android 7.0+ (API 24) • Android ${recommendedAndroidMajor}+ recommended for high stability`}
       </p>
       {typeof capabilities.androidMajorVersion === "number" && capabilities.androidMajorVersion < recommendedAndroidMajor ? (
         <p className="text-[11px] text-amber-700">
           {locale === "th"
-            ? `เครื่องนี้เป็น Android ${capabilities.androidMajorVersion} อาจเจอข้อจำกัดบางส่วน แนะนำอัปเดตระบบเป็น Android ${recommendedAndroidMajor}+`
+            ? `อุปกรณ์นี้เป็น Android ${capabilities.androidMajorVersion} อาจมีข้อจำกัดบางส่วน แนะนำอัปเดตเป็น Android ${recommendedAndroidMajor}+`
             : `This device is Android ${capabilities.androidMajorVersion}; some limitations may apply. Android ${recommendedAndroidMajor}+ is recommended.`}
         </p>
       ) : null}

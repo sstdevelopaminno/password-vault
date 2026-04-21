@@ -4,7 +4,6 @@ import { resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { bindActiveSession, getActiveSessionMetadataToken } from "@/lib/active-session";
 import {
   ACTIVE_SESSION_COOKIE,
-  FACE_PIN_SESSION_COOKIE,
   createActiveSessionToken,
   getSharedCookieOptions,
 } from "@/lib/session-security";
@@ -78,13 +77,6 @@ export async function GET(req: Request) {
     value: activeCookieToken,
     httpOnly: true,
     ...getSharedCookieOptions(),
-  });
-  response.cookies.set({
-    name: FACE_PIN_SESSION_COOKIE,
-    value: "",
-    httpOnly: true,
-    ...getSharedCookieOptions(),
-    maxAge: 0,
   });
 
   return response;

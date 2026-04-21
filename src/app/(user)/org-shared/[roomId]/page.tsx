@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, MessageSquare, MessageSquareOff, Search, Send, X } from 'lucide-react';
 import { VaultCard } from '@/components/vault/vault-card';
@@ -50,6 +50,7 @@ export default function TeamRoomPage() {
  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
  const [mutating, setMutating] = useState(false);
  const [assertions, setAssertions] = useState<Partial<Record<SecureAction, AssertionCacheEntry>>>({});
+ const messagesRequestVersionRef = useRef(0);
 
  const toDisplayDate = useCallback(
  (raw?: string) => {
@@ -75,22 +76,18 @@ export default function TeamRoomPage() {
  setAssertions((prev) => ({ ...prev, [action]: { token, expiresAt: Date.now() + ASSERTION_TTL_MS } }));
  }, []);
 
- const loadAll = useCallback(async () => {
+ const loadAll = useCallback(async (options?: { includeMessages?: boolean }) => {
  if (!roomId) return;
+ const includeMessages = options?.includeMessages !== false;
  setLoading(true);
- const [roomRes, itemsRes, msgRes] = await Promise.all([
+ const [roomRes, itemsRes] = await Promise.all([
  fetchWithSessionRetry('/api/team-rooms/' + encodeURIComponent(roomId), { cache: 'no-store' }),
  fetchWithSessionRetry('/api/team-rooms/' + encodeURIComponent(roomId) + '/items?limit=50&page=1', { cache: 'no-store' }),
- fetchWithSessionRetry('/api/team-rooms/' + encodeURIComponent(roomId) + '/messages?limit=80', { cache: 'no-store' }),
  ]);
  const roomBody = (await roomRes.json().catch(() => ({}))) as { error?: string; room?: { id: string; name: string; description?: string } };
  const itemsBody = (await itemsRes.json().catch(() => ({}))) as {
  error?: string;
  items?: Array<{ id: string; title: string; username?: string; updated_at?: string; category?: string | null; url?: string | null }>;
- };
- const msgBody = (await msgRes.json().catch(() => ({}))) as {
- error?: string;
- messages?: Array<{ id: string; senderName?: string; messageType?: 'text' | 'shared_item'; body?: string; metadata?: { title?: string }; createdAt?: string }>;
  };
  setLoading(false);
 
@@ -112,6 +109,12 @@ export default function TeamRoomPage() {
  })),
  );
 
+ if (!includeMessages) return;
+ const msgRes = await fetchWithSessionRetry('/api/team-rooms/' + encodeURIComponent(roomId) + '/messages?limit=80', { cache: 'no-store' });
+ const msgBody = (await msgRes.json().catch(() => ({}))) as {
+ error?: string;
+ messages?: Array<{ id: string; senderName?: string; messageType?: 'text' | 'shared_item'; body?: string; metadata?: { title?: string }; createdAt?: string }>;
+ };
  setMessages(
  (msgBody.messages ?? []).map((msg) => ({
  id: msg.id,
@@ -124,12 +127,53 @@ export default function TeamRoomPage() {
  );
  }, [locale, roomId, router, showToast, toDisplayDate]);
 
+ const loadMessagesOnly = useCallback(async () => {
+ if (!roomId) return;
+ const requestVersion = messagesRequestVersionRef.current + 1;
+ messagesRequestVersionRef.current = requestVersion;
+ try {
+ const msgRes = await fetchWithSessionRetry('/api/team-rooms/' + encodeURIComponent(roomId) + '/messages?limit=80', { cache: 'no-store' });
+ const msgBody = (await msgRes.json().catch(() => ({}))) as {
+ error?: string;
+ messages?: Array<{ id: string; senderName?: string; messageType?: 'text' | 'shared_item'; body?: string; metadata?: { title?: string }; createdAt?: string }>;
+ };
+ if (requestVersion !== messagesRequestVersionRef.current) return;
+ if (!msgRes.ok) return;
+ setMessages(
+ (msgBody.messages ?? []).map((msg) => ({
+ id: msg.id,
+ senderName: msg.senderName ?? 'Member',
+ messageType: msg.messageType ?? 'text',
+ body: msg.body ?? '',
+ metadata: msg.metadata ?? {},
+ createdAt: msg.createdAt ?? '',
+ })),
+ );
+ } catch {
+ // Ignore polling errors and keep current message list.
+ }
+ }, [roomId]);
+
  useEffect(() => {
  const timer = window.setTimeout(() => {
  void loadAll();
  }, 0);
  return () => window.clearTimeout(timer);
  }, [loadAll]);
+
+useEffect(() => {
+ if (!chatOpen) return;
+ const firstRun = window.setTimeout(() => {
+ void loadMessagesOnly();
+ }, 0);
+ const timer = window.setInterval(() => {
+ void loadMessagesOnly();
+ }, 12000);
+ return () => {
+ window.clearTimeout(firstRun);
+ window.clearInterval(timer);
+ };
+ }, [chatOpen, loadMessagesOnly]);
 
  async function performDelete(itemId: string, assertionToken: string) {
  setMutating(true);
@@ -144,7 +188,7 @@ export default function TeamRoomPage() {
  return;
  }
  showToast(locale === 'th' ? 'ลบรายการแล้ว' : 'Deleted', 'success');
- await loadAll();
+ await loadAll({ includeMessages: false });
  }
 
  async function performUpdate(target: PendingEdit, assertionToken: string) {
@@ -161,27 +205,47 @@ export default function TeamRoomPage() {
  return;
  }
  showToast(locale === 'th' ? 'อัปเดตรายการแล้ว' : 'Updated', 'success');
- await loadAll();
+ await loadAll({ includeMessages: false });
  }
 
- async function sendMessage() {
- const bodyText = chatInput.trim();
- if (!roomId || !bodyText || sending) return;
- setSending(true);
- const res = await fetch('/api/team-rooms/' + encodeURIComponent(roomId) + '/messages', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({ body: bodyText }),
+async function sendMessage() {
+const bodyText = chatInput.trim();
+if (!roomId || !bodyText || sending) return;
+setSending(true);
+const res = await fetch('/api/team-rooms/' + encodeURIComponent(roomId) + '/messages', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ body: bodyText }),
+});
+ const body = (await res.json().catch(() => ({}))) as {
+ error?: string;
+ message?: { id?: string; senderName?: string; messageType?: 'text' | 'shared_item'; body?: string; metadata?: { title?: string }; createdAt?: string };
+ };
+setSending(false);
+if (!res.ok) {
+showToast(body.error ?? 'Send message failed', 'error');
+return;
+}
+setChatInput('');
+ if (body.message?.id) {
+ setMessages((prev) => {
+ if (prev.some((entry) => entry.id === body.message?.id)) return prev;
+ return [
+ ...prev,
+ {
+ id: String(body.message?.id),
+ senderName: String(body.message?.senderName ?? 'Member'),
+ messageType: body.message?.messageType === 'shared_item' ? 'shared_item' : 'text',
+ body: String(body.message?.body ?? ''),
+ metadata: body.message?.metadata ?? {},
+ createdAt: String(body.message?.createdAt ?? new Date().toISOString()),
+ },
+ ];
  });
- const body = (await res.json().catch(() => ({}))) as { error?: string };
- setSending(false);
- if (!res.ok) {
- showToast(body.error ?? 'Send message failed', 'error');
- return;
+ } else {
+ await loadMessagesOnly();
  }
- setChatInput('');
- await loadAll();
- }
+}
 
  const filteredItems = useMemo(() => {
  const keyword = search.trim().toLowerCase();

@@ -2,11 +2,8 @@
 
 import { createElement, useEffect, type ReactNode } from 'react';
 import { HeadsUpNotificationProvider } from '@/components/notifications/heads-up-provider';
-import { CallRiskPopupSentinel } from '@/components/security/call-risk-popup-sentinel';
-import { VaultRiskSentinel } from '@/components/security/vault-risk-sentinel';
 import { ToastProvider } from '@/components/ui/toast';
 import { I18nProvider } from '@/i18n/provider';
-import { OutageProvider } from '@/lib/outage-detector';
 import {
   RUNTIME_BUILD_MARKER_STORAGE_KEY,
   RUNTIME_LOCAL_STORAGE_KEYS_TO_RESET,
@@ -381,15 +378,9 @@ export function Providers(props: ProvidersProps) {
       ToastProvider,
       null,
       createElement(
-        OutageProvider,
+        HeadsUpNotificationProvider,
         null,
-        createElement(
-          HeadsUpNotificationProvider,
-          null,
-          createElement(CallRiskPopupSentinel),
-          createElement(VaultRiskSentinel),
-          props.children,
-        ),
+        props.children,
       ),
     ),
   );

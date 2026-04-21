@@ -5,7 +5,6 @@ import { clientIp, takeRateLimit } from "@/lib/rate-limit";
 import { bindActiveSession, getActiveSessionMetadataToken } from "@/lib/active-session";
 import {
   ACTIVE_SESSION_COOKIE,
-  FACE_PIN_SESSION_COOKIE,
   createActiveSessionToken,
   getSharedCookieOptions,
 } from "@/lib/session-security";
@@ -104,17 +103,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
     }
 
-    let status = String(profile.status ?? "active");
+    const status = String(profile.status ?? "active");
     const role = String(profile.role ?? "pending");
     const emailVerifiedAt = profile.email_verified_at
       ? String(profile.email_verified_at)
       : user.email_confirmed_at
         ? String(user.email_confirmed_at)
         : "";
-    if (isPendingStatus(status)) {
-      status = "active";
-    }
-
     const binding = await bindActiveSession(user.id, user.app_metadata);
     const metadataToken = getActiveSessionMetadataToken(user.app_metadata);
     if (binding.error) {
@@ -123,7 +118,7 @@ export async function POST(req: Request) {
     const activeCookieToken = binding.error ? metadataToken || createActiveSessionToken() : binding.token;
 
     const needsOtpVerification = !emailVerifiedAt;
-    const pendingApproval = false;
+    const pendingApproval = isPendingStatus(status);
 
     const response = NextResponse.json({
       ok: true,
@@ -141,13 +136,6 @@ export async function POST(req: Request) {
       value: activeCookieToken,
       httpOnly: true,
       ...getSharedCookieOptions(),
-    });
-    response.cookies.set({
-      name: FACE_PIN_SESSION_COOKIE,
-      value: "",
-      httpOnly: true,
-      ...getSharedCookieOptions(),
-      maxAge: 0,
     });
 
     void enqueuePushNotification({

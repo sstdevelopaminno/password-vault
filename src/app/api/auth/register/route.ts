@@ -10,6 +10,33 @@ import {
   sendSignupOtpViaFallback,
 } from "@/lib/otp-delivery";
 
+async function ensurePendingApprovalRequest(admin: ReturnType<typeof createAdminClient>, userId: string) {
+  const { data: existingPending, error: existingPendingError } = await admin
+    .from("approval_requests")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("request_status", "pending")
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPendingError) {
+    throw new Error(existingPendingError.message);
+  }
+
+  if (existingPending?.id) {
+    return;
+  }
+
+  const { error: insertApprovalError } = await admin.from("approval_requests").insert({
+    user_id: userId,
+    request_status: "pending",
+  });
+
+  if (insertApprovalError) {
+    throw new Error(insertApprovalError.message);
+  }
+}
+
 function isAlreadyRegisteredError(message: string) {
   const lower = message.toLowerCase();
   return (
@@ -119,9 +146,10 @@ export async function POST(req: Request) {
           id: userId,
           email: normalizedEmail,
           full_name: fullName,
-          role: "user",
-          status: "active",
+          role: "pending",
+          status: "pending_approval",
         });
+        await ensurePendingApprovalRequest(admin, userId);
       }
 
       return NextResponse.json({
@@ -157,7 +185,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unable to resolve verified user session" }, { status: 401 });
     }
 
-    const resolved = await resolveProfileForAuthUser({
+    await resolveProfileForAuthUser({
       userId: user.id,
       email: String(user.email ?? normalizedEmail),
       fullName: String(user.user_metadata?.full_name ?? fullName),
@@ -167,8 +195,6 @@ export async function POST(req: Request) {
       .from("profiles")
       .update({
         email_verified_at: new Date().toISOString(),
-        status: "active",
-        role: resolved.profile.role === "pending" ? "user" : resolved.profile.role,
         email: String(user.email ?? normalizedEmail).toLowerCase(),
       })
       .eq("id", user.id);
@@ -176,12 +202,14 @@ export async function POST(req: Request) {
     if (updateProfileError) {
       return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
     }
+    await ensurePendingApprovalRequest(admin, user.id);
 
     return NextResponse.json({
       ok: true,
-      approved: true,
+      approved: false,
+      pendingApproval: true,
       agreementRequired: true,
-      message: "OTP verified. Your account is now active and signed in.",
+      message: "OTP verified. Your account is pending admin approval.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
