@@ -78,6 +78,7 @@ const defaultReleaseBaseUrl = releaseBaseUrl || "https://password-vault-ivory.ve
 const overrideDownloadUrl = String(process.env.ANDROID_APK_URL_OVERRIDE ?? "").trim();
 const legacyDownloadUrl = String(process.env.NEXT_PUBLIC_ANDROID_APK_URL ?? "").trim();
 const legacyDownloadUrlMatchesRelease = legacyDownloadUrl.includes(expectedApkFileName);
+const legacyVersionMatchesRelease = legacyVersionName === resolvedVersionName;
 const resolvedDownloadUrl =
   overrideDownloadUrl ||
   (legacyDownloadUrlMatchesRelease ? legacyDownloadUrl : "") ||
@@ -97,7 +98,7 @@ export const DEFAULT_ANDROID_APK_RELEASE: AndroidApkRelease = {
   signingKeySha256:
     rawSigningKeySha256 ||
     "58:E9:92:5D:0F:6A:A3:DA:28:C8:57:EA:53:3B:4A:CB:5E:CB:CB:9B:8F:46:E3:A3:74:67:B9:E2:B0:DC:F7:4C",
-  publishedAt: overridePublishedAt || legacyPublishedAt || defaultPublishedAt,
+  publishedAt: overridePublishedAt || (legacyVersionMatchesRelease ? legacyPublishedAt : "") || defaultPublishedAt,
 };
 
 function toComparableVersionParts(input: string) {

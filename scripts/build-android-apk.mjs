@@ -189,20 +189,28 @@ const gradleCommand = process.platform === "win32" ? "gradlew.bat" : "./gradlew"
 const gradleUserHome = process.env.GRADLE_USER_HOME
   ? path.resolve(projectRoot, process.env.GRADLE_USER_HOME)
   : path.join(projectRoot, ".gradle-home");
+const androidUserHome = process.env.ANDROID_USER_HOME
+  ? path.resolve(projectRoot, process.env.ANDROID_USER_HOME)
+  : path.join(projectRoot, ".android-home");
 const androidVersion = getAndroidVersionFromPackage();
 mkdirSync(gradleUserHome, { recursive: true });
+mkdirSync(androidUserHome, { recursive: true });
 
 const env = {
   ...process.env,
   JAVA_HOME: javaHome,
   ANDROID_HOME: androidSdkRoot,
   ANDROID_SDK_ROOT: androidSdkRoot,
+  ANDROID_USER_HOME: androidUserHome,
+  USERPROFILE: androidUserHome,
+  HOME: androidUserHome,
   GRADLE_USER_HOME: gradleUserHome,
   PATH: `${javaBin}${path.delimiter}${process.env.PATH ?? ""}`,
 };
 
 console.log(`Using JAVA_HOME=${javaHome}`);
 console.log(`Using ANDROID_HOME=${androidSdkRoot}`);
+console.log(`Using ANDROID_USER_HOME=${androidUserHome}`);
 console.log(`Using GRADLE_USER_HOME=${gradleUserHome}`);
 
 runStep(npmCommand, ["run", "cap:sync:android"], { cwd: projectRoot, env });

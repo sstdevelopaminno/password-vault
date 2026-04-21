@@ -18,10 +18,10 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
-    version: "V16.6.9",
-    releasedOn: "2026-04-18",
+    version: "V16.6.19",
+    releasedOn: "2026-04-21",
     titleTh: "อัปเดต Android แบบแตะครั้งเดียว และปรับปรุง Vault Shield",
-    titleEn: "Android One-tap Update and Vault Shield Hardening",
+    titleEn: "APK/PWA Stability Round and Twice-Daily Install Reminder",
     highlightsTh: [
       "ปรับ flow อัปเดต Android แบบ one-tap: ดาวน์โหลดและเปิดตัวติดตั้งอัตโนมัติหลังดาวน์โหลดเสร็จ",
       "เพิ่มการตรวจสิทธิ์ติดตั้งจาก Unknown apps พร้อมพาไปหน้าตั้งค่าที่ต้องใช้",
@@ -30,11 +30,11 @@ const RELEASE_HISTORY: ReleaseEntry[] = [
       "แก้ปัญหาข้อความภาษาไทยเพี้ยนในจุดสำคัญของระบบ",
     ],
     highlightsEn: [
-      "Added one-tap Android update flow: download and auto-open installer after completion.",
-      "Added Unknown apps permission check with direct navigation to required settings.",
-      "Improved Risk State and Vault Shield + Play Integrity runtime stability.",
-      "Improved Offline Sync Center reliability and queue recovery behavior.",
-      "Fixed Thai text encoding issues in key user flows.",
+      "Added PWA install reminder policy for non-installed devices: max 2 prompts per day.",
+      "Added reminder spacing control to avoid noisy repeated prompts.",
+      "Confirmed install reminder flow does not affect 6-digit security PIN logic.",
+      "Bumped Android/APK release to 16.6.19 (versionCode 16619).",
+      "Kept APK update popup flow active for Android runtime update/install guidance.",
     ],
   },
   {
@@ -98,7 +98,7 @@ export function getReleaseUpdateMessage(locale: string) {
 export function getReleaseUpdateDetail(locale: string) {
   return asLocale(locale) === "th"
     ? "รอบนี้ปรับปรุงเสถียรภาพการอัปเดต Android, สิทธิ์ติดตั้ง APK, และความน่าเชื่อถือของ Vault Shield/Risk State ให้ทำงานต่อเนื่องมากขึ้น"
-    : "This release improves Android update stability, APK install permissions, and Vault Shield/Risk State reliability.";
+    : "This release improves APK/PWA stability and adds install reminders (max twice per day) for non-installed devices.";
 }
 
 export function getReleaseHighlights(locale: string) {

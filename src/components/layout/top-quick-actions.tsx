@@ -6,6 +6,7 @@ import { useHeadsUpNotifications } from "@/components/notifications/heads-up-pro
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 import { APP_VERSION } from "@/lib/app-version";
+import { consumeReminderQuota } from "@/lib/install-reminder";
 import { UPDATE_DETAILS_PATH, getReleaseUpdateDetail } from "@/lib/release-update";
 import {
   PIN_SESSION_STORAGE_PREFIX,
@@ -38,6 +39,10 @@ type TopQuickActionsProps = {
   showSecondaryActions?: boolean;
   showRuntimeWhenNoUpdate?: boolean;
 };
+
+const PWA_INSTALL_REMINDER_KEY = "pv_pwa_install_reminder_v1";
+const PWA_INSTALL_REMINDER_MAX_PER_DAY = 2;
+const PWA_INSTALL_REMINDER_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 function defaultVersionPayload(): VersionPayload {
   return { marker: APP_VERSION, schemaVersion: RUNTIME_SCHEMA_VERSION };
@@ -349,6 +354,37 @@ export function TopQuickActions({
   const runtimeStatusBadgeClass = isSettingsMenu
     ? "rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600"
     : "rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-slate-600";
+
+  useEffect(function () {
+    if (typeof window === "undefined") return;
+    if (!capabilities.manualInstallRecommended || capabilities.displayStandalone || capabilities.isCapacitorNative) return;
+
+    const quotaGranted = consumeReminderQuota({
+      storageKey: PWA_INSTALL_REMINDER_KEY,
+      maxPerDay: PWA_INSTALL_REMINDER_MAX_PER_DAY,
+      minIntervalMs: PWA_INSTALL_REMINDER_MIN_INTERVAL_MS,
+    });
+    if (!quotaGranted) return;
+
+    notify({
+      kind: "system",
+      title: locale === "th" ? "แนะนำติดตั้งแอปบนเครื่องนี้" : "Install app on this device",
+      message:
+        locale === "th"
+          ? "ตอนนี้ยังใช้งานผ่านเบราว์เซอร์อยู่ แนะนำติดตั้งแอปเพื่อความเสถียรของการแจ้งเตือนและระบบความปลอดภัย (ระบบจะแจ้งไม่เกินวันละ 2 ครั้ง)"
+          : "You are currently running in a browser. Install the app for better notification and security stability (max 2 reminders per day).",
+      details: installHelp.detail,
+      persistent: true,
+      alsoSystem: true,
+    });
+  }, [
+    capabilities.displayStandalone,
+    capabilities.isCapacitorNative,
+    capabilities.manualInstallRecommended,
+    installHelp.detail,
+    locale,
+    notify,
+  ]);
 
   useEffect(function () {
     capabilitiesRef.current = capabilities;
