@@ -46,6 +46,11 @@ next-env.d.ts
 .tmp_*
 supabase/.temp/
 /.gradle-home/
+/.android-home/
+/.android/
+android/.gradle/
+android/app/build/
+dist/
 tmp_k6_server.out.log
 tmp_k6_server.err.log
 

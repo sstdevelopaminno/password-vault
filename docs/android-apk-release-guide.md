@@ -39,6 +39,11 @@ Choose one channel:
 - Domain/CDN path: for example `https://password-vault-ivory.vercel.app/apk/vault-v16.6.4.apk`
 - GitHub Releases asset
 
+Recommended repository hygiene policy:
+- Keep only the latest APK in `public/apk/` (current: `vault-v16.6.20.apk`)
+- Keep release history in GitHub Releases assets
+- `npm run apk:android:release` now prunes older `public/apk/vault-v*.apk` files automatically
+
 Then set environment values (see `.env.example`):
 - `NEXT_PUBLIC_ANDROID_APK_VERSION`
 - `NEXT_PUBLIC_ANDROID_APK_VERSION_CODE`

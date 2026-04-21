@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -148,6 +148,21 @@ function readPackageVersion() {
   }
 }
 
+function pruneHistoricalPublicApks(publicApkDir, keepFileName) {
+  if (!publicApkDir || !existsSync(publicApkDir)) return;
+  const apkFiles = readdirSync(publicApkDir).filter((name) => /^vault-v.+\.apk$/i.test(name));
+  for (const apkFileName of apkFiles) {
+    if (apkFileName === keepFileName) continue;
+    const fullPath = path.join(publicApkDir, apkFileName);
+    try {
+      unlinkSync(fullPath);
+      console.log(`Removed historical APK: ${fullPath}`);
+    } catch (error) {
+      console.warn(`Failed to remove historical APK ${fullPath}: ${error?.message ?? String(error)}`);
+    }
+  }
+}
+
 function getAndroidVersionFromPackage() {
   const packageVersion = readPackageVersion();
   const match = packageVersion.match(/^(\d+)\.(\d+)\.(\d+)(?:[.-].*)?$/);
@@ -229,7 +244,9 @@ const unsignedApk = path.join(releaseDir, "app-release-unsigned.apk");
 const alignedApk = path.join(releaseDir, "app-release-aligned.apk");
 const signedApk = path.join(releaseDir, "app-release.apk");
 const packageVersion = androidVersion.versionName;
-const publicApkPath = packageVersion ? path.join(projectRoot, "public", "apk", `vault-v${packageVersion}.apk`) : "";
+const publicApkDir = path.join(projectRoot, "public", "apk");
+const publicApkFileName = packageVersion ? `vault-v${packageVersion}.apk` : "";
+const publicApkPath = publicApkFileName ? path.join(publicApkDir, publicApkFileName) : "";
 
 if (!existsSync(unsignedApk)) {
   console.error(`Unsigned APK not found: ${unsignedApk}`);
@@ -295,8 +312,10 @@ if (keystorePath && keyAlias && storePassword && keyPassword) {
   console.log(`Signed APK ready: ${signedApk}`);
 
   if (publicApkPath) {
+    mkdirSync(publicApkDir, { recursive: true });
     copyFileSync(signedApk, publicApkPath);
     console.log(`Copied signed APK to public download path: ${publicApkPath}`);
+    pruneHistoricalPublicApks(publicApkDir, publicApkFileName);
   }
 } else {
   if (!allowUnsignedRelease) {
