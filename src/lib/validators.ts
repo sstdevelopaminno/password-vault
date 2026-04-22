@@ -84,6 +84,48 @@ export const noteUpdateSchema = z.object({
  meetingAt: isoDateTimeNullable,
 });
 
+const billingLineSchema = z.object({
+ description: z.string().trim().min(1).max(240),
+ qty: z.coerce.number().min(0).max(1_000_000),
+ unitPrice: z.coerce.number().min(0).max(1_000_000_000),
+});
+
+const dateOnlySchema = z
+ .string()
+ .regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const billingDocumentCreateSchema = z.object({
+ docKind: z.enum(['receipt', 'invoice']),
+ template: z.enum(['a4', '80mm']),
+ documentNo: z.string().trim().min(1).max(80),
+ referenceNo: z.string().trim().max(80).optional().or(z.literal('')),
+ issueDate: dateOnlySchema,
+ dueDate: dateOnlySchema.nullable().optional().or(z.literal('')).transform((value) => value || null),
+ sellerName: z.string().trim().min(1).max(140),
+ sellerAddress: z.string().trim().max(400).optional().or(z.literal('')),
+ sellerTaxId: z.string().trim().max(80).optional().or(z.literal('')),
+ buyerName: z.string().trim().min(1).max(140),
+ buyerAddress: z.string().trim().max(400).optional().or(z.literal('')),
+ buyerTaxId: z.string().trim().max(80).optional().or(z.literal('')),
+ contactName: z.string().trim().max(120).optional().or(z.literal('')),
+ contactPhone: z.string().trim().max(60).optional().or(z.literal('')),
+ paymentMethod: z.string().trim().max(80).optional().or(z.literal('')),
+ noteMessage: z.string().trim().max(1000).optional().or(z.literal('')),
+ discountPercent: z.coerce.number().min(0).max(100).optional().default(0),
+ vatPercent: z.coerce.number().min(0).max(100).optional().default(7),
+ currency: z.string().trim().min(1).max(12).optional().default('THB'),
+ lines: z.array(billingLineSchema).min(1).max(200),
+ emailTo: z.email().optional().or(z.literal('')).transform((value) => value ?? ''),
+ emailMessage: z.string().trim().max(1000).optional().or(z.literal('')).transform((value) => value ?? ''),
+});
+
+export const billingEmailQueueCreateSchema = z.object({
+ documentId: z.uuid(),
+ toEmail: z.email(),
+ scheduledAt: z.string().datetime({ offset: true }),
+ message: z.string().trim().max(1000).optional().or(z.literal('')),
+});
+
 export const supportTicketCreateSchema = z.object({
  category: z.enum(['general', 'account', 'security', 'team']).default('general'),
  priority: z.enum(['low', 'normal', 'high']).default('normal'),

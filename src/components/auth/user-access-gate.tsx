@@ -308,14 +308,16 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
           : "Please wait";
 
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-950/35 p-4 backdrop-blur-[1.5px]">
-      <div className="mx-auto mt-16 w-full max-w-[520px]">
-        <Card className="space-y-4 rounded-[24px] border border-white/70 bg-white/78 p-5 shadow-[0_20px_48px_rgba(15,23,42,0.24)] backdrop-blur-md">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[rgba(2,7,25,0.86)] p-4 backdrop-blur-[2px]">
+      <div className="mx-auto mt-8 w-full max-w-[520px]">
+        <Card className="relative space-y-4 rounded-[30px] border border-[rgba(123,144,217,0.32)] bg-[linear-gradient(180deg,rgba(8,16,40,0.94),rgba(5,11,30,0.98))] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">
+          <div className="pointer-events-none absolute left-4 top-4 h-20 w-20 rounded-2xl neon-dot-grid opacity-50" />
+          <h2 className={'relative text-xl font-semibold ' + (mode === "otp" ? 'text-[#f6fbff]' : 'neon-title')}>{title}</h2>
+          <p className="relative text-sm leading-6 text-[#99aed7]">{subtitle}</p>
 
           {mode === "otp" ? (
             <div className="space-y-3">
-              <Input value={email} readOnly className="bg-slate-50 text-slate-600" />
+              <Input value={email} readOnly className="bg-[rgba(10,18,42,0.72)] text-[#dfecff]" />
               <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={isThai ? "กรอก OTP" : "OTP input"} />
 
               <div className="grid grid-cols-2 gap-2">
@@ -352,10 +354,15 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
             </div>
           ) : mode === "pending" ? (
             <div className="space-y-3">
-              <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 text-sm text-blue-800">{subtitle}</div>
+              <div
+                className="h-[180px] w-full rounded-[24px] border border-[rgba(125,147,222,0.34)] bg-contain bg-center bg-no-repeat"
+                style={{ backgroundImage: `url(${ACCESS_CHECK_ART_URL})` }}
+                aria-hidden
+              />
+              <div className="rounded-2xl border border-[rgba(124,145,220,0.36)] bg-[rgba(11,20,50,0.75)] p-4 text-sm text-[#c9dcff]">{subtitle}</div>
               <button
                 type="button"
-                className="h-11 w-full rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="h-11 w-full rounded-xl border border-[rgba(123,147,224,0.44)] bg-[linear-gradient(180deg,rgba(10,18,43,0.9),rgba(7,13,33,0.96))] text-sm font-semibold text-[#d7e7ff] transition hover:text-white"
                 onClick={() => void loadProfile(true)}
               >
                 {isThai ? "ตรวจสอบอีกครั้ง" : "Check again"}
@@ -364,13 +371,13 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
           ) : (
             <div className="space-y-4">
               <div
-                className="h-[150px] w-full rounded-2xl bg-contain bg-center bg-no-repeat"
+                className="h-[190px] w-full rounded-[24px] border border-[rgba(125,147,222,0.34)] bg-contain bg-center bg-no-repeat"
                 style={{ backgroundImage: `url(${ACCESS_CHECK_ART_URL})` }}
                 aria-hidden
               />
-              <div className="flex items-center justify-center py-1 text-sm text-slate-600">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 shadow-sm backdrop-blur">
-                  <Spinner className="h-4 w-4 border-slate-300 border-t-slate-600" />
+              <div className="flex items-center justify-center py-1 text-sm text-[#9eb2da]">
+                <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(124,145,220,0.4)] bg-[rgba(10,18,42,0.82)] px-4 py-2 shadow-sm backdrop-blur">
+                  <Spinner className="h-4 w-4 border-[rgba(137,154,217,0.45)] border-t-[#36d7ff]" />
                   {isThai ? "กำลังตรวจสอบสิทธิ์..." : "Checking access..."}
                 </span>
               </div>

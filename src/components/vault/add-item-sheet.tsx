@@ -148,22 +148,22 @@ export function AddVaultItemSheet({
  if (!open) setOpen(true);
  }}
  style={{ bottom: fabBottom }}
- className='fixed right-5 z-30 inline-flex h-14 w-14 touch-manipulation items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-[0_10px_24px_rgba(37,99,235,0.45)] transition active:scale-[0.98] hover:brightness-110'
+ className='fixed right-5 z-30 inline-flex h-16 w-16 touch-manipulation items-center justify-center rounded-full border border-[rgba(159,177,255,0.4)] bg-[var(--grad-main)] text-white shadow-[0_12px_30px_rgba(47,123,255,0.38),0_0_26px_rgba(255,62,209,0.34)] transition active:scale-[0.98] hover:brightness-110'
  >
  <Plus className='h-6 w-6' />
  </button>
 
  {open ? (
- <div className='fixed inset-0 z-[70] bg-slate-950/40 backdrop-blur-[2px]'>
+ <div className='fixed inset-0 z-[70] bg-[rgba(2,7,25,0.75)] backdrop-blur-[2px]'>
  <div
- className='absolute inset-x-0 mx-auto w-[calc(100%-12px)] max-h-[calc(100dvh-120px)] max-w-[480px] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'
+ className='absolute inset-x-0 mx-auto w-[calc(100%-12px)] max-h-[calc(100dvh-120px)] max-w-[480px] overflow-y-auto animate-slide-up rounded-[30px] border border-[rgba(124,145,220,0.35)] bg-[linear-gradient(180deg,rgba(8,16,40,0.96),rgba(5,11,30,0.98))] p-4 shadow-[0_28px_60px_rgba(0,0,0,0.46)]'
  style={{ bottom: sheetBottom }}
  >
  <div className='mb-3 flex items-center justify-between'>
- <h2 className='text-base font-semibold'>{t('addItem.title')}</h2>
+ <h2 className='text-base font-semibold text-[#f2f8ff]'>{t('addItem.title')}</h2>
  <button
  onClick={() => setOpen(false)}
- className='rounded-full p-1 text-slate-500 hover:bg-slate-100'
+ className='rounded-full p-1 text-[#9ab0dc] hover:bg-white/10'
  aria-label={t('addItem.closeAria')}
  >
  <X className='h-5 w-5' />

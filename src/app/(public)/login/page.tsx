@@ -412,28 +412,27 @@ export default function LoginPage() {
     <MobileShell>
       <main className="relative flex flex-1 items-center px-5 py-8">
         <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(224,244,255,0.78)_0%,rgba(223,227,246,0.9)_44%,rgba(234,236,243,1)_100%)]" />
-          <div className="absolute -top-16 -left-20 h-72 w-72 rounded-full bg-cyan-200/55 blur-3xl" />
-          <div className="absolute top-0 right-[-80px] h-80 w-80 rounded-full bg-fuchsia-300/35 blur-3xl" />
-          <div className="absolute -top-6 left-1/2 h-[18rem] w-[155%] -translate-x-1/2 rounded-b-[55%] bg-gradient-to-b from-white/40 via-white/22 to-transparent" />
+          <div className="absolute -top-20 -left-20 h-80 w-80 rounded-full bg-cyan-400/15 blur-3xl" />
+          <div className="absolute top-2 right-[-80px] h-80 w-80 rounded-full bg-fuchsia-500/15 blur-3xl" />
+          <div className="absolute bottom-[-160px] left-1/2 h-[25rem] w-[25rem] -translate-x-1/2 rounded-full bg-indigo-500/10 blur-3xl" />
         </div>
 
-        <Card className="w-full space-y-4 animate-slide-up">
+        <Card className="w-full space-y-4 animate-slide-up rounded-[30px] border border-[rgba(124,145,220,0.34)] bg-[linear-gradient(180deg,rgba(8,16,40,0.94),rgba(5,11,30,0.98))]">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-blue-100 p-3 text-blue-600">
+              <div className="neon-icon-wrap rounded-2xl p-3 text-[#6fdaff]">
                 <ShieldCheck className="h-6 w-6" />
               </div>
 
               <div>
-                <p className="text-[24px] font-semibold leading-tight text-slate-800">{t("common.appName")}</p>
-                <p className="text-sm text-slate-500">{t("landing.subtitle")}</p>
+                <p className="text-[24px] font-semibold leading-tight text-[#f3f8ff]">{t("common.appName")}</p>
+                <p className="text-sm text-[#95abd7]">{t("landing.subtitle")}</p>
               </div>
             </div>
 
             <div className="space-y-1">
-              <h1 className="text-xl font-semibold">{t("login.title")}</h1>
-              <p className="text-xs text-slate-500">
+              <h1 className="text-xl font-semibold text-[#f3f8ff]">{t("login.title")}</h1>
+              <p className="text-xs text-[#8ea3cf]">
                 {locale === "th"
                   ? `โหมด: ${getRuntimeModeLabel(runtimeMode, locale)} | แอป ${APP_VERSION}${latestApkVersion ? ` | APK ล่าสุด ${latestApkVersion}` : ""}`
                   : `Mode: ${getRuntimeModeLabel(runtimeMode, locale)} | App ${APP_VERSION}${latestApkVersion ? ` | Latest APK ${latestApkVersion}` : ""}`}
@@ -462,11 +461,11 @@ export default function LoginPage() {
             />
 
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <Link className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-white/70 px-3 font-medium text-slate-600 transition hover:border-[var(--border-strong)] hover:bg-white hover:text-slate-800" href="/forgot-password">
+              <Link className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(9,16,38,0.92),rgba(7,12,30,0.96))] px-3 font-medium text-[#cfe0ff] transition hover:border-[var(--border-strong)] hover:text-white" href="/forgot-password">
                 {t("login.forgotPassword")}
               </Link>
 
-              <Link className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-400 via-blue-500 to-fuchsia-500 px-3 font-semibold text-white shadow-[0_10px_20px_rgba(79,123,255,0.25)] transition hover:brightness-105" href="/register">
+              <Link className="inline-flex h-10 items-center justify-center rounded-xl bg-[var(--grad-main)] px-3 font-semibold text-white shadow-[0_10px_20px_rgba(79,123,255,0.25)] transition hover:brightness-105" href="/register">
                 {t("login.register")}
               </Link>
             </div>

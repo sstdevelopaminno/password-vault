@@ -11,6 +11,8 @@ const adminPaths = ["/dashboard", "/users", "/approvals", "/audit-logs"];
 const adminFeaturePagePaths = [...adminPaths, "/settings/admin-qr-login", "/requests"];
 const userPaths = [
   "/home",
+  "/private-contacts",
+  "/billing",
   "/notes",
   "/vault",
   "/org-shared",
@@ -37,9 +39,15 @@ const publicApiPaths = new Set([
   "/api/runtime/diagnostics",
   "/api/version",
   "/api/notes/reminders/process",
+  "/api/billing/email-queue/process",
   "/api/notifications/push/process",
   "/api/maintenance/cleanup-operational-data",
 ]);
+
+function isPublicApiPath(pathname: string) {
+  if (publicApiPaths.has(pathname)) return true;
+  return /^\/api\/billing\/documents\/[^/]+\/export$/.test(pathname);
+}
 
 function apiError(message: string, status: number) {
   return NextResponse.json(
@@ -83,7 +91,7 @@ export async function proxy(request: NextRequest) {
   const requiresAdminFeaturePage = adminFeaturePagePaths.some((path) => pathname.startsWith(path));
   const isAuthEntryPath = authEntryPaths.some((path) => pathname === path);
   const isApiPath = pathname.startsWith("/api/");
-  const requiresApiAuth = isApiPath && !publicApiPaths.has(pathname);
+  const requiresApiAuth = isApiPath && !isPublicApiPath(pathname);
   const requiresAdminApi = pathname.startsWith("/api/admin/") || pathname === "/api/metrics";
   const requiresAdminFeatureApi =
     pathname.startsWith("/api/admin/") ||
@@ -175,6 +183,8 @@ export const config = {
   matcher: [
     "/login",
     "/home/:path*",
+    "/private-contacts/:path*",
+    "/billing/:path*",
     "/vault/:path*",
     "/org-shared/:path*",
     "/settings/:path*",

@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { VaultCard } from '@/components/vault/vault-card';
@@ -478,19 +479,24 @@ export default function VaultPage() {
  const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
 
  return (
- <section className='space-y-4 pb-24 pt-2'>
- <header className='space-y-1'>
- <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{t('vault.title')}</h1>
- <p className='text-sm leading-6 text-slate-500'>{t('vault.subtitle')}</p>
+ <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.7rem)] sm:pt-2'>
+ <header className='flex items-start justify-between gap-3'>
+ <div className='min-w-0 space-y-1'>
+ <h1 className='text-[54px] font-semibold leading-none tracking-[-0.02em] text-[#f3f8ff]'>{t('vault.title')}</h1>
+ <p className='text-[17px] leading-7 text-[#9eb1d8]'>{t('vault.subtitle')}</p>
+ </div>
+ <div className='neon-icon-wrap inline-flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-[22px]'>
+ <Image src='/icons/vault-logo.png' alt='Vault Shield' width={44} height={44} className='h-11 w-11 rounded-xl object-cover' />
+ </div>
  </header>
 
- <div className='relative'>
- <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400' />
+ <div className='neon-search relative overflow-hidden'>
+ <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8fa4cf]' />
  <Input
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  placeholder={t('vault.searchPlaceholder')}
- className='h-11 rounded-[14px] pl-11 text-[15px]'
+ className='h-[56px] rounded-[18px] border-transparent bg-transparent pl-11 text-[20px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0'
  />
  </div>
 
@@ -531,12 +537,12 @@ export default function VaultPage() {
  ))}
  </div>
 
- {loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{t('common.loading')}</p> : null}
- {!loadingPage && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'ยังไม่มีรายการในคลังรหัส' : 'No vault items yet'}</p> : null}
+ {loadingPage && items.length === 0 ? <p className='text-center text-sm text-[#9eb2da]'>{t('common.loading')}</p> : null}
+ {!loadingPage && items.length === 0 ? <p className='text-center text-sm text-[#9eb2da]'>{locale === 'th' ? 'ยังไม่มีรายการในคลังรหัส' : 'No vault items yet'}</p> : null}
 
  {items.length > 0 ? (
  <div className='space-y-2 pt-1'>
- <p className='text-center text-xs text-slate-500'>
+ <p className='text-center text-xs text-[#9ab0da]'>
  {locale === 'th'
  ? `หน้า ${page}/${totalPages} • ทั้งหมด ${totalItems} รายการ`
  : `Page ${page}/${totalPages} • ${totalItems} total items`}
@@ -556,7 +562,7 @@ export default function VaultPage() {
  {pageNumbers[0] > 1 ? (
  <>
  <Button type='button' variant='secondary' className='h-9 min-w-[2.2rem] rounded-xl px-0 text-xs' onClick={() => setPage(1)} disabled={loadingPage}>1</Button>
- <span className='px-1 text-xs text-slate-400'>...</span>
+ <span className='px-1 text-xs text-[#8197c3]'>...</span>
  </>
  ) : null}
 
@@ -575,7 +581,7 @@ export default function VaultPage() {
 
  {pageNumbers[pageNumbers.length - 1] < totalPages ? (
  <>
- <span className='px-1 text-xs text-slate-400'>...</span>
+ <span className='px-1 text-xs text-[#8197c3]'>...</span>
  <Button type='button' variant='secondary' className='h-9 min-w-[2.2rem] rounded-xl px-0 text-xs' onClick={() => setPage(totalPages)} disabled={loadingPage}>{totalPages}</Button>
  </>
  ) : null}

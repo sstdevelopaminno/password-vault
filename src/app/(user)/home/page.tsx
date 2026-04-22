@@ -1,9 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, FileText, KeyRound, KeySquare, LifeBuoy, Settings } from 'lucide-react';
+import { Activity, Bell, ChevronRight, LockKeyhole, Phone, ReceiptText, ShieldCheck, RefreshCcw } from 'lucide-react';
 import { APP_VERSION } from '@/lib/app-version';
 
 type VersionResponse = {
@@ -17,10 +17,8 @@ type ProfileResponse = {
 };
 
 const actionTiles = [
-  { href: '/notes', title: 'โน้ต', subtitle: 'บันทึกส่วนตัว', icon: FileText },
-  { href: '/vault', title: 'คลังรหัสผ่าน', subtitle: 'จัดการข้อมูลลับ', icon: KeyRound },
-  { href: '/org-shared', title: 'ทีมแชร์', subtitle: 'ทำงานร่วมกัน', icon: KeySquare },
-  { href: '/settings', title: 'ตั้งค่า', subtitle: 'บัญชีผู้ใช้', icon: Settings },
+  { href: '/private-contacts', title: 'เบอร์โทรลับ', subtitle: 'เก็บรายชื่อส่วนตัว แยกจากสมุดโทรศัพท์เครื่อง', icon: Phone },
+  { href: '/billing', title: 'ออกใบเสร็จ/แจ้งหนี้', subtitle: 'สร้างบิล 2 รูปแบบ (A4 และ 80mm) พร้อมตั้งเวลาส่งอีเมล', icon: ReceiptText },
 ];
 
 export default function HomePage() {
@@ -56,50 +54,106 @@ export default function HomePage() {
   }, []);
 
   return (
-    <section className='space-y-3 pb-20 pt-[max(10px,env(safe-area-inset-top))]'>
-      <div className='mb-3 flex items-start gap-3'>
-        <Image src='/icons/vault-logo.png' alt='Vault Logo' width={48} height={48} className='h-12 w-12 rounded-2xl object-cover' priority />
-        <div className='min-w-0'>
-          <h1 className='text-2xl font-semibold text-slate-900'>Vault</h1>
-          <p className='text-xs text-slate-500'>{appVersion}</p>
-          <p className='text-xs text-slate-500'>Core Workspace</p>
-          <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
-            <span className='rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700'>สิทธิ์: {userRole}</span>
-            <span className='rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700'>สถานะ: {userStatus}</span>
-            {userFullName ? <span className='truncate text-[11px] text-slate-500'>{userFullName}</span> : null}
+    <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.65rem)] sm:pt-2'>
+      <div className='flex items-start justify-between gap-3'>
+        <div className='flex min-w-0 items-start gap-3'>
+          <Image src='/icons/vault-logo.png' alt='Vault Logo' width={74} height={74} className='h-[74px] w-[74px] rounded-[24px] object-cover shadow-[0_0_24px_rgba(112,95,255,0.25)]' priority />
+          <div className='min-w-0'>
+            <h1 className='text-[54px] font-semibold leading-none tracking-[-0.02em] text-[#f2f7ff]'>Vault</h1>
+            <p className='mt-1 text-[17px] text-[#9fb0d6]'>{appVersion}</p>
+            <p className='text-[17px] text-[#9fb0d6]'>Core Workspace</p>
+          </div>
+        </div>
+
+        <Link
+          href='/settings/notifications'
+          className='relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-[rgba(122,145,220,0.38)] bg-[rgba(9,16,39,0.82)] text-[#c7d9ff] shadow-[0_10px_24px_rgba(0,0,0,0.28)]'
+          aria-label='Notifications'
+        >
+          <Bell className='h-5 w-5' />
+          <span className='absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-rose-500' />
+        </Link>
+      </div>
+
+      <div className='flex flex-wrap items-center gap-2'>
+        <span className='neon-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold'>
+          <ShieldCheck className='h-3.5 w-3.5' />
+          สิทธิ์: {userRole}
+        </span>
+        <span className='neon-chip neon-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold'>
+          <Activity className='h-3.5 w-3.5' />
+          สถานะ: {userStatus}
+        </span>
+      </div>
+
+      <div className='neon-panel rounded-[30px] p-4'>
+        <div className='flex items-start gap-3'>
+          <div className='neon-icon-wrap inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[#66d4ff]'>
+            <ShieldCheck className='h-5 w-5' />
+          </div>
+          <div className='min-w-0 flex-1'>
+            <h2 className='text-[44px] font-semibold leading-tight text-[#f3f8ff]'>ศูนย์ควบคุม Vault</h2>
+            <p className='mt-1 text-[15px] leading-6 text-[#9db0d8]'>ข้อมูลของคุณได้รับการเข้ารหัสและปกป้องอย่างปลอดภัย</p>
+          </div>
+        </div>
+
+        <div className='mt-4 grid grid-cols-3 gap-2.5'>
+          <div className='neon-soft-panel rounded-[18px] p-3 text-center'>
+            <LockKeyhole className='mx-auto h-5 w-5 text-[#3ed2ff]' />
+            <p className='mt-1 text-xs text-[#a8bbdf]'>ข้อมูลเข้ารหัส</p>
+            <p className='mt-0.5 text-[30px] font-semibold text-[#f6fbff]'>24</p>
+          </div>
+          <div className='neon-soft-panel rounded-[18px] p-3 text-center'>
+            <ShieldCheck className='mx-auto h-5 w-5 text-emerald-300' />
+            <p className='mt-1 text-xs text-[#a8bbdf]'>พร้อมใช้งาน</p>
+            <p className='mt-0.5 text-[30px] font-semibold text-emerald-300'>100%</p>
+          </div>
+          <div className='neon-soft-panel rounded-[18px] p-3 text-center'>
+            <RefreshCcw className='mx-auto h-5 w-5 text-[#d488ff]' />
+            <p className='mt-1 text-xs text-[#a8bbdf]'>ซิงก์ล่าสุด</p>
+            <p className='mt-0.5 text-[30px] font-semibold text-[#f6fbff]'>11:30</p>
           </div>
         </div>
       </div>
 
-      <div className='mb-3 rounded-2xl border border-slate-200 bg-white p-3'>
-        <h2 className='text-sm font-semibold text-slate-900'>ระบบพร้อมใช้งาน</h2>
-        <p className='mt-1 text-xs text-slate-600'>โหมดหลักถูกปรับให้สะอาด เน้นเสถียรภาพและการทำงานหลักของ Vault</p>
-        <Link href='/settings' className='mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 transition hover:border-blue-300 hover:text-slate-800'>
-          ตรวจสอบการตั้งค่า
+      <div className='flex items-center justify-between pt-1'>
+        <h3 className='text-[32px] font-semibold text-[#f2f8ff]'>เมนูหลัก</h3>
+        <Link href='/settings' className='inline-flex items-center gap-1 text-sm font-medium text-[#a9bddf]'>
+          ดูทั้งหมด
           <ChevronRight className='h-4 w-4' />
         </Link>
       </div>
 
-      <div className='grid grid-cols-2 gap-2'>
+      <div className='grid gap-3'>
         {actionTiles.map((tile) => {
           const Icon = tile.icon;
           return (
-            <Link key={tile.href} href={tile.href} className='rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-blue-300 hover:shadow-sm'>
-              <div className='mb-2 inline-flex rounded-lg bg-blue-50 p-2 text-blue-600'>
-                <Icon className='h-4 w-4' />
+            <Link key={tile.href} href={tile.href} className='neon-panel group grid grid-cols-[84px_1fr_auto] items-center gap-3 rounded-[28px] p-4'>
+              <div className='neon-icon-wrap inline-flex h-[84px] w-[84px] items-center justify-center rounded-[24px] text-[#79d8ff]'>
+                <Icon className='h-9 w-9' />
               </div>
-              <p className='text-sm font-semibold text-slate-900'>{tile.title}</p>
-              <p className='text-xs text-slate-500'>{tile.subtitle}</p>
+              <div className='min-w-0'>
+                <p className='text-[34px] font-semibold leading-tight text-[#f5f8ff]'>{tile.title}</p>
+                <p className='mt-1 text-[14px] leading-6 text-[#9db1d8]'>{tile.subtitle}</p>
+              </div>
+              <ChevronRight className='h-6 w-6 text-[#afc2e8] transition group-hover:text-white' />
             </Link>
           );
         })}
       </div>
 
-      <div className='rounded-2xl border border-slate-200 bg-slate-50 p-3'>
-        <Link href='/help-center' className='inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-700'>
-          <LifeBuoy className='h-4 w-4' />
-          Help Center
-        </Link>
+      <div className='neon-soft-panel rounded-[24px] p-4'>
+        <div className='flex items-center justify-between gap-3'>
+          <p className='text-sm font-semibold text-[#e7f1ff]'>กิจกรรมล่าสุด</p>
+          <span className='text-xs text-[#9db0d8]'>เมื่อสักครู่</span>
+        </div>
+        <div className='mt-2 flex items-center justify-between rounded-xl border border-[rgba(117,146,222,0.26)] bg-[rgba(8,15,36,0.72)] px-3 py-2.5'>
+          <div className='min-w-0'>
+            <p className='truncate text-sm font-semibold text-[#f1f7ff]'>เข้าสู่ระบบสำเร็จ</p>
+            <p className='truncate text-xs text-[#9cb0d8]'>{userFullName || 'Vault User'}</p>
+          </div>
+          <span className='h-3 w-3 rounded-full bg-emerald-400' />
+        </div>
       </div>
     </section>
   );

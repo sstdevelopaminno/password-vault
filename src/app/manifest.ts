@@ -23,9 +23,9 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: APP_ICON_MASKABLE, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     shortcuts: [
-      { name: 'คลังรหัสผ่าน', short_name: 'คลัง', url: '/vault' },
-      { name: 'โน้ต', short_name: 'โน้ต', url: '/notes' },
-      { name: 'ทีมแชร์', short_name: 'ทีม', url: '/org-shared' },
+      { name: 'เบอร์โทรลับ', short_name: 'เบอร์ลับ', url: '/private-contacts' },
+      { name: 'ใบเสร็จ/แจ้งหนี้', short_name: 'บิล', url: '/billing' },
+      { name: 'ตั้งค่า', short_name: 'ตั้งค่า', url: '/settings' },
     ],
   };
 }

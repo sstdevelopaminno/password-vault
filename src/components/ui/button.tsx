@@ -3,16 +3,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-2xl text-sm font-medium transition active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center rounded-2xl text-sm font-semibold transition active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/65",
   {
     variants: {
       variant: {
         default:
-          "bg-gradient-to-r from-[#43d8ff] via-[#4f7bff] to-[#d946ef] text-white shadow-[0_10px_24px_rgba(79,123,255,0.3)] hover:brightness-110",
+          "bg-[var(--grad-main)] text-white shadow-[0_14px_30px_rgba(47,123,255,0.34),0_0_24px_rgba(255,62,209,0.2)] hover:brightness-110",
         secondary:
-          "border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-800 hover:border-[var(--border-strong)] hover:bg-[rgba(231,238,255,0.95)]",
+          "border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(9,16,38,0.92),rgba(7,12,30,0.96))] text-[#dbe8ff] hover:border-[var(--border-strong)] hover:text-white",
         destructive:
-          "bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-[0_8px_20px_rgba(244,63,94,0.3)] hover:brightness-110",
+          "bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white shadow-[0_10px_24px_rgba(244,63,94,0.28)] hover:brightness-110",
       },
       size: {
         sm: "h-9 px-3",

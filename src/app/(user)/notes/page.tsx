@@ -1179,8 +1179,8 @@ setDeleting(true);
  return (
  <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.7rem)] sm:pt-2'>
  <header className='space-y-1'>
- <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{isTh ? 'โน้ต' : 'Notes'}</h1>
- <p className='text-sm leading-6 text-slate-500'>
+ <h1 className='text-[54px] font-semibold leading-none tracking-[-0.02em] text-[#f2f8ff]'>{isTh ? 'โน้ต' : 'Notes'}</h1>
+ <p className='text-[17px] leading-7 text-[#9db1d8]'>
  {isTh ? 'จดบันทึกงาน นัดหมาย และเตือนความจำได้ในหน้าเดียว' : 'Capture work notes, schedules, and reminders in one place'}
  </p>
  </header>
@@ -1193,11 +1193,11 @@ setDeleting(true);
  className={
  'group flex h-[92px] flex-col items-center justify-center rounded-[18px] border transition active:scale-[0.98] ' +
  (viewMode === 'paper'
- ? 'border-sky-300 bg-sky-50 text-sky-700 shadow-[0_10px_24px_rgba(14,165,233,0.2)]'
- : 'border-slate-200 bg-white/90 text-slate-600 hover:border-sky-200 hover:bg-sky-50/60')
+ ? 'border-cyan-300/70 bg-[linear-gradient(180deg,rgba(14,68,147,0.56),rgba(37,23,95,0.58))] text-[#7ad8ff] shadow-[0_12px_26px_rgba(56,216,255,0.16)]'
+ : 'border-[rgba(117,145,220,0.32)] bg-[linear-gradient(180deg,rgba(7,14,36,0.92),rgba(5,11,29,0.96))] text-[#9bb0d8] hover:border-cyan-300/50 hover:text-[#d7e8ff]')
  }
  >
- <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 shadow-[0_6px_16px_rgba(15,23,42,0.12)]'>
+ <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(117,145,220,0.35)] bg-[rgba(8,16,39,0.86)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]'>
  <FileText className='h-4 w-4' />
  </span>
  <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'กระดาษ' : 'Paper'}</span>
@@ -1209,11 +1209,11 @@ setDeleting(true);
  className={
  'group flex h-[92px] flex-col items-center justify-center rounded-[18px] border transition active:scale-[0.98] ' +
  (viewMode === 'calendar'
- ? 'border-violet-300 bg-violet-50 text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.2)]'
- : 'border-slate-200 bg-white/90 text-slate-600 hover:border-violet-200 hover:bg-violet-50/60')
+ ? 'border-fuchsia-300/65 bg-[linear-gradient(180deg,rgba(68,41,141,0.62),rgba(20,34,103,0.6))] text-[#d8a9ff] shadow-[0_12px_26px_rgba(197,68,255,0.18)]'
+ : 'border-[rgba(117,145,220,0.32)] bg-[linear-gradient(180deg,rgba(7,14,36,0.92),rgba(5,11,29,0.96))] text-[#9bb0d8] hover:border-fuchsia-300/50 hover:text-[#f2dcff]')
  }
  >
- <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 shadow-[0_6px_16px_rgba(15,23,42,0.12)]'>
+ <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(117,145,220,0.35)] bg-[rgba(8,16,39,0.86)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]'>
  <Calendar className='h-4 w-4' />
  </span>
  <span className='mt-2 text-[12px] font-semibold'>{isTh ? 'ปฏิทิน' : 'Calendar'}</span>
@@ -1221,7 +1221,7 @@ setDeleting(true);
  <button
  type='button'
  onClick={() => goToNotesMenu('create')}
- className='group flex h-[92px] flex-col items-center justify-center rounded-[18px] border border-fuchsia-200 bg-gradient-to-br from-sky-500 via-indigo-500 to-fuchsia-500 text-white shadow-[0_12px_24px_rgba(79,70,229,0.35)] transition active:scale-[0.98]'
+ className='group flex h-[92px] flex-col items-center justify-center rounded-[18px] border border-fuchsia-300/60 bg-[var(--grad-main)] text-white shadow-[0_12px_30px_rgba(47,123,255,0.34),0_0_28px_rgba(255,62,209,0.28)] transition active:scale-[0.98]'
  >
  <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-[0_6px_16px_rgba(15,23,42,0.2)] backdrop-blur-[1px]'>
  <Plus className='h-4 w-4' />
@@ -1230,17 +1230,17 @@ setDeleting(true);
  </button>
  </div>
 
- <div className='relative'>
- <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400' />
- <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={isTh ? 'ค้นหาโน้ต' : 'Search notes'} className='h-11 rounded-[14px] pl-11 text-[15px]' />
+ <div className='neon-search relative'>
+ <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#90a6d1]' />
+ <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={isTh ? 'ค้นหาโน้ต' : 'Search notes'} className='h-[56px] rounded-[18px] border-transparent bg-transparent pl-11 text-[20px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0' />
  </div>
 
  {viewMode === 'paper' ? (
  <div ref={paperSectionRef} id='notes-paper-section' className='space-y-3 sm:space-y-4'>
- {loading && notes.length === 0 ? <p className='text-center text-sm text-slate-500'>{isTh ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
+ {loading && notes.length === 0 ? <p className='text-center text-sm text-[#9eb2da]'>{isTh ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
  {!loading && notes.length === 0 ? (
- <Card className='space-y-1 text-center'>
- <p className='text-sm font-semibold text-slate-700'>{isTh ? 'ยังไม่มีโน้ต' : 'No notes yet'}</p>
+ <Card className='space-y-1 border-[rgba(117,145,220,0.32)] bg-[linear-gradient(180deg,rgba(8,16,40,0.94),rgba(5,11,30,0.98))] text-center'>
+ <p className='text-sm font-semibold text-[#d8e8ff]'>{isTh ? 'ยังไม่มีโน้ต' : 'No notes yet'}</p>
  </Card>
  ) : null}
  {notes.map((note) => {
@@ -1261,57 +1261,57 @@ setDeleting(true);
  ? 'bg-amber-50 text-amber-700 ring-amber-200'
  : nearestFuture
  ? 'bg-sky-50 text-sky-700 ring-sky-200'
- : 'bg-slate-100 text-slate-600 ring-slate-200';
+ : 'bg-[rgba(122,143,214,0.24)] text-[#cad9f7] ring-[rgba(122,143,214,0.32)]';
 
  return (
  <Card
  key={note.id}
- className='space-y-2.5 rounded-[30px] border border-white/80 bg-gradient-to-br from-slate-100/85 via-slate-50 to-slate-100/70 p-3 sm:space-y-3 sm:p-3.5 shadow-[0_16px_36px_rgba(15,23,42,0.1)]'
+ className='cv-auto space-y-2.5 rounded-[30px] border border-[rgba(117,145,220,0.34)] bg-[linear-gradient(135deg,rgba(7,15,40,0.96),rgba(4,10,31,0.98))] p-3 sm:space-y-3 sm:p-3.5 shadow-[0_16px_36px_rgba(0,0,0,0.36)]'
  >
  <div className='flex items-start gap-2.5 sm:gap-3'>
- <span className='inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/85 text-slate-500 shadow-[0_8px_18px_rgba(15,23,42,0.1)] sm:h-14 sm:w-14'>
+ <span className='inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[rgba(117,145,220,0.34)] bg-[rgba(9,16,39,0.88)] text-[#7ad6ff] shadow-[0_8px_18px_rgba(0,0,0,0.28)] sm:h-14 sm:w-14'>
  <FileText className='h-[18px] w-[18px] sm:h-5 sm:w-5' />
  </span>
  <div className='min-w-0 flex-1'>
  <div className='flex flex-wrap items-center gap-1.5'>
  <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ' + statusTone}>{statusLabel}</span>
  </div>
- <p className='mt-1 line-clamp-1 text-[21px] font-semibold leading-[1.25] tracking-[-0.01em] text-slate-900 sm:text-[24px]'>{note.title}</p>
- <p className='mt-0.5 text-[11px] font-medium leading-5 text-slate-500 sm:mt-1 sm:text-[12px]'>{isTh ? 'เอกสารบันทึกสำคัญประจำวัน' : 'Personal note and reminders'}</p>
- <p className='mt-1.5 text-[11px] font-semibold text-slate-400 sm:mt-2 sm:text-xs'>{isTh ? 'อัปเดตล่าสุด' : 'Updated'} {updatedLabel}</p>
+ <p className='mt-1 line-clamp-1 text-[21px] font-semibold leading-[1.25] tracking-[-0.01em] text-[#f2f8ff] sm:text-[24px]'>{note.title}</p>
+ <p className='mt-0.5 text-[11px] font-medium leading-5 text-[#9db1d8] sm:mt-1 sm:text-[12px]'>{isTh ? 'เอกสารบันทึกสำคัญประจำวัน' : 'Personal note and reminders'}</p>
+ <p className='mt-1.5 text-[11px] font-semibold text-[#88a0ce] sm:mt-2 sm:text-xs'>{isTh ? 'อัปเดตล่าสุด' : 'Updated'} {updatedLabel}</p>
  </div>
  <button
  type='button'
  onClick={() => requestViewWithPin(note)}
  aria-label={isTh ? 'เปิดเนื้อหาแบบกระดาษ' : 'Open paper-style content'}
- className='inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-white/90 bg-white/85 text-slate-500 transition hover:border-sky-200 hover:bg-white hover:text-sky-700 sm:h-11 sm:w-11'
+ className='inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-[rgba(117,145,220,0.34)] bg-[rgba(9,16,39,0.88)] text-[#9ab0db] transition hover:border-cyan-300/50 hover:text-[#77d9ff] sm:h-11 sm:w-11'
  >
  <ChevronRight className='h-4 w-4' />
  </button>
  </div>
- <div className='flex flex-wrap gap-1.5 text-[10px] font-medium text-slate-600 sm:text-[11px]'>
- <span className='inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/80 px-2 py-1 sm:px-2.5'>
- <Clock3 className='h-3.5 w-3.5 text-slate-400' />
+ <div className='flex flex-wrap gap-1.5 text-[10px] font-medium text-[#a1b4db] sm:text-[11px]'>
+ <span className='inline-flex items-center gap-1 rounded-full border border-[rgba(117,145,220,0.34)] bg-[rgba(9,16,39,0.84)] px-2 py-1 sm:px-2.5'>
+ <Clock3 className='h-3.5 w-3.5 text-[#8ba3cf]' />
  {isTh ? 'เตือน' : 'Reminder'} {reminderLabel}
  </span>
- <span className='inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/80 px-2 py-1 sm:px-2.5'>
- <Calendar className='h-3.5 w-3.5 text-slate-400' />
+ <span className='inline-flex items-center gap-1 rounded-full border border-[rgba(117,145,220,0.34)] bg-[rgba(9,16,39,0.84)] px-2 py-1 sm:px-2.5'>
+ <Calendar className='h-3.5 w-3.5 text-[#8ba3cf]' />
  {isTh ? 'นัดหมาย' : 'Meeting'} {meetingLabel}
  </span>
  </div>
  <div className='flex flex-wrap gap-1.5 sm:gap-2'>
- <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-slate-200/80 bg-white/80 p-0 text-slate-600 hover:border-sky-200 hover:text-sky-700 sm:h-9 sm:w-9' onClick={() => requestEditWithPin(note)}><Edit3 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-slate-200/80 bg-white/80 p-0 text-rose-600 hover:border-rose-200 hover:text-rose-700 sm:h-9 sm:w-9' onClick={() => requestDeleteWithPin(note)}><Trash2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-slate-200/80 bg-white/80 p-0 text-slate-600 hover:border-sky-200 hover:text-sky-700 sm:h-9 sm:w-9' onClick={() => requestShareWithPin(note)}><Share2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-slate-200/80 bg-white/80 p-0 text-slate-600 hover:border-sky-200 hover:text-sky-700 sm:h-9 sm:w-9' onClick={() => requestCopyWithPin(note)}><Copy className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 rounded-full border border-slate-200/80 bg-white/85 px-2.5 text-[10px] font-semibold text-slate-700 hover:border-sky-200 hover:text-sky-700 sm:h-9 sm:px-3 sm:text-[11px]' onClick={() => requestPdfWithPin(note)}>{isTh ? 'ไฟล์ PDF' : 'PDF file'}</Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[rgba(117,145,220,0.34)] bg-[rgba(9,16,39,0.84)] p-0 text-[#8fcfff] hover:border-cyan-300/50 hover:text-[#62d9ff] sm:h-9 sm:w-9' onClick={() => requestEditWithPin(note)}><Edit3 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[rgba(255,105,157,0.36)] bg-[rgba(64,14,44,0.58)] p-0 text-[#ff88b0] hover:border-rose-300/60 hover:text-[#ff92ba] sm:h-9 sm:w-9' onClick={() => requestDeleteWithPin(note)}><Trash2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[rgba(117,145,220,0.34)] bg-[rgba(9,16,39,0.84)] p-0 text-[#c399ff] hover:border-fuchsia-300/50 hover:text-[#d8a8ff] sm:h-9 sm:w-9' onClick={() => requestShareWithPin(note)}><Share2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[rgba(117,145,220,0.34)] bg-[rgba(9,16,39,0.84)] p-0 text-[#82c8ff] hover:border-cyan-300/50 hover:text-[#5dd9ff] sm:h-9 sm:w-9' onClick={() => requestCopyWithPin(note)}><Copy className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 rounded-full border border-[rgba(117,145,220,0.34)] bg-[rgba(9,16,39,0.86)] px-2.5 text-[10px] font-semibold text-[#d4e4ff] hover:border-cyan-300/45 hover:text-[#eaf4ff] sm:h-9 sm:px-3 sm:text-[11px]' onClick={() => requestPdfWithPin(note)}>{isTh ? 'ไฟล์ PDF' : 'PDF file'}</Button>
  </div>
  </Card>
  );
  })}
  <div className='flex items-center justify-between gap-2'>
  <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page - 1, searchDebounced)} disabled={!pagination.hasPrev || loading}>{isTh ? 'ก่อนหน้า' : 'Prev'}</Button>
- <p className='text-xs font-semibold text-slate-500'>{isTh ? 'หน้า' : 'Page'} {pagination.page} / {pagination.totalPages}</p>
+ <p className='text-xs font-semibold text-[#9ab0da]'>{isTh ? 'หน้า' : 'Page'} {pagination.page} / {pagination.totalPages}</p>
  <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page + 1, searchDebounced)} disabled={!pagination.hasNext || loading}>{isTh ? 'ถัดไป' : 'Next'}</Button>
  </div>
  </div>
