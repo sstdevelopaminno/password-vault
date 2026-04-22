@@ -147,8 +147,8 @@ export function VaultCard({
             </span>
 
             <div className='min-w-0 flex-1'>
-              <p className='line-clamp-1 text-[34px] font-semibold leading-tight text-[#f4f8ff]'>{title}</p>
-              <p className='mt-0.5 truncate text-[16px] text-[#a6b8dc]'>{username}</p>
+              <p className='line-clamp-1 text-[20px] font-semibold leading-tight text-[#f4f8ff]'>{title}</p>
+              <p className='mt-0.5 truncate text-[15px] text-[#a6b8dc]'>{username}</p>
             </div>
 
             <div className='shrink-0'>
@@ -158,7 +158,7 @@ export function VaultCard({
             </div>
           </div>
 
-          <div className='flex items-center justify-between gap-2 text-[14px] text-[#a0b2d8]'>
+          <div className='flex items-center justify-between gap-2 text-[13px] text-[#a0b2d8]'>
             <span className='inline-flex items-center gap-1.5 truncate'>
               <KeyRound className='h-4 w-4 shrink-0 text-[#9ab2de]' />
               {t('vault.protectedByPin')}

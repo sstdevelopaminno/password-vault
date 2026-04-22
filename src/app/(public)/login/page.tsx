@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { KeyRound, ShieldCheck, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { APP_VERSION } from "@/lib/app-version";
@@ -461,11 +461,13 @@ export default function LoginPage() {
             />
 
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <Link className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(9,16,38,0.92),rgba(7,12,30,0.96))] px-3 font-medium text-[#cfe0ff] transition hover:border-[var(--border-strong)] hover:text-white" href="/forgot-password">
+              <Link className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[rgba(129,149,224,0.46)] bg-[linear-gradient(180deg,rgba(13,23,52,0.94),rgba(9,16,38,0.97))] px-3 font-semibold text-[#edf5ff] transition hover:border-[rgba(153,176,255,0.6)] hover:text-white" href="/forgot-password">
+                <KeyRound className="h-4 w-4" />
                 {t("login.forgotPassword")}
               </Link>
 
-              <Link className="inline-flex h-10 items-center justify-center rounded-xl bg-[var(--grad-main)] px-3 font-semibold text-white shadow-[0_10px_20px_rgba(79,123,255,0.25)] transition hover:brightness-105" href="/register">
+              <Link className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-500 to-fuchsia-500 px-3 font-semibold text-white shadow-[0_10px_20px_rgba(79,123,255,0.3)] transition hover:brightness-105" href="/register">
+                <UserPlus className="h-4 w-4" />
                 {t("login.register")}
               </Link>
             </div>

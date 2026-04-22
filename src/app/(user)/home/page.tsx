@@ -59,9 +59,9 @@ export default function HomePage() {
         <div className='flex min-w-0 items-start gap-3'>
           <Image src='/icons/vault-logo.png' alt='Vault Logo' width={74} height={74} className='h-[74px] w-[74px] rounded-[24px] object-cover shadow-[0_0_24px_rgba(112,95,255,0.25)]' priority />
           <div className='min-w-0'>
-            <h1 className='text-[54px] font-semibold leading-none tracking-[-0.02em] text-[#f2f7ff]'>Vault</h1>
-            <p className='mt-1 text-[17px] text-[#9fb0d6]'>{appVersion}</p>
-            <p className='text-[17px] text-[#9fb0d6]'>Core Workspace</p>
+            <h1 className='text-[42px] font-semibold leading-none tracking-[-0.02em] text-[#f2f7ff]'>Vault</h1>
+            <p className='mt-1 text-[15px] text-[#9fb0d6]'>{appVersion}</p>
+            <p className='text-[15px] text-[#9fb0d6]'>Core Workspace</p>
           </div>
         </div>
 
@@ -92,7 +92,7 @@ export default function HomePage() {
             <ShieldCheck className='h-5 w-5' />
           </div>
           <div className='min-w-0 flex-1'>
-            <h2 className='text-[44px] font-semibold leading-tight text-[#f3f8ff]'>ศูนย์ควบคุม Vault</h2>
+            <h2 className='text-[34px] font-semibold leading-tight text-[#f3f8ff]'>ศูนย์ควบคุม Vault</h2>
             <p className='mt-1 text-[15px] leading-6 text-[#9db0d8]'>ข้อมูลของคุณได้รับการเข้ารหัสและปกป้องอย่างปลอดภัย</p>
           </div>
         </div>
@@ -101,23 +101,23 @@ export default function HomePage() {
           <div className='neon-soft-panel rounded-[18px] p-3 text-center'>
             <LockKeyhole className='mx-auto h-5 w-5 text-[#3ed2ff]' />
             <p className='mt-1 text-xs text-[#a8bbdf]'>ข้อมูลเข้ารหัส</p>
-            <p className='mt-0.5 text-[30px] font-semibold text-[#f6fbff]'>24</p>
+            <p className='mt-0.5 text-[24px] font-semibold text-[#f6fbff]'>24</p>
           </div>
           <div className='neon-soft-panel rounded-[18px] p-3 text-center'>
             <ShieldCheck className='mx-auto h-5 w-5 text-emerald-300' />
             <p className='mt-1 text-xs text-[#a8bbdf]'>พร้อมใช้งาน</p>
-            <p className='mt-0.5 text-[30px] font-semibold text-emerald-300'>100%</p>
+            <p className='mt-0.5 text-[24px] font-semibold text-emerald-300'>100%</p>
           </div>
           <div className='neon-soft-panel rounded-[18px] p-3 text-center'>
             <RefreshCcw className='mx-auto h-5 w-5 text-[#d488ff]' />
             <p className='mt-1 text-xs text-[#a8bbdf]'>ซิงก์ล่าสุด</p>
-            <p className='mt-0.5 text-[30px] font-semibold text-[#f6fbff]'>11:30</p>
+            <p className='mt-0.5 text-[24px] font-semibold text-[#f6fbff]'>11:30</p>
           </div>
         </div>
       </div>
 
       <div className='flex items-center justify-between pt-1'>
-        <h3 className='text-[32px] font-semibold text-[#f2f8ff]'>เมนูหลัก</h3>
+        <h3 className='text-[24px] font-semibold text-[#f2f8ff]'>เมนูหลัก</h3>
         <Link href='/settings' className='inline-flex items-center gap-1 text-sm font-medium text-[#a9bddf]'>
           ดูทั้งหมด
           <ChevronRight className='h-4 w-4' />
@@ -133,7 +133,7 @@ export default function HomePage() {
                 <Icon className='h-9 w-9' />
               </div>
               <div className='min-w-0'>
-                <p className='text-[34px] font-semibold leading-tight text-[#f5f8ff]'>{tile.title}</p>
+                <p className='text-[20px] font-semibold leading-tight text-[#f5f8ff]'>{tile.title}</p>
                 <p className='mt-1 text-[14px] leading-6 text-[#9db1d8]'>{tile.subtitle}</p>
               </div>
               <ChevronRight className='h-6 w-6 text-[#afc2e8] transition group-hover:text-white' />

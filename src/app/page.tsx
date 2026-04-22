@@ -23,15 +23,15 @@ export default function LandingPage() {
           <div className='brand-logo-box neon-panel mx-auto flex h-[108px] w-[108px] items-center justify-center rounded-[30px] border border-[rgba(125,146,224,0.34)] bg-[linear-gradient(180deg,rgba(8,16,38,0.92),rgba(6,10,28,0.96))]'>
             <ShieldCheck className='hidden' />
           </div>
-          <h1 className='neon-title mt-6 text-[72px] font-semibold leading-[0.95] tracking-[-0.03em]'>{t('common.appName')}</h1>
-          <p className='mt-2 text-[24px] font-semibold text-[#dbe8ff]'>by Master Password</p>
+          <h1 className='neon-title mt-6 text-[56px] font-semibold leading-[0.95] tracking-[-0.03em]'>{t('common.appName')}</h1>
+          <p className='mt-2 text-[20px] font-semibold text-[#dbe8ff]'>by Master Password</p>
           <div className='neon-divider mt-5 w-28' />
           <p className='mt-5 max-w-[340px] text-[16px] leading-7 text-[#9aaace]'>{t('landing.subtitle')}</p>
         </section>
 
         <section className='mx-auto mt-12 flex w-full max-w-[420px] flex-col gap-4'>
           <Link href='/login' className='block'>
-            <Button className='h-[66px] w-full justify-between rounded-[22px] px-6 text-[22px] font-semibold'>
+            <Button className='h-[58px] w-full justify-between rounded-[20px] px-5 text-[19px] font-semibold'>
               <span className='inline-flex items-center gap-3'>
                 <LockKeyhole className='h-6 w-6' />
                 {t('landing.login')}
@@ -40,7 +40,7 @@ export default function LandingPage() {
             </Button>
           </Link>
           <Link href='/register' className='block'>
-            <Button variant='secondary' className='h-[66px] w-full justify-between rounded-[22px] px-6 text-[22px] font-semibold'>
+            <Button variant='secondary' className='h-[58px] w-full justify-between rounded-[20px] px-5 text-[19px] font-semibold'>
               <span className='inline-flex items-center gap-3'>
                 <UserPlus className='h-6 w-6' />
                 {t('landing.createAccount')}

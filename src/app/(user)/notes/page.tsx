@@ -1179,7 +1179,7 @@ setDeleting(true);
  return (
  <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.7rem)] sm:pt-2'>
  <header className='space-y-1'>
- <h1 className='text-[54px] font-semibold leading-none tracking-[-0.02em] text-[#f2f8ff]'>{isTh ? 'โน้ต' : 'Notes'}</h1>
+ <h1 className='text-[42px] font-semibold leading-none tracking-[-0.02em] text-[#f2f8ff]'>{isTh ? 'โน้ต' : 'Notes'}</h1>
  <p className='text-[17px] leading-7 text-[#9db1d8]'>
  {isTh ? 'จดบันทึกงาน นัดหมาย และเตือนความจำได้ในหน้าเดียว' : 'Capture work notes, schedules, and reminders in one place'}
  </p>
@@ -1232,7 +1232,7 @@ setDeleting(true);
 
  <div className='neon-search relative'>
  <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#90a6d1]' />
- <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={isTh ? 'ค้นหาโน้ต' : 'Search notes'} className='h-[56px] rounded-[18px] border-transparent bg-transparent pl-11 text-[20px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0' />
+ <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={isTh ? 'ค้นหาโน้ต' : 'Search notes'} className='h-[52px] rounded-[18px] border-transparent bg-transparent pl-11 text-[17px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0' />
  </div>
 
  {viewMode === 'paper' ? (
@@ -1276,7 +1276,7 @@ setDeleting(true);
  <div className='flex flex-wrap items-center gap-1.5'>
  <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ' + statusTone}>{statusLabel}</span>
  </div>
- <p className='mt-1 line-clamp-1 text-[21px] font-semibold leading-[1.25] tracking-[-0.01em] text-[#f2f8ff] sm:text-[24px]'>{note.title}</p>
+ <p className='mt-1 line-clamp-1 text-[18px] font-semibold leading-[1.25] tracking-[-0.01em] text-[#f2f8ff] sm:text-[20px]'>{note.title}</p>
  <p className='mt-0.5 text-[11px] font-medium leading-5 text-[#9db1d8] sm:mt-1 sm:text-[12px]'>{isTh ? 'เอกสารบันทึกสำคัญประจำวัน' : 'Personal note and reminders'}</p>
  <p className='mt-1.5 text-[11px] font-semibold text-[#88a0ce] sm:mt-2 sm:text-xs'>{isTh ? 'อัปเดตล่าสุด' : 'Updated'} {updatedLabel}</p>
  </div>
@@ -1655,7 +1655,7 @@ setDeleting(true);
  <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='mx-auto my-3 w-full max-w-[460px] max-h-[calc(100dvh-24px)] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
- <h2 className='text-base font-semibold'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
+ <h2 className='text-base font-semibold text-slate-900'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
  <button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
  </div>
  <div className='space-y-3'>

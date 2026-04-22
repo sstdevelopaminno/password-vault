@@ -348,7 +348,7 @@ export default function SettingsPage() {
           value={fullName}
           placeholder={t('settings.fullNamePlaceholder')}
           onChange={(event) => setFullName(event.target.value)}
-          className='h-11 rounded-xl bg-white'
+          className='h-11 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100'
         />
       </div>
       <div className='space-y-1.5'>
@@ -551,8 +551,8 @@ export default function SettingsPage() {
       {active ? null : (
         <div className='flex items-start justify-between gap-3'>
           <div>
-            <h1 className='text-3xl font-semibold leading-tight text-slate-900'>{t('settings.title')}</h1>
-            <p className='text-sm leading-6 text-slate-500'>
+            <h1 className='text-[34px] font-semibold leading-tight text-[#f2f8ff]'>{t('settings.title')}</h1>
+            <p className='text-sm leading-6 text-[#9eb2d9]'>
               {locale === 'th' ? 'เลือกเมนูที่ต้องการปรับแต่งโปรไฟล์ของคุณ' : 'Select a menu to update your profile settings.'}
             </p>
           </div>

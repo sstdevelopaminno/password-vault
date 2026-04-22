@@ -482,7 +482,7 @@ export default function VaultPage() {
  <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.7rem)] sm:pt-2'>
  <header className='flex items-start justify-between gap-3'>
  <div className='min-w-0 space-y-1'>
- <h1 className='text-[54px] font-semibold leading-none tracking-[-0.02em] text-[#f3f8ff]'>{t('vault.title')}</h1>
+ <h1 className='text-[42px] font-semibold leading-none tracking-[-0.02em] text-[#f3f8ff]'>{t('vault.title')}</h1>
  <p className='text-[17px] leading-7 text-[#9eb1d8]'>{t('vault.subtitle')}</p>
  </div>
  <div className='neon-icon-wrap inline-flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-[22px]'>
@@ -496,7 +496,7 @@ export default function VaultPage() {
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  placeholder={t('vault.searchPlaceholder')}
- className='h-[56px] rounded-[18px] border-transparent bg-transparent pl-11 text-[20px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0'
+ className='h-[52px] rounded-[18px] border-transparent bg-transparent pl-11 text-[17px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0'
  />
  </div>
 

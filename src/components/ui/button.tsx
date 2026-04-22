@@ -3,14 +3,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-2xl text-sm font-semibold transition active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/65",
+  "inline-flex items-center justify-center rounded-2xl text-sm font-semibold transition active:scale-[0.99] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-75 disabled:text-[#dbe6ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/65",
   {
     variants: {
       variant: {
         default:
-          "bg-[var(--grad-main)] text-white shadow-[0_14px_30px_rgba(47,123,255,0.34),0_0_24px_rgba(255,62,209,0.2)] hover:brightness-110",
+          "bg-[var(--grad-main)] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.35)] shadow-[0_14px_30px_rgba(47,123,255,0.34),0_0_24px_rgba(255,62,209,0.2)] hover:brightness-110",
         secondary:
-          "border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(9,16,38,0.92),rgba(7,12,30,0.96))] text-[#dbe8ff] hover:border-[var(--border-strong)] hover:text-white",
+          "border border-[rgba(129,149,224,0.42)] bg-[linear-gradient(180deg,rgba(13,23,52,0.94),rgba(9,16,38,0.97))] text-[#edf5ff] shadow-[0_8px_20px_rgba(0,0,0,0.22)] hover:border-[rgba(153,176,255,0.58)] hover:bg-[linear-gradient(180deg,rgba(18,32,71,0.96),rgba(12,22,50,0.98))] hover:text-white",
         destructive:
           "bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white shadow-[0_10px_24px_rgba(244,63,94,0.28)] hover:brightness-110",
       },
