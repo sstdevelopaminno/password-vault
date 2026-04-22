@@ -52,6 +52,7 @@ export function AddVaultItemSheet({
  });
 
  const fabBottom = useMemo(() => 'calc(env(safe-area-inset-bottom) + ' + String(fabOffsetPx) + 'px)', [fabOffsetPx]);
+ const fabRight = useMemo(() => 'max(14px, calc((100vw - min(100vw, 460px)) / 2 + 14px))', []);
  const sheetBottom = useMemo(() => 'calc(env(safe-area-inset-bottom) + ' + String(sheetOffsetPx) + 'px)', [sheetOffsetPx]);
 
  async function submit(e: React.FormEvent) {
@@ -147,8 +148,8 @@ export function AddVaultItemSheet({
  onClick={() => {
  if (!open) setOpen(true);
  }}
- style={{ bottom: fabBottom }}
- className='fixed right-5 z-30 inline-flex h-16 w-16 touch-manipulation items-center justify-center rounded-full border border-[rgba(159,177,255,0.4)] bg-[var(--grad-main)] text-white shadow-[0_12px_30px_rgba(47,123,255,0.38),0_0_26px_rgba(255,62,209,0.34)] transition active:scale-[0.98] hover:brightness-110'
+ style={{ bottom: fabBottom, right: fabRight }}
+ className='fixed z-30 inline-flex h-[60px] w-[60px] touch-manipulation items-center justify-center rounded-full border border-[rgba(159,177,255,0.4)] bg-[var(--grad-main)] text-white shadow-[0_12px_30px_rgba(47,123,255,0.38),0_0_26px_rgba(255,62,209,0.34)] transition active:scale-[0.98] hover:brightness-110'
  >
  <Plus className='h-6 w-6' />
  </button>

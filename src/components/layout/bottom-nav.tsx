@@ -57,15 +57,15 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                 <Link
                   href={item.href}
                   className={
-                    'group flex min-h-[62px] w-full select-none touch-manipulation flex-col items-center justify-center gap-1 rounded-[18px] border px-1.5 py-1 text-[10px] font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
+                    'group flex min-h-[62px] w-full select-none touch-manipulation flex-col items-center justify-center gap-1 rounded-[18px] border px-1.5 py-1 text-[11px] font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
                     (active
                       ? 'border-[rgba(129,151,255,0.36)] bg-[linear-gradient(135deg,rgba(15,60,150,0.58),rgba(82,34,148,0.58))] text-[#63c9ff] shadow-[0_0_24px_rgba(78,88,255,0.3),inset_0_0_24px_rgba(255,255,255,0.06)]'
                       : 'border-transparent text-[#95a8d0] hover:bg-[rgba(255,255,255,0.03)] hover:text-[#cedcff]')
                   }
                   aria-current={active ? 'page' : undefined}
                 >
-                  <Icon className={'h-[18px] w-[18px] ' + (active ? 'text-[#28c8ff]' : 'text-[#8396be] group-hover:text-[#d3e2ff]')} />
-                  <span className='line-clamp-2 min-h-[20px] px-0.5 text-center text-[10px] leading-tight'>{item.label}</span>
+                  <Icon className={'h-[19px] w-[19px] ' + (active ? 'text-[#28c8ff]' : 'text-[#8396be] group-hover:text-[#d3e2ff]')} />
+                  <span className='line-clamp-2 min-h-[21px] px-0.5 text-center text-[11px] leading-tight'>{item.label}</span>
                 </Link>
               </li>
             );

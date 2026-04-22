@@ -233,11 +233,11 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
               {slots.map((digit, idx) => (
                 <span
                   key={idx}
-                  className={`flex h-12 items-center justify-center rounded-2xl border text-xl font-semibold ${
+                  className={`flex h-12 items-center justify-center rounded-2xl border text-lg font-semibold ${
                     digit ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-400"
                   }`}
                 >
-                  {digit ? "•" : "-"}
+                  {digit ? "*" : "-"}
                 </span>
               ))}
             </button>
@@ -259,4 +259,3 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
     </div>
   );
 }
-

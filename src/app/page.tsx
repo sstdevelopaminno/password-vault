@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, LockKeyhole, ShieldCheck, UserPlus } from 'lucide-react';
 import { MobileShell } from '@/components/layout/mobile-shell';
 import { Button } from '@/components/ui/button';
 import { AndroidApkDownloadButton } from '@/components/app/android-apk-download-button';
 import { useI18n } from '@/i18n/provider';
+import { BRAND_LOGO_URL } from '@/lib/brand-logo';
 
 export default function LandingPage() {
   const { t } = useI18n();
@@ -21,17 +23,18 @@ export default function LandingPage() {
 
         <section className='mt-6 flex flex-col items-center text-center'>
           <div className='brand-logo-box neon-panel mx-auto flex h-[108px] w-[108px] items-center justify-center rounded-[30px] border border-[rgba(125,146,224,0.34)] bg-[linear-gradient(180deg,rgba(8,16,38,0.92),rgba(6,10,28,0.96))]'>
+            <Image src={BRAND_LOGO_URL} alt='Vault Logo' width={88} height={88} className='h-[88px] w-[88px] rounded-[22px] object-cover' priority />
             <ShieldCheck className='hidden' />
           </div>
-          <h1 className='neon-title mt-6 text-[56px] font-semibold leading-[0.95] tracking-[-0.03em]'>{t('common.appName')}</h1>
-          <p className='mt-2 text-[20px] font-semibold text-[#dbe8ff]'>by Master Password</p>
+          <h1 className='neon-title mt-6 text-[46px] font-semibold leading-[0.96] tracking-[-0.03em]'>{t('common.appName')}</h1>
+          <p className='mt-2 text-[17px] font-semibold text-[#dbe8ff]'>by Master Password</p>
           <div className='neon-divider mt-5 w-28' />
           <p className='mt-5 max-w-[340px] text-[16px] leading-7 text-[#9aaace]'>{t('landing.subtitle')}</p>
         </section>
 
         <section className='mx-auto mt-12 flex w-full max-w-[420px] flex-col gap-4'>
           <Link href='/login' className='block'>
-            <Button className='h-[58px] w-full justify-between rounded-[20px] px-5 text-[19px] font-semibold'>
+            <Button className='h-14 w-full justify-between rounded-[20px] px-5 text-[17px] font-semibold'>
               <span className='inline-flex items-center gap-3'>
                 <LockKeyhole className='h-6 w-6' />
                 {t('landing.login')}
@@ -40,7 +43,7 @@ export default function LandingPage() {
             </Button>
           </Link>
           <Link href='/register' className='block'>
-            <Button variant='secondary' className='h-[58px] w-full justify-between rounded-[20px] px-5 text-[19px] font-semibold'>
+            <Button variant='secondary' className='h-14 w-full justify-between rounded-[20px] px-5 text-[17px] font-semibold'>
               <span className='inline-flex items-center gap-3'>
                 <UserPlus className='h-6 w-6' />
                 {t('landing.createAccount')}
@@ -55,7 +58,7 @@ export default function LandingPage() {
           <div className='mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(118,143,220,0.4)] bg-[rgba(10,17,41,0.84)] text-[#5dd8ff] shadow-[0_0_24px_rgba(98,119,255,0.2)]'>
             <ShieldCheck className='h-8 w-8' />
           </div>
-          <p className='mt-3 text-[17px] font-semibold text-[#eef4ff]'>เข้ารหัสข้อมูลอย่างปลอดภัย</p>
+          <p className='mt-3 text-[16px] font-semibold text-[#eef4ff]'>เข้ารหัสข้อมูลอย่างปลอดภัย</p>
           <p className='mt-1 text-sm text-[#90a3ca]'>ปกป้องรหัสผ่านและข้อมูลสำคัญของคุณ</p>
         </section>
       </main>

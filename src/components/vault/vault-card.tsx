@@ -138,7 +138,7 @@ export function VaultCard({
         onPointerCancel={onPointerUp}
       >
         <Card
-          className='cv-auto space-y-3 rounded-[28px] border border-[rgba(117,145,222,0.38)] bg-[linear-gradient(135deg,rgba(7,15,40,0.96),rgba(4,10,31,0.98))] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.36)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(47,123,255,0.22)]'
+          className='cv-auto space-y-2.5 rounded-[28px] border border-[rgba(117,145,222,0.46)] bg-[linear-gradient(135deg,rgba(7,15,40,0.96),rgba(4,10,31,0.98))] p-3.5 shadow-[0_18px_38px_rgba(0,0,0,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(47,123,255,0.22)]'
           onClick={onCardClick}
         >
           <div className='flex items-start gap-3'>
@@ -147,18 +147,18 @@ export function VaultCard({
             </span>
 
             <div className='min-w-0 flex-1'>
-              <p className='line-clamp-1 text-[20px] font-semibold leading-tight text-[#f4f8ff]'>{title}</p>
-              <p className='mt-0.5 truncate text-[15px] text-[#a6b8dc]'>{username}</p>
+              <p className='line-clamp-1 text-[18px] font-semibold leading-tight text-[#f4f8ff]'>{title}</p>
+              <p className='mt-0.5 truncate text-[14px] text-[#a6b8dc]'>{username}</p>
             </div>
 
             <div className='shrink-0'>
-              <span className='inline-flex max-w-[148px] items-center truncate rounded-full border border-[rgba(175,72,255,0.44)] bg-[rgba(71,28,106,0.28)] px-3 py-1 text-[12px] font-semibold text-[#e59bff]'>
+              <span className='inline-flex max-w-[148px] items-center truncate rounded-full border border-[rgba(175,72,255,0.44)] bg-[rgba(71,28,106,0.28)] px-3 py-1 text-[11px] font-semibold text-[#e59bff]'>
                 {category}
               </span>
             </div>
           </div>
 
-          <div className='flex items-center justify-between gap-2 text-[13px] text-[#a0b2d8]'>
+          <div className='flex items-center justify-between gap-2 text-[12px] text-[#a0b2d8]'>
             <span className='inline-flex items-center gap-1.5 truncate'>
               <KeyRound className='h-4 w-4 shrink-0 text-[#9ab2de]' />
               {t('vault.protectedByPin')}

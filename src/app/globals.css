@@ -126,10 +126,11 @@ a {
 }
 
 .brand-logo-box {
-  background-image: url("/icons/vault-logo.png");
+  background-image: url("https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/Imagemaster%20password.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzL0ltYWdlbWFzdGVyIHBhc3N3b3JkLnBuZyIsImlhdCI6MTc3Njg5MzUzOSwiZXhwIjoxODA4NDI5NTM5fQ.qd2dpVQBaYQ84P1DHkde7WTpPZ-25VT2gisyvhCsnFg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  background-color: rgba(7, 15, 36, 0.9);
 }
 
 .neon-title {
