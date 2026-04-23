@@ -103,7 +103,7 @@ export function VaultCard({
 
   return (
     <div className='relative overflow-hidden rounded-[28px]'>
-      <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[28px] bg-[color-mix(in_srgb,var(--surface-2)_94%,#1a2a63_6%)] p-1.5'>
+      <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[28px] bg-[linear-gradient(180deg,#1a2f72,#16285f)] p-1.5'>
         <button
           type='button'
           onClick={() => {
@@ -138,7 +138,7 @@ export function VaultCard({
         onPointerCancel={onPointerUp}
       >
         <Card
-          className='cv-auto space-y-2.5 rounded-[28px] border border-[var(--border-soft)] bg-[var(--card)] p-3.5 shadow-[var(--glow-soft)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(47,123,255,0.18)]'
+          className='cv-auto space-y-2.5 rounded-[28px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,#162a66,#102353)] p-3.5 shadow-[var(--glow-soft)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(47,123,255,0.18)]'
           onClick={onCardClick}
         >
           <div className='flex items-start gap-3'>

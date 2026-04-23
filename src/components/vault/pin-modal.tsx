@@ -197,7 +197,7 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
       <div className="w-full max-w-[480px] animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <Card className="space-y-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">
+            <h3 className="text-app-body font-semibold">
               {confirmPrefix} {actionLabel}
             </h3>
             <button
@@ -233,7 +233,7 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
               {slots.map((digit, idx) => (
                 <span
                   key={idx}
-                  className={`flex h-12 items-center justify-center rounded-2xl border text-lg font-semibold ${
+                  className={`flex h-12 items-center justify-center rounded-2xl border text-app-h3 font-semibold ${
                     digit ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-400"
                   }`}
                 >
@@ -243,8 +243,8 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
             </button>
           </div>
 
-          {error ? <p className="text-xs text-rose-600">{error}</p> : null}
-          {!error && showSlowHint ? <p className="text-xs text-slate-500">{slowProcessing}</p> : null}
+          {error ? <p className="text-app-caption text-rose-600">{error}</p> : null}
+          {!error && showSlowHint ? <p className="text-app-caption text-slate-500">{slowProcessing}</p> : null}
 
           <div className="grid grid-cols-2 gap-2">
             <Button variant="secondary" onClick={onClose} disabled={loading}>

@@ -87,15 +87,15 @@ export default function HomePage() {
             priority
           />
           <div className='min-w-0'>
-            <h1 className='text-[32px] font-semibold leading-none tracking-[-0.02em] text-slate-900'>Vault</h1>
-            <p className='mt-1 text-[14px] text-slate-600'>{appVersion}</p>
-            <p className='text-[14px] text-slate-600'>Core Workspace</p>
+            <h1 className='text-app-h1 font-semibold leading-none tracking-[-0.02em] text-slate-100'>Vault</h1>
+            <p className='mt-1 text-app-body text-slate-300'>{appVersion}</p>
+            <p className='text-app-body text-slate-300'>Core Workspace</p>
           </div>
         </div>
 
         <Link
           href='/settings/notifications'
-          className='relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-900 shadow-[0_10px_24px_rgba(9,15,36,0.14)]'
+          className='relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-100 shadow-[var(--glow-soft)]'
           aria-label='Notifications'
         >
           <Bell className='h-5 w-5' />
@@ -104,19 +104,19 @@ export default function HomePage() {
       </div>
 
       <div className='flex flex-wrap items-center gap-2'>
-        <span className='neon-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold'>
+        <span className='neon-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-app-caption font-semibold'>
           <ShieldCheck className='h-3.5 w-3.5' />
           สิทธิ์: {userRole}
         </span>
-        <span className='neon-chip neon-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold'>
+        <span className='neon-chip neon-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-app-caption font-semibold'>
           <Activity className='h-3.5 w-3.5' />
           สถานะ: {userStatus}
         </span>
       </div>
 
       <div className='flex items-center justify-between pt-1'>
-        <h3 className='text-[20px] font-semibold text-slate-900'>เมนูหลัก</h3>
-        <Link href='/settings' className='inline-flex items-center gap-1 text-sm font-medium text-slate-600'>
+        <h3 className='text-app-h2 font-semibold text-slate-100'>เมนูหลัก</h3>
+        <Link href='/settings' className='inline-flex items-center gap-1 text-app-body font-medium text-slate-300'>
           ดูทั้งหมด
           <ChevronRight className='h-4 w-4' />
         </Link>
@@ -128,16 +128,16 @@ export default function HomePage() {
           const tileBody = (
             <>
               <div className='mb-1.5 flex items-center justify-between gap-1.5'>
-                <div className='neon-icon-wrap inline-flex h-[46px] w-[46px] items-center justify-center rounded-[14px] text-slate-900'>
+                <div className='neon-icon-wrap inline-flex h-[46px] w-[46px] items-center justify-center rounded-[14px] text-slate-100'>
                   <Icon className='h-[18px] w-[18px]' />
                 </div>
-                <ChevronRight className='h-4 w-4 shrink-0 text-slate-600 transition group-hover:text-slate-900' />
+                <ChevronRight className='h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-slate-100' />
               </div>
               <div className='min-w-0'>
-                <p className='text-[14px] font-semibold leading-tight text-slate-900 sm:text-[15px]'>
+                <p className='text-app-body font-semibold leading-tight text-slate-100'>
                   {tile.title}
                 </p>
-                <p className='mt-0.5 line-clamp-2 text-[11px] leading-4 text-slate-600'>
+                <p className='mt-0.5 line-clamp-2 text-app-micro leading-4 text-slate-300'>
                   {tile.subtitle}
                 </p>
               </div>

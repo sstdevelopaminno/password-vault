@@ -288,6 +288,21 @@ function getQueueStatusLabel(status: BillingQueueStatus, locale: string) {
   return locale === 'th' ? 'รอส่ง' : 'Pending';
 }
 
+function formatQueueError(raw: string, locale: string) {
+  const text = String(raw ?? '').trim();
+  if (!text) return '';
+  if (text.startsWith('{') && text.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(text) as { message?: string; error?: string };
+      const message = String(parsed.message ?? parsed.error ?? '').trim();
+      if (message) return message;
+    } catch {
+      // fallback below
+    }
+  }
+  return locale === 'th' ? 'ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' : 'Email delivery failed. Please try again.';
+}
+
 function makeDefaultDraft(locale: string): BillDraft {
   const isTh = locale === 'th';
   return {
@@ -1028,7 +1043,6 @@ export default function BillingPage() {
           </div>
           <div className='min-w-0'>
             <h1 className='text-app-h2 font-semibold text-slate-900'>{tr('ออกใบเสร็จ/แจ้งหนี้', 'Billing Documents')}</h1>
-            <p className='text-app-body text-slate-600'>{tr('สร้างเอกสารให้ลูกค้าได้ทันที รองรับทั้งแอปเว็บและแอป Android พร้อมคิวส่งอีเมลเดียวกัน', 'Create customer billing documents with one shared web and Android email queue')}</p>
           </div>
         </div>
 
@@ -1059,7 +1073,6 @@ export default function BillingPage() {
             <Mail className='h-4 w-4' />
             {tr('คิวส่งอีเมล', 'Email Queue')} ({emailQueue.length})
           </p>
-          <p className='mt-0.5 text-app-caption text-slate-500'>{tr('ดูรายการอีเมลที่รอส่งหรือส่งแล้ว', 'View pending and sent emails')}</p>
         </button>
         <button
           type='button'
@@ -1075,7 +1088,6 @@ export default function BillingPage() {
             <FileText className='h-4 w-4' />
             {tr('เอกสารที่บันทึกไว้', 'Saved Documents')} ({documents.length})
           </p>
-          <p className='mt-0.5 text-app-caption text-slate-500'>{tr('แตะเพื่อเปิดรายละเอียด แก้ไข หรือดูพรีวิว', 'Open details, edit, and preview')}</p>
         </button>
       </div>
 
@@ -1712,7 +1724,7 @@ export default function BillingPage() {
                           </div>
                           <p className='text-slate-600'>{tr('เวลาส่ง', 'Scheduled at')}: {formatDateTimeDisplay(queue.scheduledAt, locale)}</p>
                         {queue.sentAt ? <p className='text-emerald-700'>{tr('ส่งแล้ว', 'Sent')}: {formatDateTimeDisplay(queue.sentAt, locale)}</p> : null}
-                        {queue.lastError ? <p className='inline-flex items-center gap-1 text-rose-700'><AlertCircle className='h-3.5 w-3.5' />{queue.lastError}</p> : null}
+                        {queue.lastError ? <p className='inline-flex items-center gap-1 text-rose-700'><AlertCircle className='h-3.5 w-3.5' />{formatQueueError(queue.lastError, locale)}</p> : null}
                       </div>
                     ))}
                   </div>
