@@ -40,7 +40,7 @@ export default function UpdateNotesPage() {
             <article key={release.version} className="rounded-2xl border border-slate-200 bg-white p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-900">
-                  v{release.version} - {release.title}
+                  {release.version} - {release.title}
                 </p>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
                   {release.releasedOnLabel}

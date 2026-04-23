@@ -18,6 +18,24 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
+    version: "V16.6.24",
+    releasedOn: "2026-04-23",
+    titleTh: "อัปเดต APK เวอร์ชันล่าสุด พร้อมเสริม i18n และเสถียรภาพระบบ",
+    titleEn: "Latest APK Release with i18n and Stability Improvements",
+    highlightsTh: [
+      "อัปเดตแอปเป็นเวอร์ชัน 16.6.24 พร้อมแพ็กเกจ APK ใหม่สำหรับ Android",
+      "ตรวจสอบความถูกต้องของข้อความไทยและความสอดคล้อง i18n ไทย/อังกฤษ",
+      "ปรับปรุงหน้าแจ้งเตือนอัปเดตให้แสดงประวัติเวอร์ชันได้ถูกต้อง",
+      "ซิงก์การปล่อยเวอร์ชันเว็บและ APK ให้รองรับการอัปเดตจากผู้ใช้ปลายทาง",
+    ],
+    highlightsEn: [
+      "Published Android APK version 16.6.24 for the latest app update.",
+      "Validated Thai text quality and TH/EN i18n consistency.",
+      "Fixed update-notes version rendering for accurate release history.",
+      "Aligned web and APK release flow for end-user update readiness.",
+    ],
+  },
+  {
     version: "V16.6.20",
     releasedOn: "2026-04-21",
     titleTh: "อัปเดต Android แบบแตะครั้งเดียว และปรับปรุง Vault Shield",
