@@ -1,6 +1,6 @@
 {
   "name": "password-vault",
-  "version": "16.6.24",
+  "version": "16.6.25",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
@@ -43,6 +43,7 @@
     "react-dom": "19.2.4",
     "tailwind-merge": "^3.5.0",
     "tesseract.js": "^7.0.0",
+    "thermal-printer-cordova-plugin": "^1.0.6",
     "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },

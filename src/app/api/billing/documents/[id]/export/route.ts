@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveAccessibleUserIds } from '@/lib/user-identity';
 import { buildBillingExportHtml, normalizeBillingLines, safeCurrencyNumber, type BillingDocumentView, type BillingTemplate } from '@/lib/billing';
+import { buildBillingPdfBuffer } from '@/lib/billing-pdf';
 
 type BillingDocumentRow = {
   id: string;
@@ -84,12 +85,17 @@ function pickTemplate(value: string | null, fallback: BillingTemplate): BillingT
   return fallback;
 }
 
+function pickFormat(value: string | null) {
+  return value === 'pdf' ? 'pdf' : 'html';
+}
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const token = String(searchParams.get('token') ?? '').trim();
   const locale = String(searchParams.get('locale') ?? 'th-TH');
   const print = searchParams.get('print') === '1';
+  const format = pickFormat(searchParams.get('format'));
   const admin = createAdminClient();
 
   let documentRow: BillingDocumentRow | null = null;
@@ -134,6 +140,23 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const document = toClient(documentRow);
   const template = pickTemplate(searchParams.get('template'), document.template);
+
+  if (format === 'pdf') {
+    const pdfBuffer = await buildBillingPdfBuffer({
+      document,
+      template,
+      locale,
+    });
+    return new NextResponse(pdfBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline; filename="' + safeFilename(document.documentNo) + '-' + template + '.pdf"',
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
   const html = buildBillingExportHtml({
     document,
     template,

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { pickPrimaryUserId, resolveAccessibleUserIds } from '@/lib/user-identity';
 import { billingDocumentCreateSchema } from '@/lib/validators';
 import { computeBillingTotals, normalizeBillingLines, normalizeDateInput, normalizeText, safeCurrencyNumber } from '@/lib/billing';
+import { buildDocumentNo, queueAutoReminderJobs } from '@/lib/billing-automation';
 
 type BillingDocumentRow = {
   id: string;
@@ -35,6 +36,14 @@ type BillingDocumentRow = {
   lines_json: unknown;
   email_to: string | null;
   email_message: string | null;
+  payment_status: 'unpaid' | 'paid' | null;
+  paid_at: string | null;
+  auto_reminder_enabled: boolean | null;
+  reminder_before_days: number | null;
+  reminder_after_days: number | null;
+  recurring_email_enabled: boolean | null;
+  recurring_day_of_month: number | null;
+  last_recurring_queued_on: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -70,6 +79,14 @@ function toClient(row: BillingDocumentRow) {
     lines: normalizeBillingLines(row.lines_json),
     emailTo: row.email_to ?? '',
     emailMessage: row.email_message ?? '',
+    paymentStatus: row.payment_status === 'paid' ? 'paid' : 'unpaid',
+    paidAt: row.paid_at,
+    autoReminderEnabled: row.auto_reminder_enabled !== false,
+    reminderBeforeDays: Number(row.reminder_before_days ?? 1),
+    reminderAfterDays: Number(row.reminder_after_days ?? 3),
+    recurringEmailEnabled: row.recurring_email_enabled === true,
+    recurringDayOfMonth: row.recurring_day_of_month ? Number(row.recurring_day_of_month) : null,
+    lastRecurringQueuedOn: row.last_recurring_queued_on ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -109,7 +126,7 @@ export async function GET(req: Request) {
 
   const query = await admin
     .from('billing_documents')
-    .select('id,share_token,user_id,doc_kind,template,document_no,reference_no,issue_date,due_date,seller_name,seller_address,seller_tax_id,buyer_name,buyer_address,buyer_tax_id,contact_name,contact_phone,payment_method,note_message,discount_percent,vat_percent,currency,subtotal,discount_amount,vat_amount,grand_total,lines_json,email_to,email_message,created_at,updated_at', { count: 'planned' })
+    .select('id,share_token,user_id,doc_kind,template,document_no,reference_no,issue_date,due_date,seller_name,seller_address,seller_tax_id,buyer_name,buyer_address,buyer_tax_id,contact_name,contact_phone,payment_method,note_message,discount_percent,vat_percent,currency,subtotal,discount_amount,vat_amount,grand_total,lines_json,email_to,email_message,payment_status,paid_at,auto_reminder_enabled,reminder_before_days,reminder_after_days,recurring_email_enabled,recurring_day_of_month,last_recurring_queued_on,created_at,updated_at', { count: 'planned' })
     .in('user_id', ownerIds)
     .order('created_at', { ascending: false })
     .range(from, to);
@@ -166,8 +183,22 @@ export async function POST(req: Request) {
 
   const discountPercent = safeCurrencyNumber(parsed.data.discountPercent);
   const vatPercent = safeCurrencyNumber(parsed.data.vatPercent);
+  const paymentStatus = parsed.data.paymentStatus === 'paid' ? 'paid' : 'unpaid';
+  const paidAt = paymentStatus === 'paid'
+    ? parsed.data.paidAt || new Date().toISOString()
+    : null;
+  const autoReminderEnabled = Boolean(parsed.data.autoReminderEnabled ?? true);
+  const reminderBeforeDays = Math.max(0, Math.min(30, Math.floor(Number(parsed.data.reminderBeforeDays ?? 1))));
+  const reminderAfterDays = Math.max(0, Math.min(30, Math.floor(Number(parsed.data.reminderAfterDays ?? 3))));
+  const recurringEmailEnabled = Boolean(parsed.data.recurringEmailEnabled ?? false);
+  const recurringDayOfMonth = recurringEmailEnabled
+    ? Math.max(1, Math.min(31, Math.floor(Number(parsed.data.recurringDayOfMonth ?? 1))))
+    : null;
   const totals = computeBillingTotals(lines, discountPercent, vatPercent);
   const nowIso = new Date().toISOString();
+  const generatedDocNo = normalizeText(parsed.data.documentNo || '', 80) || buildDocumentNo(parsed.data.docKind);
+  const normalizedEmailTo = normalizeText(parsed.data.emailTo || '', 220).toLowerCase();
+  const normalizedDueDate = normalizeDateInput(parsed.data.dueDate) || null;
 
   const inserted = await admin
     .from('billing_documents')
@@ -175,10 +206,10 @@ export async function POST(req: Request) {
       user_id: ownerUserId,
       doc_kind: parsed.data.docKind,
       template: parsed.data.template,
-      document_no: normalizeText(parsed.data.documentNo, 80),
+      document_no: generatedDocNo,
       reference_no: normalizeText(parsed.data.referenceNo || '', 80) || null,
       issue_date: normalizeDateInput(parsed.data.issueDate),
-      due_date: normalizeDateInput(parsed.data.dueDate) || null,
+      due_date: normalizedDueDate,
       seller_name: normalizeText(parsed.data.sellerName, 140),
       seller_address: normalizeText(parsed.data.sellerAddress || '', 400) || null,
       seller_tax_id: normalizeText(parsed.data.sellerTaxId || '', 80) || null,
@@ -197,18 +228,43 @@ export async function POST(req: Request) {
       vat_amount: totals.vatAmount,
       grand_total: totals.grandTotal,
       lines_json: lines,
-      email_to: normalizeText(parsed.data.emailTo || '', 220) || null,
+      email_to: normalizedEmailTo || null,
       email_message: normalizeText(parsed.data.emailMessage || '', 1000) || null,
+      payment_status: paymentStatus,
+      paid_at: paidAt,
+      auto_reminder_enabled: autoReminderEnabled,
+      reminder_before_days: reminderBeforeDays,
+      reminder_after_days: reminderAfterDays,
+      recurring_email_enabled: recurringEmailEnabled,
+      recurring_day_of_month: recurringDayOfMonth,
       updated_at: nowIso,
     })
-    .select('id,share_token,user_id,doc_kind,template,document_no,reference_no,issue_date,due_date,seller_name,seller_address,seller_tax_id,buyer_name,buyer_address,buyer_tax_id,contact_name,contact_phone,payment_method,note_message,discount_percent,vat_percent,currency,subtotal,discount_amount,vat_amount,grand_total,lines_json,email_to,email_message,created_at,updated_at')
+    .select('id,share_token,user_id,doc_kind,template,document_no,reference_no,issue_date,due_date,seller_name,seller_address,seller_tax_id,buyer_name,buyer_address,buyer_tax_id,contact_name,contact_phone,payment_method,note_message,discount_percent,vat_percent,currency,subtotal,discount_amount,vat_amount,grand_total,lines_json,email_to,email_message,payment_status,paid_at,auto_reminder_enabled,reminder_before_days,reminder_after_days,recurring_email_enabled,recurring_day_of_month,last_recurring_queued_on,created_at,updated_at')
     .single();
 
   if (inserted.error || !inserted.data) {
     return NextResponse.json({ error: inserted.error?.message ?? 'Create billing document failed' }, { status: 400 });
   }
 
-  return NextResponse.json({ document: toClient(inserted.data as BillingDocumentRow) });
+  const createdDoc = toClient(inserted.data as BillingDocumentRow);
+  await queueAutoReminderJobs(admin, {
+    id: createdDoc.id,
+    userId: createdDoc.userId,
+    docKind: createdDoc.docKind,
+    documentNo: createdDoc.documentNo,
+    dueDate: createdDoc.dueDate,
+    emailTo: createdDoc.emailTo,
+    emailMessage: createdDoc.emailMessage,
+    paymentStatus: createdDoc.paymentStatus === 'paid' ? 'paid' : 'unpaid',
+    autoReminderEnabled: createdDoc.autoReminderEnabled,
+    reminderBeforeDays: createdDoc.reminderBeforeDays,
+    reminderAfterDays: createdDoc.reminderAfterDays,
+    recurringEmailEnabled: createdDoc.recurringEmailEnabled,
+    recurringDayOfMonth: createdDoc.recurringDayOfMonth,
+    lastRecurringQueuedOn: createdDoc.lastRecurringQueuedOn,
+  });
+
+  return NextResponse.json({ document: createdDoc });
 }
 
 export async function DELETE() {

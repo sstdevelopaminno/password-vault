@@ -47,6 +47,25 @@ type BillingDocumentRow = {
   updated_at: string;
 };
 
+type BillingEmailJobRow = {
+  id: number;
+  billing_document_id: string;
+  user_id: string;
+  status: 'pending' | 'processing' | 'sent' | 'cancelled' | 'failed';
+  job_type: 'manual' | 'due_before' | 'due_after' | 'monthly';
+  to_email: string;
+  subject: string | null;
+  message: string | null;
+  scheduled_at: string;
+  sent_at: string | null;
+  attempt_count: number;
+  max_attempts: number;
+  next_retry_at: string;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 function toBillingDocumentView(row: BillingDocumentRow): BillingDocumentView {
   return {
     id: row.id,
@@ -78,6 +97,27 @@ function toBillingDocumentView(row: BillingDocumentRow): BillingDocumentView {
     lines: normalizeBillingLines(row.lines_json),
     emailTo: row.email_to ?? '',
     emailMessage: row.email_message ?? '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toClientJob(row: BillingEmailJobRow) {
+  return {
+    id: row.id,
+    documentId: row.billing_document_id,
+    userId: row.user_id,
+    status: row.status,
+    jobType: row.job_type,
+    toEmail: row.to_email,
+    subject: row.subject ?? '',
+    message: row.message ?? '',
+    scheduledAt: row.scheduled_at,
+    sentAt: row.sent_at,
+    attemptCount: row.attempt_count,
+    maxAttempts: row.max_attempts,
+    nextRetryAt: row.next_retry_at,
+    lastError: row.last_error ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -211,6 +251,7 @@ export async function POST(req: Request) {
       billing_document_id: document.id,
       user_id: document.userId,
       status: result.ok ? 'sent' : 'failed',
+      job_type: 'manual',
       to_email: toEmail,
       subject,
       message: message || null,
@@ -222,7 +263,7 @@ export async function POST(req: Request) {
       last_error: result.ok ? null : String(result.error || 'Unable to send billing email'),
       updated_at: nowIso,
     })
-    .select('id,billing_document_id,user_id,status,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,last_error,created_at,updated_at')
+    .select('id,billing_document_id,user_id,status,job_type,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,last_error,created_at,updated_at')
     .single();
 
   if (inserted.error) {
@@ -230,8 +271,8 @@ export async function POST(req: Request) {
   }
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error || 'Unable to send billing email', job: inserted.data }, { status: 400 });
+    return NextResponse.json({ error: result.error || 'Unable to send billing email', job: toClientJob(inserted.data as BillingEmailJobRow) }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, job: inserted.data });
+  return NextResponse.json({ ok: true, job: toClientJob(inserted.data as BillingEmailJobRow) });
 }

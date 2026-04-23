@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { useI18n } from '@/i18n/provider';
 import { fetchWithSessionRetry } from '@/lib/api-client';
 import { computeBillingTotals, formatCurrency, normalizeText, type BillingDocKind, type BillingLine, type BillingTemplate } from '@/lib/billing';
 
@@ -148,18 +149,18 @@ function parseNumberInput(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatDateDisplay(value: string | null) {
+function formatDateDisplay(value: string | null, locale: string) {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return date.toLocaleDateString(locale === 'th' ? 'th-TH' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function formatDateTimeDisplay(value: string | null) {
+function formatDateTimeDisplay(value: string | null, locale: string) {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('th-TH', {
+  return date.toLocaleString(locale === 'th' ? 'th-TH' : 'en-US', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -183,15 +184,16 @@ function getQueueStatusBadgeClass(status: BillingQueueStatus) {
   return 'bg-amber-100 text-amber-700';
 }
 
-function getQueueStatusLabel(status: BillingQueueStatus) {
-  if (status === 'sent') return 'ส่งแล้ว';
-  if (status === 'failed') return 'ส่งไม่สำเร็จ';
-  if (status === 'processing') return 'กำลังส่ง';
-  if (status === 'cancelled') return 'ยกเลิก';
-  return 'รอส่ง';
+function getQueueStatusLabel(status: BillingQueueStatus, locale: string) {
+  if (status === 'sent') return locale === 'th' ? 'ส่งแล้ว' : 'Sent';
+  if (status === 'failed') return locale === 'th' ? 'ส่งไม่สำเร็จ' : 'Failed';
+  if (status === 'processing') return locale === 'th' ? 'กำลังส่ง' : 'Processing';
+  if (status === 'cancelled') return locale === 'th' ? 'ยกเลิก' : 'Cancelled';
+  return locale === 'th' ? 'รอส่ง' : 'Pending';
 }
 
-function makeDefaultDraft(): BillDraft {
+function makeDefaultDraft(locale: string): BillDraft {
+  const isTh = locale === 'th';
   return {
     docKind: 'receipt',
     template: 'a4',
@@ -199,8 +201,8 @@ function makeDefaultDraft(): BillDraft {
     referenceNo: createDocumentNo('INV'),
     issueDate: todayLocalDate(),
     dueDate: nextWeekLocalDate(),
-    sellerName: 'ร้านของฉัน',
-    sellerAddress: 'ที่อยู่ร้าน / สาขา',
+    sellerName: isTh ? 'ร้านของฉัน' : 'My Store',
+    sellerAddress: isTh ? 'ที่อยู่ร้าน / สาขา' : 'Store address / branch',
     sellerTaxId: '',
     buyerName: '',
     buyerAddress: '',
@@ -214,11 +216,11 @@ function makeDefaultDraft(): BillDraft {
     currency: 'THB',
     emailTo: '',
     emailMessage: '',
-    lines: [{ description: 'รายการสินค้า/บริการ', qty: 1, unitPrice: 0 }],
+    lines: [{ description: isTh ? 'รายการสินค้า/บริการ' : 'Product/Service item', qty: 1, unitPrice: 0 }],
   };
 }
 
-function toDraftFromDocument(document: BillingDocumentRecord): BillDraft {
+function toDraftFromDocument(document: BillingDocumentRecord, locale: string): BillDraft {
   return {
     docKind: document.docKind,
     template: document.template,
@@ -241,12 +243,14 @@ function toDraftFromDocument(document: BillingDocumentRecord): BillDraft {
     currency: document.currency || 'THB',
     emailTo: document.emailTo || '',
     emailMessage: document.emailMessage || '',
-    lines: document.lines.length > 0 ? document.lines : [{ description: 'รายการสินค้า/บริการ', qty: 1, unitPrice: 0 }],
+    lines: document.lines.length > 0 ? document.lines : [{ description: locale === 'th' ? 'รายการสินค้า/บริการ' : 'Product/Service item', qty: 1, unitPrice: 0 }],
   };
 }
 
 export default function BillingPage() {
+  const { locale } = useI18n();
   const { showToast } = useToast();
+  const tr = useCallback((th: string, en: string) => (locale === 'th' ? th : en), [locale]);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('documents');
   const [documents, setDocuments] = useState<BillingDocumentRecord[]>([]);
@@ -258,7 +262,7 @@ export default function BillingPage() {
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
-  const [editorDraft, setEditorDraft] = useState<BillDraft>(() => makeDefaultDraft());
+  const [editorDraft, setEditorDraft] = useState<BillDraft>(() => makeDefaultDraft(locale));
 
   const [detailDocumentId, setDetailDocumentId] = useState<string | null>(null);
   const [detailEmailTo, setDetailEmailTo] = useState('');
@@ -325,10 +329,10 @@ export default function BillingPage() {
       const documentsBody = await documentsRes.json().catch(() => ({}));
       const queueBody = await queueRes.json().catch(() => ({}));
       if (!documentsRes.ok) {
-        throw new Error(String((documentsBody as { error?: string }).error || 'โหลดรายการเอกสารไม่สำเร็จ'));
+        throw new Error(String((documentsBody as { error?: string }).error || tr('โหลดรายการเอกสารไม่สำเร็จ', 'Failed to load billing documents')));
       }
       if (!queueRes.ok) {
-        throw new Error(String((queueBody as { error?: string }).error || 'โหลดคิวอีเมลไม่สำเร็จ'));
+        throw new Error(String((queueBody as { error?: string }).error || tr('โหลดคิวอีเมลไม่สำเร็จ', 'Failed to load email queue')));
       }
 
       const nextDocuments = Array.isArray((documentsBody as { documents?: BillingDocumentRecord[] }).documents)
@@ -341,11 +345,11 @@ export default function BillingPage() {
       setDocuments(nextDocuments);
       setEmailQueue(nextQueue);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'โหลดข้อมูลไม่สำเร็จ', 'error');
+      showToast(error instanceof Error ? error.message : tr('โหลดข้อมูลไม่สำเร็จ', 'Failed to load data'), 'error');
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, tr]);
 
   useEffect(() => {
     loadBillingData().catch(() => undefined);
@@ -361,13 +365,13 @@ export default function BillingPage() {
 
   function openCreateDocumentModal() {
     setEditingDocumentId(null);
-    setEditorDraft(makeDefaultDraft());
+    setEditorDraft(makeDefaultDraft(locale));
     setEditorOpen(true);
   }
 
   function openEditDocumentModal(document: BillingDocumentRecord) {
     setEditingDocumentId(document.id);
-    setEditorDraft(toDraftFromDocument(document));
+    setEditorDraft(toDraftFromDocument(document, locale));
     setEditorOpen(true);
   }
 
@@ -427,7 +431,7 @@ export default function BillingPage() {
     const sellerName = normalizeText(editorDraft.sellerName, 140);
     const buyerName = normalizeText(editorDraft.buyerName, 140);
     if (!sellerName || !buyerName) {
-      showToast('กรุณากรอกชื่อผู้ขายและชื่อลูกค้า', 'error');
+      showToast(tr('กรุณากรอกชื่อผู้ขายและชื่อลูกค้า', 'Please enter seller and buyer names'), 'error');
       return;
     }
 
@@ -439,7 +443,7 @@ export default function BillingPage() {
       }))
       .filter((line) => line.description);
     if (normalizedLines.length === 0) {
-      showToast('กรุณาเพิ่มรายการสินค้า/บริการอย่างน้อย 1 รายการ', 'error');
+      showToast(tr('กรุณาเพิ่มรายการสินค้า/บริการอย่างน้อย 1 รายการ', 'Please add at least one item'), 'error');
       return;
     }
 
@@ -482,21 +486,21 @@ export default function BillingPage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((body as { error?: string }).error || 'บันทึกเอกสารไม่สำเร็จ'));
+        throw new Error(String((body as { error?: string }).error || tr('บันทึกเอกสารไม่สำเร็จ', 'Failed to save document')));
       }
 
       const document = (body as { document?: BillingDocumentRecord }).document;
       if (!document?.id) {
-        throw new Error('ไม่พบข้อมูลเอกสารหลังบันทึก');
+        throw new Error(tr('ไม่พบข้อมูลเอกสารหลังบันทึก', 'Document not found after save'));
       }
 
       setDocuments((prev) => [document, ...prev.filter((item) => item.id !== document.id)]);
       setEditorOpen(false);
       setEditingDocumentId(null);
-      showToast('บันทึกเอกสารแล้ว');
+      showToast(tr('บันทึกเอกสารแล้ว', 'Document saved'));
       openDetailModal(document);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'บันทึกเอกสารไม่สำเร็จ', 'error');
+      showToast(error instanceof Error ? error.message : tr('บันทึกเอกสารไม่สำเร็จ', 'Failed to save document'), 'error');
     } finally {
       setPendingAction(null);
     }
@@ -504,7 +508,7 @@ export default function BillingPage() {
 
   async function deleteDocument(documentId: string, options?: { silent?: boolean }) {
     if (!options?.silent) {
-      const ok = window.confirm('ยืนยันลบเอกสารรายการนี้?');
+      const ok = window.confirm(tr('ยืนยันลบเอกสารรายการนี้?', 'Confirm deleting this document?'));
       if (!ok) return;
     }
 
@@ -515,7 +519,7 @@ export default function BillingPage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((body as { error?: string }).error || 'ลบเอกสารไม่สำเร็จ'));
+        throw new Error(String((body as { error?: string }).error || tr('ลบเอกสารไม่สำเร็จ', 'Failed to delete document')));
       }
 
       setDocuments((prev) => prev.filter((item) => item.id !== documentId));
@@ -524,11 +528,11 @@ export default function BillingPage() {
         closeDetailModal();
       }
       if (!options?.silent) {
-        showToast('ลบเอกสารแล้ว');
+        showToast(tr('ลบเอกสารแล้ว', 'Document deleted'));
       }
     } catch (error) {
       if (!options?.silent) {
-        showToast(error instanceof Error ? error.message : 'ลบเอกสารไม่สำเร็จ', 'error');
+        showToast(error instanceof Error ? error.message : tr('ลบเอกสารไม่สำเร็จ', 'Failed to delete document'), 'error');
       }
     } finally {
       setPendingAction(null);
@@ -537,7 +541,7 @@ export default function BillingPage() {
 
   async function deleteAllDocuments() {
     if (documents.length === 0) return;
-    const ok = window.confirm('ยืนยันลบเอกสารทั้งหมด?');
+    const ok = window.confirm(tr('ยืนยันลบเอกสารทั้งหมด?', 'Confirm deleting all documents?'));
     if (!ok) return;
 
     setPendingAction('delete_all');
@@ -545,16 +549,16 @@ export default function BillingPage() {
       const response = await fetchWithSessionRetry('/api/billing/documents', { method: 'DELETE' });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((body as { error?: string }).error || 'ลบเอกสารทั้งหมดไม่สำเร็จ'));
+        throw new Error(String((body as { error?: string }).error || tr('ลบเอกสารทั้งหมดไม่สำเร็จ', 'Failed to delete all documents')));
       }
 
       setDocuments([]);
       setEmailQueue((prev) => prev.filter((item) => !documents.some((doc) => doc.id === item.documentId)));
       setDocumentsPage(1);
       closeDetailModal();
-      showToast('ลบเอกสารทั้งหมดแล้ว');
+      showToast(tr('ลบเอกสารทั้งหมดแล้ว', 'All documents deleted'));
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'ลบเอกสารทั้งหมดไม่สำเร็จ', 'error');
+      showToast(error instanceof Error ? error.message : tr('ลบเอกสารทั้งหมดไม่สำเร็จ', 'Failed to delete all documents'), 'error');
     } finally {
       setPendingAction(null);
     }
@@ -563,12 +567,12 @@ export default function BillingPage() {
   async function scheduleEmail(documentId: string, toEmail: string, scheduleLocal: string, message: string) {
     const safeTo = normalizeText(toEmail, 220).toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTo)) {
-      showToast('กรุณากรอกอีเมลลูกค้าให้ถูกต้อง', 'error');
+      showToast(tr('กรุณากรอกอีเมลลูกค้าให้ถูกต้อง', 'Please enter a valid customer email'), 'error');
       return;
     }
     const scheduleIso = fromLocalDateTimeInputValue(scheduleLocal);
     if (!scheduleIso) {
-      showToast('กรุณาเลือกวันเวลาในการส่งอีเมล', 'error');
+      showToast(tr('กรุณาเลือกวันเวลาในการส่งอีเมล', 'Please select date/time for scheduling'), 'error');
       return;
     }
 
@@ -586,7 +590,7 @@ export default function BillingPage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((body as { error?: string }).error || 'ตั้งเวลาส่งอีเมลไม่สำเร็จ'));
+        throw new Error(String((body as { error?: string }).error || tr('ตั้งเวลาส่งอีเมลไม่สำเร็จ', 'Failed to schedule email')));
       }
 
       const job = (body as { job?: BillingEmailQueueRecord }).job;
@@ -594,9 +598,9 @@ export default function BillingPage() {
         setEmailQueue((prev) => [job, ...prev]);
       }
       setDocuments((prev) => prev.map((doc) => (doc.id === documentId ? { ...doc, emailTo: safeTo, emailMessage: message } : doc)));
-      showToast('ตั้งเวลาส่งอีเมลแล้ว');
+      showToast(tr('ตั้งเวลาส่งอีเมลแล้ว', 'Email scheduled'));
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'ตั้งเวลาส่งอีเมลไม่สำเร็จ', 'error');
+      showToast(error instanceof Error ? error.message : tr('ตั้งเวลาส่งอีเมลไม่สำเร็จ', 'Failed to schedule email'), 'error');
     } finally {
       setPendingAction(null);
     }
@@ -605,7 +609,7 @@ export default function BillingPage() {
   async function sendEmailNow(documentId: string, toEmail: string, message: string) {
     const safeTo = normalizeText(toEmail, 220).toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTo)) {
-      showToast('กรุณากรอกอีเมลลูกค้าให้ถูกต้อง', 'error');
+      showToast(tr('กรุณากรอกอีเมลลูกค้าให้ถูกต้อง', 'Please enter a valid customer email'), 'error');
       return;
     }
 
@@ -622,7 +626,7 @@ export default function BillingPage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((body as { error?: string }).error || 'ส่งอีเมลทันทีไม่สำเร็จ'));
+        throw new Error(String((body as { error?: string }).error || tr('ส่งอีเมลทันทีไม่สำเร็จ', 'Failed to send email now')));
       }
 
       const job = (body as { job?: BillingEmailQueueRecord }).job;
@@ -630,9 +634,9 @@ export default function BillingPage() {
         setEmailQueue((prev) => [job, ...prev]);
       }
       setDocuments((prev) => prev.map((doc) => (doc.id === documentId ? { ...doc, emailTo: safeTo, emailMessage: message } : doc)));
-      showToast('ส่งอีเมลแล้ว');
+      showToast(tr('ส่งอีเมลแล้ว', 'Email sent'));
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'ส่งอีเมลไม่สำเร็จ', 'error');
+      showToast(error instanceof Error ? error.message : tr('ส่งอีเมลไม่สำเร็จ', 'Failed to send email'), 'error');
     } finally {
       setPendingAction(null);
     }
@@ -650,7 +654,8 @@ export default function BillingPage() {
       encodeURIComponent(previewDocumentId) +
       '/export?template=' +
       encodeURIComponent(previewTemplate) +
-      '&locale=th-TH'
+      '&locale=' +
+      encodeURIComponent(locale === 'th' ? 'th-TH' : 'en-US')
     : '';
 
   return (
@@ -661,19 +666,19 @@ export default function BillingPage() {
             <ReceiptText className='h-5 w-5' />
           </div>
           <div className='min-w-0'>
-            <h1 className='text-lg font-semibold text-slate-900'>ออกใบเสร็จ/แจ้งหนี้</h1>
-            <p className='text-xs text-slate-500'>สร้างเอกสารให้ลูกค้าได้ทันที รองรับทั้งแอปเว็บและแอป Android พร้อมคิวส่งอีเมลเดียวกัน</p>
+            <h1 className='text-lg font-semibold text-slate-900'>{tr('ออกใบเสร็จ/แจ้งหนี้', 'Billing Documents')}</h1>
+            <p className='text-xs text-slate-500'>{tr('สร้างเอกสารให้ลูกค้าได้ทันที รองรับทั้งแอปเว็บและแอป Android พร้อมคิวส่งอีเมลเดียวกัน', 'Create customer billing documents with one shared web and Android email queue')}</p>
           </div>
         </div>
 
         <div className='grid grid-cols-2 gap-2'>
           <Button type='button' className='h-10 w-full justify-center gap-2' onClick={openCreateDocumentModal}>
             <Plus className='h-4 w-4' />
-            สร้างเอกสารใหม่
+            {tr('สร้างเอกสารใหม่', 'Create Document')}
           </Button>
           <Button type='button' variant='secondary' className='h-10 w-full justify-center gap-2' onClick={() => loadBillingData().catch(() => undefined)} disabled={loading}>
             <RefreshCw className={'h-4 w-4 ' + (loading ? 'animate-spin' : '')} />
-            รีเฟรชข้อมูล
+            {tr('รีเฟรชข้อมูล', 'Refresh')}
           </Button>
         </div>
       </Card>
@@ -691,9 +696,9 @@ export default function BillingPage() {
         >
           <p className='inline-flex items-center gap-1.5 text-sm font-semibold'>
             <Mail className='h-4 w-4' />
-            คิวส่งอีเมล ({emailQueue.length})
+            {tr('คิวส่งอีเมล', 'Email Queue')} ({emailQueue.length})
           </p>
-          <p className='mt-0.5 text-xs text-slate-500'>ดูรายการอีเมลที่รอส่งหรือส่งแล้ว</p>
+          <p className='mt-0.5 text-xs text-slate-500'>{tr('ดูรายการอีเมลที่รอส่งหรือส่งแล้ว', 'View pending and sent emails')}</p>
         </button>
         <button
           type='button'
@@ -707,9 +712,9 @@ export default function BillingPage() {
         >
           <p className='inline-flex items-center gap-1.5 text-sm font-semibold'>
             <FileText className='h-4 w-4' />
-            เอกสารที่บันทึกไว้ ({documents.length})
+            {tr('เอกสารที่บันทึกไว้', 'Saved Documents')} ({documents.length})
           </p>
-          <p className='mt-0.5 text-xs text-slate-500'>แตะเพื่อเปิดรายละเอียด แก้ไข หรือดูพรีวิว</p>
+          <p className='mt-0.5 text-xs text-slate-500'>{tr('แตะเพื่อเปิดรายละเอียด แก้ไข หรือดูพรีวิว', 'Open details, edit, and preview')}</p>
         </button>
       </div>
 
@@ -717,19 +722,19 @@ export default function BillingPage() {
         <Card className='space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
           {documents.length > 0 ? (
             <div className='flex items-center justify-between gap-2'>
-              <p className='text-xs font-semibold text-slate-500'>จัดการเอกสารที่บันทึกไว้</p>
+              <p className='text-xs font-semibold text-slate-500'>{tr('จัดการเอกสารที่บันทึกไว้', 'Manage saved documents')}</p>
               <Button type='button' variant='secondary' size='sm' className='h-8 px-2.5 text-xs' onClick={deleteAllDocuments} disabled={deletingInProgress || loading}>
                 <Trash2 className='h-3.5 w-3.5' />
-                ลบทั้งหมด
+                {tr('ลบทั้งหมด', 'Delete all')}
               </Button>
             </div>
           ) : null}
           {loading ? (
-            <p className='text-sm text-slate-500'>กำลังโหลดรายการ...</p>
+            <p className='text-sm text-slate-500'>{tr('กำลังโหลดรายการ...', 'Loading documents...')}</p>
           ) : documents.length === 0 ? (
             <div className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center'>
-              <p className='text-sm font-semibold text-slate-900'>ยังไม่มีเอกสารที่บันทึก</p>
-              <p className='text-xs text-slate-500'>กดปุ่มสร้างเอกสารใหม่เพื่อเริ่มใช้งาน</p>
+              <p className='text-sm font-semibold text-slate-900'>{tr('ยังไม่มีเอกสารที่บันทึก', 'No saved documents yet')}</p>
+              <p className='text-xs text-slate-500'>{tr('กดปุ่มสร้างเอกสารใหม่เพื่อเริ่มใช้งาน', 'Tap create document to get started')}</p>
             </div>
           ) : (
             <div className='space-y-2'>
@@ -743,28 +748,28 @@ export default function BillingPage() {
                     <div className='flex items-center justify-between gap-2'>
                       <div className='flex items-center gap-1.5'>
                         <span className={'rounded-full px-2 py-1 text-[11px] font-semibold ' + getTypeBadgeClass(document.docKind)}>
-                          {document.docKind === 'receipt' ? 'ใบเสร็จ' : 'ใบแจ้งหนี้'}
+                          {document.docKind === 'receipt' ? tr('ใบเสร็จ', 'Receipt') : tr('ใบแจ้งหนี้', 'Invoice')}
                         </span>
                         <span className='rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700'>
                           {document.template.toUpperCase()}
                         </span>
                       </div>
-                      <span className='text-[11px] text-slate-500'>{formatDateTimeDisplay(document.createdAt)}</span>
+                      <span className='text-[11px] text-slate-500'>{formatDateTimeDisplay(document.createdAt, locale)}</span>
                     </div>
                     <p className='mt-2 text-sm font-semibold text-slate-900'>{document.documentNo}</p>
                     <p className='text-xs text-slate-600'>{document.buyerName || '-'}</p>
                     <div className='mt-2 flex items-center justify-between text-xs text-slate-500'>
-                      <span>คิวอีเมล {queueCountByDocument.get(document.id) ?? 0} รายการ</span>
+                      <span>{tr('คิวอีเมล', 'Email queue')} {queueCountByDocument.get(document.id) ?? 0} {tr('รายการ', 'items')}</span>
                     </div>
                   </button>
                   <div className='mt-2 grid grid-cols-2 gap-2'>
                     <Button type='button' size='sm' variant='secondary' className='h-8 gap-1 text-xs' onClick={() => openDetailModal(document)}>
                       <Eye className='h-3.5 w-3.5' />
-                      เปิดรายละเอียด
+                      {tr('เปิดรายละเอียด', 'Open details')}
                     </Button>
                     <Button type='button' size='sm' className='h-8 gap-1 text-xs' onClick={() => deleteDocument(document.id)} disabled={deletingInProgress}>
                       <Trash2 className='h-3.5 w-3.5' />
-                      ลบ
+                      {tr('ลบ', 'Delete')}
                     </Button>
                   </div>
                 </div>
@@ -776,13 +781,13 @@ export default function BillingPage() {
             <div className='flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2'>
               <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setDocumentsPage((prev) => Math.max(1, prev - 1))} disabled={documentsPage === 1}>
                 <ChevronLeft className='h-3.5 w-3.5' />
-                ก่อนหน้า
+                {tr('ก่อนหน้า', 'Prev')}
               </Button>
               <p className='text-xs font-semibold text-slate-600'>
-                หน้า {documentsPage} / {totalDocumentPages}
+                {tr('หน้า', 'Page')} {documentsPage} / {totalDocumentPages}
               </p>
               <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setDocumentsPage((prev) => Math.min(totalDocumentPages, prev + 1))} disabled={documentsPage === totalDocumentPages}>
-                ถัดไป
+                {tr('ถัดไป', 'Next')}
                 <ChevronRight className='h-3.5 w-3.5' />
               </Button>
             </div>
@@ -791,12 +796,12 @@ export default function BillingPage() {
       ) : (
         <Card className='space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
           {loading ? (
-            <p className='text-sm text-slate-500'>กำลังโหลดคิว...</p>
+            <p className='text-sm text-slate-500'>{tr('กำลังโหลดคิว...', 'Loading queue...')}</p>
           ) : emailQueue.length === 0 ? (
             <div className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center'>
               <Inbox className='mx-auto mb-2 h-5 w-5 text-slate-400' />
-              <p className='text-sm font-semibold text-slate-900'>ยังไม่มีคิวอีเมล</p>
-              <p className='text-xs text-slate-500'>เข้าเอกสารแต่ละรายการเพื่อตั้งเวลาส่งอีเมลได้ทันที</p>
+              <p className='text-sm font-semibold text-slate-900'>{tr('ยังไม่มีคิวอีเมล', 'No email queue yet')}</p>
+              <p className='text-xs text-slate-500'>{tr('เข้าเอกสารแต่ละรายการเพื่อตั้งเวลาส่งอีเมลได้ทันที', 'Open a document to schedule email delivery')}</p>
             </div>
           ) : (
             <div className='space-y-2'>
@@ -807,12 +812,12 @@ export default function BillingPage() {
                     <div className='flex items-center justify-between gap-2'>
                       <p className='text-sm font-semibold text-slate-900'>{linkedDoc?.documentNo || item.documentId}</p>
                       <span className={'rounded-full px-2 py-1 text-[11px] font-semibold ' + getQueueStatusBadgeClass(item.status)}>
-                        {getQueueStatusLabel(item.status)}
+                        {getQueueStatusLabel(item.status, locale)}
                       </span>
                     </div>
-                    <p className='mt-1 text-xs text-slate-600'>ถึง: {item.toEmail}</p>
-                    <p className='text-xs text-slate-600'>เวลาส่ง: {formatDateTimeDisplay(item.scheduledAt)}</p>
-                    {item.sentAt ? <p className='text-xs text-emerald-700'>ส่งสำเร็จ: {formatDateTimeDisplay(item.sentAt)}</p> : null}
+                    <p className='mt-1 text-xs text-slate-600'>{tr('ถึง', 'To')}: {item.toEmail}</p>
+                    <p className='text-xs text-slate-600'>{tr('เวลาส่ง', 'Scheduled at')}: {formatDateTimeDisplay(item.scheduledAt, locale)}</p>
+                    {item.sentAt ? <p className='text-xs text-emerald-700'>{tr('ส่งสำเร็จ', 'Sent')}: {formatDateTimeDisplay(item.sentAt, locale)}</p> : null}
                     {item.lastError ? (
                       <p className='mt-1 inline-flex items-center gap-1 text-xs text-rose-700'>
                         <AlertCircle className='h-3.5 w-3.5' />
@@ -829,13 +834,13 @@ export default function BillingPage() {
             <div className='flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2'>
               <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setQueuePage((prev) => Math.max(1, prev - 1))} disabled={queuePage === 1}>
                 <ChevronLeft className='h-3.5 w-3.5' />
-                ก่อนหน้า
+                {tr('ก่อนหน้า', 'Prev')}
               </Button>
               <p className='text-xs font-semibold text-slate-600'>
-                หน้า {queuePage} / {totalQueuePages}
+                {tr('หน้า', 'Page')} {queuePage} / {totalQueuePages}
               </p>
               <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setQueuePage((prev) => Math.min(totalQueuePages, prev + 1))} disabled={queuePage === totalQueuePages}>
-                ถัดไป
+                {tr('ถัดไป', 'Next')}
                 <ChevronRight className='h-3.5 w-3.5' />
               </Button>
             </div>
@@ -848,8 +853,8 @@ export default function BillingPage() {
           <div className='app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-[var(--background)] animate-screen-in'>
             <div className='sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-sm'>
               <div>
-                <h2 className='text-base font-semibold text-slate-900'>{editingDocumentId ? 'แก้ไขเอกสาร' : 'สร้างเอกสารใหม่'}</h2>
-                <p className='text-xs text-slate-500'>ฟอร์มเดียว ครบทั้งบันทึกและส่งอีเมลลูกค้า</p>
+                <h2 className='text-base font-semibold text-slate-900'>{editingDocumentId ? tr('แก้ไขเอกสาร', 'Edit document') : tr('สร้างเอกสารใหม่', 'Create document')}</h2>
+                <p className='text-xs text-slate-500'>{tr('ฟอร์มเดียว ครบทั้งบันทึกและส่งอีเมลลูกค้า', 'One form for saving and sending customer email')}</p>
               </div>
               <Button type='button' variant='secondary' size='sm' className='h-10 w-10 rounded-xl px-0' onClick={() => setEditorOpen(false)}>
                 <X className='h-4 w-4' />
@@ -868,7 +873,7 @@ export default function BillingPage() {
                       if (!editorDraft.documentNo.startsWith('RE')) updateEditorDraft('documentNo', createDocumentNo('RE'));
                     }}
                   >
-                    ใบเสร็จ
+                    {tr('ใบเสร็จ', 'Receipt')}
                   </Button>
                   <Button
                     type='button'
@@ -879,7 +884,7 @@ export default function BillingPage() {
                       if (!editorDraft.documentNo.startsWith('INV')) updateEditorDraft('documentNo', createDocumentNo('INV'));
                     }}
                   >
-                    ใบแจ้งหนี้
+                    {tr('ใบแจ้งหนี้', 'Invoice')}
                   </Button>
                   <Button type='button' size='sm' variant={editorDraft.template === 'a4' ? 'default' : 'secondary'} onClick={() => updateEditorDraft('template', 'a4')}>
                     A4
@@ -890,7 +895,7 @@ export default function BillingPage() {
                 </div>
 
                 <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
-                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>ข้อมูลเอกสาร</p>
+                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>{tr('ข้อมูลเอกสาร', 'Document info')}</p>
                   <Input value={editorDraft.documentNo} onChange={(event) => updateEditorDraft('documentNo', event.target.value)} placeholder='เลขที่เอกสาร' />
                   <Input value={editorDraft.referenceNo} onChange={(event) => updateEditorDraft('referenceNo', event.target.value)} placeholder='เลขอ้างอิง' />
                   <div className='grid grid-cols-2 gap-2'>
@@ -900,7 +905,7 @@ export default function BillingPage() {
                 </div>
 
                 <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
-                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>ผู้ขายและลูกค้า</p>
+                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>{tr('ผู้ขายและลูกค้า', 'Seller & buyer')}</p>
                   <Input value={editorDraft.sellerName} onChange={(event) => updateEditorDraft('sellerName', event.target.value)} placeholder='ชื่อร้าน / ผู้ขาย' />
                   <Input value={editorDraft.sellerTaxId} onChange={(event) => updateEditorDraft('sellerTaxId', event.target.value)} placeholder='Tax ID ผู้ขาย' />
                   <Input value={editorDraft.buyerName} onChange={(event) => updateEditorDraft('buyerName', event.target.value)} placeholder='ชื่อลูกค้า' />
@@ -922,10 +927,10 @@ export default function BillingPage() {
                 </div>
                 <div className='rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
                   <div className='mb-2 flex items-center justify-between'>
-                    <p className='text-sm font-semibold text-slate-900'>รายการสินค้า/บริการ</p>
+                    <p className='text-sm font-semibold text-slate-900'>{tr('รายการสินค้า/บริการ', 'Items')}</p>
                     <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={addEditorLine}>
                       <Plus className='h-3.5 w-3.5' />
-                      เพิ่มรายการ
+                      {tr('เพิ่มรายการ', 'Add item')}
                     </Button>
                   </div>
                   <div className='space-y-2'>
@@ -943,7 +948,7 @@ export default function BillingPage() {
                 </div>
 
                 <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
-                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>สรุปยอดและการส่งเอกสาร</p>
+                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>{tr('สรุปยอดและการส่งเอกสาร', 'Totals and delivery')}</p>
                   <div className='grid grid-cols-2 gap-2'>
                     <Input type='number' min={0} step='0.01' value={String(editorDraft.discountPercent)} onChange={(event) => updateEditorDraft('discountPercent', parseNumberInput(event.target.value))} placeholder='ส่วนลด %' />
                     <Input type='number' min={0} step='0.01' value={String(editorDraft.vatPercent)} onChange={(event) => updateEditorDraft('vatPercent', parseNumberInput(event.target.value))} placeholder='VAT %' />
@@ -967,7 +972,7 @@ export default function BillingPage() {
                   />
                 </div>
                 <Card className='space-y-1 rounded-2xl border-slate-200 bg-white p-3'>
-                  <p className='text-sm font-semibold text-slate-900'>สรุปยอด</p>
+                  <p className='text-sm font-semibold text-slate-900'>{tr('สรุปยอด', 'Summary')}</p>
                   <div className='text-sm text-slate-700'>
                     <p>Subtotal: {formatCurrency(editorTotals.subtotal)} {editorDraft.currency}</p>
                     <p>Discount: -{formatCurrency(editorTotals.discountAmount)} {editorDraft.currency}</p>
@@ -981,11 +986,11 @@ export default function BillingPage() {
             <div className='absolute inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-sm'>
               <div className='mx-auto flex w-full max-w-[460px] gap-2'>
                 <Button type='button' variant='secondary' className='flex-1' onClick={() => setEditorOpen(false)}>
-                  ยกเลิก
+                  {tr('ยกเลิก', 'Cancel')}
                 </Button>
                 <Button type='button' className='flex-1 gap-2' onClick={saveDocument} disabled={pendingAction === 'save'}>
                   <FileText className='h-4 w-4' />
-                  {pendingAction === 'save' ? 'กำลังบันทึก...' : 'บันทึกเอกสาร'}
+                  {pendingAction === 'save' ? tr('กำลังบันทึก...', 'Saving...') : tr('บันทึกเอกสาร', 'Save document')}
                 </Button>
               </div>
             </div>
@@ -1001,7 +1006,7 @@ export default function BillingPage() {
                 <div className='flex items-center gap-2'>
                   <h2 className='text-base font-semibold text-slate-900'>{selectedDetailDocument.documentNo}</h2>
                   <span className={'rounded-full px-2 py-1 text-[11px] font-semibold ' + getTypeBadgeClass(selectedDetailDocument.docKind)}>
-                    {selectedDetailDocument.docKind === 'receipt' ? 'ใบเสร็จ' : 'ใบแจ้งหนี้'}
+                    {selectedDetailDocument.docKind === 'receipt' ? tr('ใบเสร็จ', 'Receipt') : tr('ใบแจ้งหนี้', 'Invoice')}
                   </span>
                 </div>
                 <p className='text-xs text-slate-500'>{selectedDetailDocument.buyerName || '-'}</p>
@@ -1014,41 +1019,41 @@ export default function BillingPage() {
             <div className='flex-1 overflow-y-auto px-4 py-3 pb-20'>
               <Card className='space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
                 <div className='grid grid-cols-2 gap-2 text-sm'>
-                  <p><span className='text-slate-500'>วันที่:</span> {formatDateDisplay(selectedDetailDocument.issueDate)}</p>
-                  <p><span className='text-slate-500'>ครบกำหนด:</span> {formatDateDisplay(selectedDetailDocument.dueDate)}</p>
-                  <p><span className='text-slate-500'>ลูกค้า:</span> {selectedDetailDocument.buyerName || '-'}</p>
-                  <p><span className='text-slate-500'>ยอดสุทธิ:</span> {formatCurrency(selectedDetailDocument.grandTotal)} {selectedDetailDocument.currency}</p>
+                  <p><span className='text-slate-500'>{tr('วันที่', 'Date')}:</span> {formatDateDisplay(selectedDetailDocument.issueDate, locale)}</p>
+                  <p><span className='text-slate-500'>{tr('ครบกำหนด', 'Due date')}:</span> {formatDateDisplay(selectedDetailDocument.dueDate, locale)}</p>
+                  <p><span className='text-slate-500'>{tr('ลูกค้า', 'Buyer')}:</span> {selectedDetailDocument.buyerName || '-'}</p>
+                  <p><span className='text-slate-500'>{tr('ยอดสุทธิ', 'Net total')}:</span> {formatCurrency(selectedDetailDocument.grandTotal)} {selectedDetailDocument.currency}</p>
                 </div>
                 <div className='flex flex-wrap gap-2'>
                   <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={() => openEditDocumentModal(selectedDetailDocument)}>
                     <PenSquare className='h-3.5 w-3.5' />
-                    แก้ไข
+                    {tr('แก้ไข', 'Edit')}
                   </Button>
                   <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={() => openPreview(selectedDetailDocument.id, 'a4')}>
                     <Eye className='h-3.5 w-3.5' />
-                    พรีวิว A4
+                    {tr('พรีวิว A4', 'Preview A4')}
                   </Button>
                   <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={() => openPreview(selectedDetailDocument.id, '80mm')}>
                     <Eye className='h-3.5 w-3.5' />
-                    พรีวิว 80mm
+                    {tr('พรีวิว 80mm', 'Preview 80mm')}
                   </Button>
                   <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={() => window.open('/api/billing/documents/' + encodeURIComponent(selectedDetailDocument.id) + '/export?template=a4&print=1', '_blank', 'noopener,noreferrer')}>
                     <Printer className='h-3.5 w-3.5' />
-                    พิมพ์
+                    {tr('พิมพ์', 'Print')}
                   </Button>
                 </div>
 
                 <div className='rounded-2xl border border-slate-200 bg-slate-50 p-3'>
-                  <p className='text-sm font-semibold text-slate-900'>เนื้อหาเอกสารที่บันทึกไว้</p>
+                  <p className='text-sm font-semibold text-slate-900'>{tr('เนื้อหาเอกสารที่บันทึกไว้', 'Saved document content')}</p>
                   <p className='mt-1 text-xs text-slate-600'>
-                    ผู้ขาย: {selectedDetailDocument.sellerName || '-'} | ลูกค้า: {selectedDetailDocument.buyerName || '-'}
+                    {tr('ผู้ขาย', 'Seller')}: {selectedDetailDocument.sellerName || '-'} | {tr('ลูกค้า', 'Buyer')}: {selectedDetailDocument.buyerName || '-'}
                   </p>
                   {selectedDetailDocument.noteMessage ? (
-                    <p className='mt-1 text-xs text-slate-600'>หมายเหตุ: {selectedDetailDocument.noteMessage}</p>
+                    <p className='mt-1 text-xs text-slate-600'>{tr('หมายเหตุ', 'Note')}: {selectedDetailDocument.noteMessage}</p>
                   ) : null}
                   <div className='mt-2 space-y-1'>
                     {selectedDetailDocument.lines.length === 0 ? (
-                      <p className='text-xs text-slate-500'>ยังไม่มีรายการสินค้า/บริการ</p>
+                      <p className='text-xs text-slate-500'>{tr('ยังไม่มีรายการสินค้า/บริการ', 'No items yet')}</p>
                     ) : (
                       selectedDetailDocument.lines.map((line, index) => (
                         <div key={selectedDetailDocument.id + '-line-' + index} className='rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs'>
@@ -1107,11 +1112,11 @@ export default function BillingPage() {
                           <div className='flex items-center justify-between gap-2'>
                             <p className='font-semibold text-slate-900'>{queue.toEmail}</p>
                             <span className={'rounded-full px-2 py-1 font-semibold ' + getQueueStatusBadgeClass(queue.status)}>
-                              {getQueueStatusLabel(queue.status)}
+                              {getQueueStatusLabel(queue.status, locale)}
                             </span>
                           </div>
-                          <p className='text-slate-600'>เวลาส่ง: {formatDateTimeDisplay(queue.scheduledAt)}</p>
-                        {queue.sentAt ? <p className='text-emerald-700'>ส่งแล้ว: {formatDateTimeDisplay(queue.sentAt)}</p> : null}
+                          <p className='text-slate-600'>{tr('เวลาส่ง', 'Scheduled at')}: {formatDateTimeDisplay(queue.scheduledAt, locale)}</p>
+                        {queue.sentAt ? <p className='text-emerald-700'>{tr('ส่งแล้ว', 'Sent')}: {formatDateTimeDisplay(queue.sentAt, locale)}</p> : null}
                         {queue.lastError ? <p className='inline-flex items-center gap-1 text-rose-700'><AlertCircle className='h-3.5 w-3.5' />{queue.lastError}</p> : null}
                       </div>
                     ))}

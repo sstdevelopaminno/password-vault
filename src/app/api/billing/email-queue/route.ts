@@ -10,6 +10,7 @@ type BillingEmailJobRow = {
   billing_document_id: string;
   user_id: string;
   status: 'pending' | 'processing' | 'sent' | 'cancelled' | 'failed';
+  job_type: 'manual' | 'due_before' | 'due_after' | 'monthly';
   to_email: string;
   subject: string | null;
   message: string | null;
@@ -29,6 +30,7 @@ function toClient(row: BillingEmailJobRow) {
     documentId: row.billing_document_id,
     userId: row.user_id,
     status: row.status,
+    jobType: row.job_type,
     toEmail: row.to_email,
     subject: row.subject ?? '',
     message: row.message ?? '',
@@ -67,7 +69,7 @@ export async function GET(req: Request) {
 
   const query = await admin
     .from('billing_email_jobs')
-    .select('id,billing_document_id,user_id,status,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,last_error,created_at,updated_at')
+    .select('id,billing_document_id,user_id,status,job_type,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,last_error,created_at,updated_at')
     .in('user_id', ownerIds)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -130,6 +132,7 @@ export async function POST(req: Request) {
       billing_document_id: document.data.id,
       user_id: userId,
       status: 'pending',
+      job_type: 'manual',
       to_email: String(parsed.data.toEmail).trim().toLowerCase(),
       subject,
       message,
@@ -137,7 +140,7 @@ export async function POST(req: Request) {
       next_retry_at: scheduledAt.toISOString(),
       updated_at: nowIso,
     })
-    .select('id,billing_document_id,user_id,status,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,last_error,created_at,updated_at')
+    .select('id,billing_document_id,user_id,status,job_type,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,last_error,created_at,updated_at')
     .single();
 
   if (inserted.error || !inserted.data) {

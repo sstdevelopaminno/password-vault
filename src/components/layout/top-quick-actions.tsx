@@ -358,6 +358,8 @@ export function TopQuickActions({
   useEffect(function () {
     if (typeof window === "undefined") return;
     if (!capabilities.manualInstallRecommended || capabilities.displayStandalone || capabilities.isCapacitorNative) return;
+    if (capabilities.isAndroid) return;
+    if (hasInstallPrompt) return;
 
     const quotaGranted = consumeReminderQuota({
       storageKey: PWA_INSTALL_REMINDER_KEY,
@@ -365,6 +367,7 @@ export function TopQuickActions({
       minIntervalMs: PWA_INSTALL_REMINDER_MIN_INTERVAL_MS,
     });
     if (!quotaGranted) return;
+    setShowInstallHelpCard(true);
 
     notify({
       kind: "system",
@@ -379,8 +382,10 @@ export function TopQuickActions({
     });
   }, [
     capabilities.displayStandalone,
+    capabilities.isAndroid,
     capabilities.isCapacitorNative,
     capabilities.manualInstallRecommended,
+    hasInstallPrompt,
     installHelp.detail,
     locale,
     notify,

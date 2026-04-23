@@ -14,7 +14,7 @@ dependencies {
     implementation project(':capacitor-local-notifications')
 
 }
-
+apply from: "../../node_modules/thermal-printer-cordova-plugin/src/android/build.gradle"
 
 if (hasProperty('postBuildExtras')) {
   postBuildExtras()

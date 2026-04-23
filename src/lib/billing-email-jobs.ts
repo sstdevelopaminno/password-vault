@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendBillingDocumentEmail } from '@/lib/billing-email-notifications';
 import { formatCurrency, normalizeBillingLines, safeCurrencyNumber, type BillingDocumentView } from '@/lib/billing';
 import { buildBillingPdfBuffer } from '@/lib/billing-pdf';
+import { queueRecurringMonthlyJobs } from '@/lib/billing-automation';
 
 type BillingJobStatus = 'pending' | 'processing' | 'sent' | 'cancelled' | 'failed';
 
@@ -10,6 +11,7 @@ type BillingEmailJobRow = {
   billing_document_id: string;
   user_id: string;
   status: BillingJobStatus;
+  job_type: 'manual' | 'due_before' | 'due_after' | 'monthly';
   to_email: string;
   subject: string | null;
   message: string | null;
@@ -146,7 +148,7 @@ async function claimJob(job: BillingEmailJobRow) {
     })
     .eq('id', job.id)
     .eq('status', 'pending')
-    .select('id,billing_document_id,user_id,status,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,created_at,updated_at')
+    .select('id,billing_document_id,user_id,status,job_type,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,created_at,updated_at')
     .maybeSingle();
 
   if (claimed.error) {
@@ -211,9 +213,11 @@ export async function processBillingEmailJobs(options?: { batchSize?: number }):
   const nowIso = new Date().toISOString();
   const baseUrl = buildBaseUrl();
 
+  await queueRecurringMonthlyJobs(admin);
+
   const selected = await admin
     .from('billing_email_jobs')
-    .select('id,billing_document_id,user_id,status,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,created_at,updated_at')
+    .select('id,billing_document_id,user_id,status,job_type,to_email,subject,message,scheduled_at,sent_at,attempt_count,max_attempts,next_retry_at,created_at,updated_at')
     .eq('status', 'pending')
     .lte('scheduled_at', nowIso)
     .lte('next_retry_at', nowIso)

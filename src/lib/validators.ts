@@ -97,7 +97,7 @@ const dateOnlySchema = z
 export const billingDocumentCreateSchema = z.object({
  docKind: z.enum(['receipt', 'invoice']),
  template: z.enum(['a4', '80mm']),
- documentNo: z.string().trim().min(1).max(80),
+ documentNo: z.string().trim().max(80).optional().or(z.literal('')),
  referenceNo: z.string().trim().max(80).optional().or(z.literal('')),
  issueDate: dateOnlySchema,
  dueDate: dateOnlySchema.nullable().optional().or(z.literal('')).transform((value) => value || null),
@@ -112,11 +112,18 @@ export const billingDocumentCreateSchema = z.object({
  paymentMethod: z.string().trim().max(80).optional().or(z.literal('')),
  noteMessage: z.string().trim().max(1000).optional().or(z.literal('')),
  discountPercent: z.coerce.number().min(0).max(100).optional().default(0),
- vatPercent: z.coerce.number().min(0).max(100).optional().default(7),
+ vatPercent: z.union([z.literal(0), z.literal(3), z.literal(7), z.literal(15)]).optional().default(7),
  currency: z.string().trim().min(1).max(12).optional().default('THB'),
  lines: z.array(billingLineSchema).min(1).max(200),
  emailTo: z.email().optional().or(z.literal('')).transform((value) => value ?? ''),
  emailMessage: z.string().trim().max(1000).optional().or(z.literal('')).transform((value) => value ?? ''),
+ paymentStatus: z.enum(['unpaid', 'paid']).optional().default('unpaid'),
+ paidAt: z.string().datetime({ offset: true }).nullable().optional().transform((value) => value ?? null),
+ autoReminderEnabled: z.boolean().optional().default(true),
+ reminderBeforeDays: z.coerce.number().int().min(0).max(30).optional().default(1),
+ reminderAfterDays: z.coerce.number().int().min(0).max(30).optional().default(3),
+ recurringEmailEnabled: z.boolean().optional().default(false),
+ recurringDayOfMonth: z.coerce.number().int().min(1).max(31).nullable().optional().transform((value) => value ?? null),
 });
 
 export const billingEmailQueueCreateSchema = z.object({
