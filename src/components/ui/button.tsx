@@ -10,7 +10,7 @@ const buttonVariants = cva(
         default:
           "bg-[var(--grad-main)] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.35)] shadow-[0_14px_30px_rgba(47,123,255,0.34),0_0_24px_rgba(255,62,209,0.2)] hover:brightness-110 disabled:from-slate-500 disabled:via-slate-600 disabled:to-slate-700 disabled:text-[#eff6ff]",
         secondary:
-          "border border-[rgba(129,149,224,0.42)] bg-[linear-gradient(180deg,rgba(13,23,52,0.94),rgba(9,16,38,0.97))] text-[#edf5ff] shadow-[0_8px_20px_rgba(0,0,0,0.22)] hover:border-[rgba(153,176,255,0.58)] hover:bg-[linear-gradient(180deg,rgba(18,32,71,0.96),rgba(12,22,50,0.98))] hover:text-white disabled:border-[rgba(150,166,212,0.48)] disabled:bg-[linear-gradient(180deg,rgba(28,38,72,0.88),rgba(21,31,60,0.9))] disabled:text-[#cddbf7]",
+          "border border-[rgba(154,179,255,0.34)] bg-[linear-gradient(180deg,rgba(34,50,108,0.88),rgba(22,35,80,0.92))] text-[#f3f7ff] shadow-[0_10px_24px_rgba(8,14,34,0.16)] hover:border-[rgba(174,195,255,0.48)] hover:bg-[linear-gradient(180deg,rgba(42,61,126,0.92),rgba(28,43,96,0.94))] hover:text-white disabled:border-[rgba(170,185,230,0.34)] disabled:bg-[linear-gradient(180deg,rgba(44,58,104,0.82),rgba(32,44,84,0.86))] disabled:text-[#d9e5ff]",
         destructive:
           "bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white shadow-[0_10px_24px_rgba(244,63,94,0.28)] hover:brightness-110 disabled:from-rose-400 disabled:to-fuchsia-500 disabled:text-[#fff1f6]",
       },

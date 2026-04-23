@@ -87,15 +87,15 @@ export default function HomePage() {
             priority
           />
           <div className='min-w-0'>
-            <h1 className='text-[32px] font-semibold leading-none tracking-[-0.02em] text-[#f2f7ff]'>Vault</h1>
-            <p className='mt-1 text-[14px] text-[#9fb0d6]'>{appVersion}</p>
-            <p className='text-[14px] text-[#9fb0d6]'>Core Workspace</p>
+            <h1 className='text-[32px] font-semibold leading-none tracking-[-0.02em] text-slate-900'>Vault</h1>
+            <p className='mt-1 text-[14px] text-slate-600'>{appVersion}</p>
+            <p className='text-[14px] text-slate-600'>Core Workspace</p>
           </div>
         </div>
 
         <Link
           href='/settings/notifications'
-          className='relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-[rgba(122,145,220,0.38)] bg-[rgba(9,16,39,0.82)] text-[#c7d9ff] shadow-[0_10px_24px_rgba(0,0,0,0.28)]'
+          className='relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-900 shadow-[0_10px_24px_rgba(9,15,36,0.14)]'
           aria-label='Notifications'
         >
           <Bell className='h-5 w-5' />
@@ -115,8 +115,8 @@ export default function HomePage() {
       </div>
 
       <div className='flex items-center justify-between pt-1'>
-        <h3 className='text-[20px] font-semibold text-[#f2f8ff]'>เมนูหลัก</h3>
-        <Link href='/settings' className='inline-flex items-center gap-1 text-sm font-medium text-[#a9bddf]'>
+        <h3 className='text-[20px] font-semibold text-slate-900'>เมนูหลัก</h3>
+        <Link href='/settings' className='inline-flex items-center gap-1 text-sm font-medium text-slate-600'>
           ดูทั้งหมด
           <ChevronRight className='h-4 w-4' />
         </Link>
@@ -128,16 +128,16 @@ export default function HomePage() {
           const tileBody = (
             <>
               <div className='mb-1.5 flex items-center justify-between gap-1.5'>
-                <div className='neon-icon-wrap inline-flex h-[46px] w-[46px] items-center justify-center rounded-[14px] text-[#79d8ff]'>
+                <div className='neon-icon-wrap inline-flex h-[46px] w-[46px] items-center justify-center rounded-[14px] text-slate-900'>
                   <Icon className='h-[18px] w-[18px]' />
                 </div>
-                <ChevronRight className='h-4 w-4 shrink-0 text-[#afc2e8] transition group-hover:text-white' />
+                <ChevronRight className='h-4 w-4 shrink-0 text-slate-600 transition group-hover:text-slate-900' />
               </div>
               <div className='min-w-0'>
-                <p className='text-[14px] font-semibold leading-tight text-[#f5f8ff] sm:text-[15px]'>
+                <p className='text-[14px] font-semibold leading-tight text-slate-900 sm:text-[15px]'>
                   {tile.title}
                 </p>
-                <p className='mt-0.5 line-clamp-2 text-[11px] leading-4 text-[#9db1d8]'>
+                <p className='mt-0.5 line-clamp-2 text-[11px] leading-4 text-slate-600'>
                   {tile.subtitle}
                 </p>
               </div>

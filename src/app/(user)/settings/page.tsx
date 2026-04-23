@@ -11,7 +11,10 @@ import {
   Lock,
   LogOut,
   Mail,
+  Moon,
   QrCode,
+  Sun,
+  SunMoon,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -23,13 +26,14 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
 import { isAdminFeaturesEnabledClient } from '@/lib/admin-feature-flags';
+import { useTheme, type ThemeMode } from '@/lib/theme';
 
-type SettingsSection = '' | 'name' | 'email' | 'password' | 'language' | 'logout';
+type SettingsSection = '' | 'name' | 'email' | 'password' | 'language' | 'theme' | 'logout';
 
 const SETTINGS_SECTION_QUERY = 'section';
 
 function parseSettingsSection(raw: string | null): SettingsSection {
-  if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'language' || raw === 'logout') {
+  if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'language' || raw === 'theme' || raw === 'logout') {
     return raw;
   }
   return '';
@@ -47,6 +51,7 @@ function mapError<T extends string>(message: unknown, t: (key: T) => string, loc
 export default function SettingsPage() {
   const toast = useToast();
   const { t, locale, setLocale } = useI18n();
+  const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   const adminFeaturesEnabled = isAdminFeaturesEnabledClient();
@@ -341,7 +346,7 @@ export default function SettingsPage() {
   const nameView = (
     <Card className='space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]'>
       <div className='space-y-1.5'>
-        <p className='text-xs font-semibold text-slate-500'>
+        <p className='form-label text-slate-500'>
           {locale === 'th' ? 'ชื่อโปรไฟล์' : 'Profile name'}
         </p>
         <Input
@@ -352,11 +357,11 @@ export default function SettingsPage() {
         />
       </div>
       <div className='space-y-1.5'>
-        <p className='text-xs font-semibold text-slate-500'>Email</p>
+        <p className='form-label text-slate-500'>Email</p>
         <Input value={profileEmail} readOnly className='h-10 rounded-xl bg-white text-slate-700' />
       </div>
       <div className='space-y-1.5'>
-        <p className='text-xs font-semibold text-slate-500'>
+        <p className='form-label text-slate-500'>
           {locale === 'th' ? 'รหัสผ่าน' : 'Password'}
         </p>
         <Input value='••••••••' readOnly className='h-10 rounded-xl bg-white text-slate-700 tracking-[0.2em]' />
@@ -506,6 +511,46 @@ export default function SettingsPage() {
     </Card>
   );
 
+  const themeOption = (mode: ThemeMode, label: string, Icon: LucideIcon) => (
+    <button
+      key={mode}
+      type='button'
+      onClick={() => setThemeMode(mode)}
+      className={
+        'flex min-h-[52px] items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ' +
+        (themeMode === mode
+          ? 'border-blue-300 bg-blue-50/60 text-blue-900 shadow-[0_8px_20px_rgba(37,99,235,0.12)]'
+          : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50/40')
+      }
+      aria-pressed={themeMode === mode}
+    >
+      <span className='inline-flex items-center gap-2 text-sm font-semibold'>
+        <Icon className='h-4 w-4' />
+        {label}
+      </span>
+      {themeMode === mode ? (
+        <span className='text-[11px] font-semibold'>
+          {locale === 'th' ? 'กำลังใช้' : 'Active'}
+        </span>
+      ) : null}
+    </button>
+  );
+
+  const themeView = (
+    <Card className='space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
+      <p className='text-sm text-slate-600'>
+        {locale === 'th'
+          ? `เลือกธีมทั้งระบบ (ตอนนี้แสดงผล: ${resolvedTheme === 'dark' ? 'Dark' : 'Light'})`
+          : `Choose app-wide theme (currently showing: ${resolvedTheme})`}
+      </p>
+      <div className='grid gap-2'>
+        {themeOption('auto', locale === 'th' ? 'อัตโนมัติ' : 'Auto', SunMoon)}
+        {themeOption('light', locale === 'th' ? 'สว่าง' : 'Light', Sun)}
+        {themeOption('dark', locale === 'th' ? 'เข้ม' : 'Dark', Moon)}
+      </div>
+    </Card>
+  );
+
   const logoutView = (
     <Card className='space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
       <p className='text-sm text-slate-600'>
@@ -530,6 +575,10 @@ export default function SettingsPage() {
             ? locale === 'th'
               ? 'เปลี่ยนภาษา'
               : 'Change language'
+            : active === 'theme'
+              ? locale === 'th'
+                ? 'ธีมแอป'
+                : 'App theme'
             : locale === 'th'
               ? 'ออกจากระบบ'
               : 'Sign out';
@@ -543,6 +592,8 @@ export default function SettingsPage() {
           ? passwordView
           : active === 'language'
             ? languageView
+            : active === 'theme'
+              ? themeView
             : active === 'logout'
               ? logoutView
               : null;
@@ -552,8 +603,8 @@ export default function SettingsPage() {
       {active ? null : (
         <div className='flex items-start justify-between gap-3'>
           <div>
-            <h1 className='text-[34px] font-semibold leading-tight text-[#f2f8ff]'>{t('settings.title')}</h1>
-            <p className='text-sm leading-6 text-[#9eb2d9]'>
+            <h1 className='text-app-h1 font-semibold text-slate-900'>{t('settings.title')}</h1>
+            <p className='text-app-body text-slate-600'>
               {locale === 'th' ? 'เลือกเมนูที่ต้องการปรับแต่งโปรไฟล์ของคุณ' : 'Select a menu to update your profile settings.'}
             </p>
           </div>
@@ -576,6 +627,7 @@ export default function SettingsPage() {
         {menuBtn('email', t('settings.emailTitle'), Mail)}
         {menuBtn('password', t('settings.passwordTitle'), Lock)}
         {menuBtn('language', locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language', Languages)}
+        {menuBtn('theme', locale === 'th' ? 'ธีมแอป' : 'App theme', SunMoon)}
 
         <button
           type='button'
@@ -624,7 +676,7 @@ export default function SettingsPage() {
               >
                 <ChevronLeft className='h-4 w-4' />
               </button>
-              <h2 className='text-xl font-semibold leading-tight text-slate-900'>{activeTitle}</h2>
+              <h2 className='text-app-h3 font-semibold text-slate-900'>{activeTitle}</h2>
             </div>
             {body}
           </div>

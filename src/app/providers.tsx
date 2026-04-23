@@ -5,6 +5,7 @@ import { AndroidApkUpdatePopup } from '@/components/app/android-apk-update-popup
 import { HeadsUpNotificationProvider } from '@/components/notifications/heads-up-provider';
 import { ToastProvider } from '@/components/ui/toast';
 import { I18nProvider } from '@/i18n/provider';
+import { ThemeProvider } from '@/lib/theme';
 import {
   RUNTIME_BUILD_MARKER_STORAGE_KEY,
   RUNTIME_LOCAL_STORAGE_KEYS_TO_RESET,
@@ -395,10 +396,14 @@ export function Providers(props: ProvidersProps) {
       ToastProvider,
       null,
       createElement(
-        HeadsUpNotificationProvider,
+        ThemeProvider,
         null,
-        createElement(AndroidApkUpdatePopup, null),
-        props.children,
+        createElement(
+          HeadsUpNotificationProvider,
+          null,
+          createElement(AndroidApkUpdatePopup, null),
+          props.children,
+        ),
       ),
     ),
   );

@@ -103,7 +103,7 @@ export function VaultCard({
 
   return (
     <div className='relative overflow-hidden rounded-[28px]'>
-      <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[28px] bg-[linear-gradient(180deg,rgba(12,20,48,0.95),rgba(9,14,36,0.98))] p-1.5'>
+      <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[28px] bg-[var(--surface-2)] p-1.5'>
         <button
           type='button'
           onClick={() => {
@@ -138,33 +138,33 @@ export function VaultCard({
         onPointerCancel={onPointerUp}
       >
         <Card
-          className='cv-auto space-y-2.5 rounded-[28px] border border-[rgba(117,145,222,0.46)] bg-[linear-gradient(135deg,rgba(7,15,40,0.96),rgba(4,10,31,0.98))] p-3.5 shadow-[0_18px_38px_rgba(0,0,0,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(47,123,255,0.22)]'
+          className='cv-auto space-y-2.5 rounded-[28px] border border-[var(--border-soft)] bg-[var(--card)] p-3.5 shadow-[var(--glow-soft)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(47,123,255,0.18)]'
           onClick={onCardClick}
         >
           <div className='flex items-start gap-3'>
-            <span className='inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border border-[rgba(122,144,220,0.4)] bg-[linear-gradient(180deg,rgba(11,19,46,0.95),rgba(8,14,34,0.98))] text-[#64d8ff] shadow-[inset_0_0_18px_rgba(56,216,255,0.12)]'>
+            <span className='inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface-1)] text-sky-300 shadow-[inset_0_0_18px_rgba(56,216,255,0.1)]'>
               <Mail className='h-6 w-6' />
             </span>
 
             <div className='min-w-0 flex-1'>
-              <p className='line-clamp-1 text-[18px] font-semibold leading-tight text-[#f4f8ff]'>{title}</p>
-              <p className='mt-0.5 truncate text-[14px] text-[#a6b8dc]'>{username}</p>
+              <p className='line-clamp-1 text-[18px] font-semibold leading-tight text-slate-900'>{title}</p>
+              <p className='mt-0.5 truncate text-[14px] text-slate-600'>{username}</p>
             </div>
 
             <div className='shrink-0'>
-              <span className='inline-flex max-w-[148px] items-center truncate rounded-full border border-[rgba(175,72,255,0.44)] bg-[rgba(71,28,106,0.28)] px-3 py-1 text-[11px] font-semibold text-[#e59bff]'>
+              <span className='inline-flex max-w-[148px] items-center truncate rounded-full border border-fuchsia-300/45 bg-fuchsia-500/15 px-3 py-1 text-[11px] font-semibold text-fuchsia-200'>
                 {category}
               </span>
             </div>
           </div>
 
-          <div className='flex items-center justify-between gap-2 text-[12px] text-[#a0b2d8]'>
+          <div className='flex items-center justify-between gap-2 text-[12px] text-slate-500'>
             <span className='inline-flex items-center gap-1.5 truncate'>
-              <KeyRound className='h-4 w-4 shrink-0 text-[#9ab2de]' />
+              <KeyRound className='h-4 w-4 shrink-0 text-slate-500' />
               {t('vault.protectedByPin')}
             </span>
             <span className='inline-flex items-center gap-1.5 whitespace-nowrap'>
-              <Globe className='h-4 w-4 shrink-0 text-[#9ab2de]' />
+              <Globe className='h-4 w-4 shrink-0 text-slate-500' />
               <span>{updatedAt}</span>
             </span>
           </div>

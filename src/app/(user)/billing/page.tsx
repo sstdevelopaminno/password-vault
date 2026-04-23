@@ -115,6 +115,9 @@ type ActiveTab = 'queue' | 'documents';
 type PendingAction = null | 'save' | 'queue' | 'send' | 'delete' | 'delete_all';
 type BillingQueueStatus = BillingEmailQueueRecord['status'];
 type OcrLanguageCode = 'tha+eng' | 'tha' | 'eng';
+type CreatorStage = null | 'kind' | 'template';
+type EditorStep = 'document' | 'parties' | 'items' | 'summary';
+type SaveFeedback = null | 'saving' | 'success';
 const DOCUMENTS_PER_PAGE = 8;
 const EMAIL_QUEUE_PER_PAGE = 8;
 
@@ -354,8 +357,11 @@ export default function BillingPage() {
   const [queuePage, setQueuePage] = useState(1);
 
   const [editorOpen, setEditorOpen] = useState(false);
+  const [creatorStage, setCreatorStage] = useState<CreatorStage>(null);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [editorDraft, setEditorDraft] = useState<BillDraft>(() => makeDefaultDraft(locale));
+  const [editorStep, setEditorStep] = useState<EditorStep>('document');
+  const [saveFeedback, setSaveFeedback] = useState<SaveFeedback>(null);
 
   const [detailDocumentId, setDetailDocumentId] = useState<string | null>(null);
   const [detailEmailTo, setDetailEmailTo] = useState('');
@@ -471,13 +477,60 @@ export default function BillingPage() {
   function openCreateDocumentModal() {
     setEditingDocumentId(null);
     setEditorDraft(makeDefaultDraft(locale));
-    setEditorOpen(true);
+    setEditorStep('document');
+    setSaveFeedback(null);
+    setCreatorStage('kind');
   }
 
   function openEditDocumentModal(document: BillingDocumentRecord) {
     setEditingDocumentId(document.id);
     setEditorDraft(toDraftFromDocument(document, locale));
+    setEditorStep('document');
+    setSaveFeedback(null);
+    setCreatorStage(null);
     setEditorOpen(true);
+  }
+
+  function closeEditor() {
+    setEditorOpen(false);
+    setCreatorStage(null);
+    setSaveFeedback(null);
+    setEditingDocumentId(null);
+  }
+
+  function selectCreateKind(kind: BillingDocKind) {
+    const prefix = kind === 'receipt' ? 'RE' : 'INV';
+    setEditorDraft((prev) => ({
+      ...prev,
+      docKind: kind,
+      documentNo: createDocumentNo(prefix),
+      referenceNo: '',
+    }));
+    setCreatorStage('template');
+  }
+
+  function selectCreateTemplate(template: BillingTemplate) {
+    setEditorDraft((prev) => ({ ...prev, template }));
+    setCreatorStage(null);
+    setEditorStep('document');
+    setEditorOpen(true);
+  }
+
+  function goNextEditorStep() {
+    setEditorStep((prev) => {
+      if (prev === 'document') return 'parties';
+      if (prev === 'parties') return 'items';
+      return 'summary';
+    });
+  }
+
+  function goPrevEditorStep() {
+    setEditorStep((prev) => {
+      if (prev === 'summary') return 'items';
+      if (prev === 'items') return 'parties';
+      if (prev === 'parties') return 'document';
+      return 'document';
+    });
   }
 
   function openDetailModal(document: BillingDocumentRecord) {
@@ -753,6 +806,7 @@ export default function BillingPage() {
     }
 
     setPendingAction('save');
+    setSaveFeedback('saving');
     try {
       const payload = {
         docKind: editorDraft.docKind,
@@ -802,9 +856,11 @@ export default function BillingPage() {
       setDocuments((prev) => [document, ...prev.filter((item) => item.id !== document.id)]);
       setEditorOpen(false);
       setEditingDocumentId(null);
+      setSaveFeedback('success');
       showToast(tr('บันทึกเอกสารแล้ว', 'Document saved'));
       openDetailModal(document);
     } catch (error) {
+      setSaveFeedback(null);
       showToast(error instanceof Error ? error.message : tr('บันทึกเอกสารไม่สำเร็จ', 'Failed to save document'), 'error');
     } finally {
       setPendingAction(null);
@@ -971,8 +1027,8 @@ export default function BillingPage() {
             <ReceiptText className='h-5 w-5' />
           </div>
           <div className='min-w-0'>
-            <h1 className='text-lg font-semibold text-slate-900'>{tr('ออกใบเสร็จ/แจ้งหนี้', 'Billing Documents')}</h1>
-            <p className='text-xs text-slate-500'>{tr('สร้างเอกสารให้ลูกค้าได้ทันที รองรับทั้งแอปเว็บและแอป Android พร้อมคิวส่งอีเมลเดียวกัน', 'Create customer billing documents with one shared web and Android email queue')}</p>
+            <h1 className='text-app-h2 font-semibold text-slate-900'>{tr('ออกใบเสร็จ/แจ้งหนี้', 'Billing Documents')}</h1>
+            <p className='text-app-body text-slate-600'>{tr('สร้างเอกสารให้ลูกค้าได้ทันที รองรับทั้งแอปเว็บและแอป Android พร้อมคิวส่งอีเมลเดียวกัน', 'Create customer billing documents with one shared web and Android email queue')}</p>
           </div>
         </div>
 
@@ -1161,22 +1217,69 @@ export default function BillingPage() {
         </Card>
       )}
 
+      {creatorStage ? (
+        <div className='fixed inset-0 z-[82] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]'>
+          <div className='w-full max-w-[380px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
+            <div className='flex items-start justify-between gap-3'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>
+                  {creatorStage === 'kind' ? tr('เลือกประเภทเอกสาร', 'Choose document type') : tr('เลือกขนาดเอกสาร', 'Choose paper size')}
+                </p>
+                <h3 className='mt-1 text-base font-semibold text-slate-900'>
+                  {creatorStage === 'kind' ? tr('ต้องการสร้างเอกสารแบบไหน?', 'Which document do you want?') : tr('ต้องการพิมพ์ขนาดไหน?', 'Which print size do you need?')}
+                </h3>
+              </div>
+              <button type='button' onClick={() => setCreatorStage(null)} className='rounded-full p-1 text-slate-500 transition hover:bg-slate-100'>
+                <X className='h-5 w-5' />
+              </button>
+            </div>
+            {creatorStage === 'kind' ? (
+              <div className='mt-4 grid grid-cols-2 gap-2'>
+                <Button type='button' className='h-12' onClick={() => selectCreateKind('receipt')}>
+                  {tr('ใบเสร็จ', 'Receipt')}
+                </Button>
+                <Button type='button' variant='secondary' className='h-12' onClick={() => selectCreateKind('invoice')}>
+                  {tr('ใบแจ้งหนี้', 'Invoice')}
+                </Button>
+              </div>
+            ) : (
+              <div className='mt-4 grid grid-cols-2 gap-2'>
+                <Button type='button' className='h-12' onClick={() => selectCreateTemplate('a4')}>
+                  A4
+                </Button>
+                <Button type='button' variant='secondary' className='h-12' onClick={() => selectCreateTemplate('80mm')}>
+                  80 mm
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {editorOpen ? (
         <div className='fixed inset-0 z-[80] bg-slate-950/45 backdrop-blur-[1px] animate-overlay-in'>
           <div className='app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-[var(--background)] animate-screen-in'>
             <div className='sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-sm'>
               <div>
-                <h2 className='text-base font-semibold text-slate-900'>{editingDocumentId ? tr('แก้ไขเอกสาร', 'Edit document') : tr('สร้างเอกสารใหม่', 'Create document')}</h2>
-                <p className='text-xs text-slate-500'>{tr('ฟอร์มเดียว ครบทั้งบันทึกและส่งอีเมลลูกค้า', 'One form for saving and sending customer email')}</p>
+                <h2 className='text-app-h3 font-semibold text-slate-900'>{editingDocumentId ? tr('แก้ไขเอกสาร', 'Edit document') : tr('สร้างเอกสารใหม่', 'Create document')}</h2>
+                <p className='text-xs text-slate-500'>
+                  {editorStep === 'document'
+                    ? tr('ขั้นตอนที่ 1: ข้อมูลเอกสาร', 'Step 1: Document info')
+                    : editorStep === 'parties'
+                      ? tr('ขั้นตอนที่ 2: ผู้ขายและลูกค้า', 'Step 2: Seller and customer')
+                      : editorStep === 'items'
+                        ? tr('ขั้นตอนที่ 3: รายการสินค้า/บริการ', 'Step 3: Items')
+                        : tr('สรุปยอดและบันทึกเอกสาร', 'Summary and save')}
+                </p>
               </div>
-              <Button type='button' variant='secondary' size='sm' className='h-10 w-10 rounded-xl px-0' onClick={() => setEditorOpen(false)}>
+              <Button type='button' variant='secondary' size='sm' className='h-10 w-10 rounded-xl px-0' onClick={closeEditor}>
                 <X className='h-4 w-4' />
               </Button>
             </div>
 
             <div className='flex-1 overflow-y-auto px-4 pb-32 pt-4'>
               <div className='space-y-3'>
-                <div className='flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5'>
+                <div className='hidden'>
                   <Button
                     type='button'
                     size='sm'
@@ -1207,40 +1310,22 @@ export default function BillingPage() {
                   </Button>
                 </div>
 
-                <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
-                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>{tr('ข้อมูลเอกสาร', 'Document info')}</p>
-                  <Input value={editorDraft.documentNo} onChange={(event) => updateEditorDraft('documentNo', event.target.value)} placeholder='เลขที่เอกสาร' />
-                  <Input value={editorDraft.referenceNo} onChange={(event) => updateEditorDraft('referenceNo', event.target.value)} placeholder='เลขอ้างอิง' />
-                  <div className='grid grid-cols-2 gap-2'>
-                    <Input type='date' value={editorDraft.issueDate} onChange={(event) => updateEditorDraft('issueDate', event.target.value)} />
-                    <Input type='date' value={editorDraft.dueDate} onChange={(event) => updateEditorDraft('dueDate', event.target.value)} />
-                  </div>
+                <div className={(editorStep === 'document' ? 'space-y-2.5' : 'hidden') + ' rounded-2xl border border-slate-200 bg-slate-50/80 p-3'}>
+                  <p className='form-label uppercase tracking-[0.08em] text-slate-500'>{tr('ข้อมูลเอกสาร', 'Document info')}</p>
+                  <Input value={editorDraft.documentNo} readOnly placeholder='รหัสออกบิล (อัตโนมัติ)' className='bg-slate-100 font-mono text-slate-700' />
+                  <Input type='date' value={editorDraft.issueDate} onChange={(event) => updateEditorDraft('issueDate', event.target.value)} />
                 </div>
 
-                <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
-                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>{tr('ผู้ขายและลูกค้า', 'Seller & buyer')}</p>
-                  <Input value={editorDraft.sellerName} onChange={(event) => updateEditorDraft('sellerName', event.target.value)} placeholder='ชื่อร้าน / ผู้ขาย' />
-                  <Input value={editorDraft.sellerTaxId} onChange={(event) => updateEditorDraft('sellerTaxId', event.target.value)} placeholder='Tax ID ผู้ขาย' />
+                <div className={(editorStep === 'parties' ? 'space-y-2.5' : 'hidden') + ' rounded-2xl border border-slate-200 bg-slate-50/80 p-3'}>
+                  <p className='form-label uppercase tracking-[0.08em] text-slate-500'>{tr('ผู้ขายและลูกค้า', 'Seller & buyer')}</p>
                   <Input value={editorDraft.buyerName} onChange={(event) => updateEditorDraft('buyerName', event.target.value)} placeholder='ชื่อลูกค้า' />
-                  <Input value={editorDraft.buyerTaxId} onChange={(event) => updateEditorDraft('buyerTaxId', event.target.value)} placeholder='Tax ID ลูกค้า' />
-                  <Input value={editorDraft.contactName} onChange={(event) => updateEditorDraft('contactName', event.target.value)} placeholder='ชื่อผู้ติดต่อ' />
-                  <Input value={editorDraft.contactPhone} onChange={(event) => updateEditorDraft('contactPhone', event.target.value)} placeholder='เบอร์ติดต่อ' />
-                  <textarea
-                    value={editorDraft.sellerAddress}
-                    onChange={(event) => updateEditorDraft('sellerAddress', event.target.value)}
-                    className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-slate-50/80 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
-                    placeholder='ที่อยู่ร้าน / สาขา'
-                  />
-                  <textarea
-                    value={editorDraft.buyerAddress}
-                    onChange={(event) => updateEditorDraft('buyerAddress', event.target.value)}
-                    className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-slate-50/80 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
-                    placeholder='ที่อยู่ลูกค้า'
-                  />
+                  <Input value={editorDraft.contactPhone} onChange={(event) => updateEditorDraft('contactPhone', event.target.value)} placeholder='เบอร์ติดต่อลูกค้า' />
+                  <Input value={editorDraft.sellerName} onChange={(event) => updateEditorDraft('sellerName', event.target.value)} placeholder='ชื่อผู้ขาย' />
+                  <Input value={editorDraft.sellerTaxId} onChange={(event) => updateEditorDraft('sellerTaxId', event.target.value)} placeholder='เบอร์ติดต่อผู้ขาย' />
                 </div>
-                <div className='rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+                <div className={(editorStep === 'items' ? '' : 'hidden') + ' rounded-2xl border border-slate-200 bg-slate-50/80 p-3'}>
                   <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
-                    <p className='text-sm font-semibold text-slate-900'>{tr('รายการสินค้า/บริการ', 'Items')}</p>
+                    <p className='text-app-body font-semibold text-slate-900'>{tr('รายการสินค้า/บริการ', 'Items')}</p>
                     <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={addEditorLine}>
                       <Plus className='h-3.5 w-3.5' />
                       {tr('เพิ่มรายการ', 'Add item')}
@@ -1290,7 +1375,7 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+                <div className='hidden'>
                   <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>{tr('สรุปยอดและการส่งเอกสาร', 'Totals and delivery')}</p>
                   <div className='grid grid-cols-2 gap-2'>
                     <Input type='number' min={0} step='0.01' value={String(editorDraft.discountPercent)} onChange={(event) => updateEditorDraft('discountPercent', parseNumberInput(event.target.value))} placeholder='ส่วนลด %' />
@@ -1314,7 +1399,7 @@ export default function BillingPage() {
                     placeholder='ข้อความในอีเมลที่ต้องการส่งถึงลูกค้า'
                   />
                 </div>
-                <Card className='space-y-1 rounded-2xl border-slate-200 bg-white p-3'>
+                <Card className='hidden'>
                   <p className='text-sm font-semibold text-slate-900'>{tr('สรุปยอด', 'Summary')}</p>
                   <div className='text-sm text-slate-700'>
                     <p>Subtotal: {formatCurrency(editorTotals.subtotal)} {editorDraft.currency}</p>
@@ -1328,15 +1413,76 @@ export default function BillingPage() {
 
             <div className='absolute inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-sm'>
               <div className='mx-auto flex w-full max-w-[460px] gap-2'>
-                <Button type='button' variant='secondary' className='flex-1' onClick={() => setEditorOpen(false)}>
-                  {tr('ยกเลิก', 'Cancel')}
+                <Button type='button' variant='secondary' className='flex-1' onClick={editorStep === 'document' ? closeEditor : goPrevEditorStep}>
+                  {editorStep === 'document' ? tr('ยกเลิก', 'Cancel') : tr('ย้อนกลับ', 'Back')}
                 </Button>
-                <Button type='button' className='flex-1 gap-2' onClick={saveDocument} disabled={pendingAction === 'save'}>
-                  <FileText className='h-4 w-4' />
-                  {pendingAction === 'save' ? tr('กำลังบันทึก...', 'Saving...') : tr('บันทึกเอกสาร', 'Save document')}
+                <Button type='button' className='flex-1 gap-2' onClick={goNextEditorStep}>
+                  {editorStep === 'items' ? <FileText className='h-4 w-4' /> : <ChevronRight className='h-4 w-4' />}
+                  {editorStep === 'items' ? tr('สรุปยอด', 'Summary') : tr('ถัดไป', 'Next')}
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {editorOpen && editorStep === 'summary' ? (
+        <div className='fixed inset-0 z-[86] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[2px]'>
+          <div className='w-full max-w-[420px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
+            <div className='flex items-start justify-between gap-3'>
+              <div>
+                <p className='form-label uppercase tracking-[0.12em] text-slate-500'>{tr('สรุปยอด', 'Summary')}</p>
+                <h3 className='mt-1 text-app-h3 font-semibold text-slate-900'>{editorDraft.documentNo}</h3>
+              </div>
+              <button type='button' onClick={() => setEditorStep('items')} className='rounded-full p-1 text-slate-500 transition hover:bg-slate-100'>
+                <X className='h-5 w-5' />
+              </button>
+            </div>
+
+            <div className='mt-4 space-y-3'>
+              <div className='rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700'>
+                <div className='flex justify-between gap-3'>
+                  <span>{tr('ยอดรวม', 'Subtotal')}</span>
+                  <span className='font-semibold'>{formatCurrency(editorTotals.subtotal)} {editorDraft.currency}</span>
+                </div>
+                <div className='mt-2 flex justify-between gap-3'>
+                  <span>{tr('ภาษี', 'VAT')} {editorDraft.vatPercent}%</span>
+                  <span className='font-semibold'>{formatCurrency(editorTotals.vatAmount)} {editorDraft.currency}</span>
+                </div>
+                <div className='mt-3 flex justify-between gap-3 border-t border-slate-200 pt-3 text-base text-slate-950'>
+                  <span className='font-semibold'>{tr('ยอดชำระสุทธิ์', 'Net payment')}</span>
+                  <span className='font-bold'>{formatCurrency(editorTotals.grandTotal)} {editorDraft.currency}</span>
+                </div>
+              </div>
+              <Input type='number' min={0} max={100} step='0.01' value={String(editorDraft.vatPercent)} onChange={(event) => updateEditorDraft('vatPercent', parseNumberInput(event.target.value))} placeholder='ภาษี %' />
+              <Input type='email' value={editorDraft.emailTo} onChange={(event) => updateEditorDraft('emailTo', event.target.value)} placeholder='อีเมล์ลูกค้าผู้ได้รับ' />
+            </div>
+
+            <div className='mt-4 grid grid-cols-2 gap-2'>
+              <Button type='button' variant='secondary' onClick={closeEditor}>
+                {tr('ยกเลิก', 'Cancel')}
+              </Button>
+              <Button type='button' className='gap-2' onClick={saveDocument} disabled={pendingAction === 'save'}>
+                {pendingAction === 'save' ? <Loader2 className='h-4 w-4 animate-spin' /> : <FileText className='h-4 w-4' />}
+                {pendingAction === 'save' ? tr('กำลังบันทึก...', 'Saving...') : tr('บันทึกเอกสาร', 'Save document')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {saveFeedback ? (
+        <div className='fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]'>
+          <div className='w-full max-w-[320px] rounded-[22px] border border-slate-200 bg-white p-4 text-center shadow-2xl'>
+            {saveFeedback === 'saving' ? <Loader2 className='mx-auto h-8 w-8 animate-spin text-blue-600' /> : <FileText className='mx-auto h-8 w-8 text-emerald-600' />}
+            <p className='mt-3 text-base font-semibold text-slate-900'>
+              {saveFeedback === 'saving' ? tr('กำลังบันทึก', 'Saving') : tr('บันทึกสำเร็จ', 'Saved successfully')}
+            </p>
+            {saveFeedback === 'success' ? (
+              <Button type='button' className='mt-4 w-full' onClick={() => setSaveFeedback(null)}>
+                {tr('ตกลง', 'OK')}
+              </Button>
+            ) : null}
           </div>
         </div>
       ) : null}
