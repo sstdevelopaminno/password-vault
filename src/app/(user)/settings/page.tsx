@@ -331,40 +331,40 @@ export default function SettingsPage() {
       key={key}
       type='button'
       onClick={() => openSection(key)}
-      className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
+      className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
     >
       <span className='inline-flex items-center gap-3'>
-        <span className='rounded-xl bg-slate-100 p-2.5 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'>
+        <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2.5 text-sky-300 group-hover:text-cyan-200'>
           <Icon className='h-4 w-4' />
         </span>
-        <span className='text-base font-semibold leading-6 text-slate-800'>{title}</span>
+        <span className='text-app-h3 font-semibold text-slate-100'>{title}</span>
       </span>
-      <ChevronRight className='h-4 w-4 text-slate-400' />
+      <ChevronRight className='h-4 w-4 text-slate-300' />
     </button>
   );
 
   const nameView = (
-    <Card className='space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]'>
+    <Card className='space-y-4 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4 shadow-[var(--glow-soft)]'>
       <div className='space-y-1.5'>
-        <p className='form-label text-slate-500'>
+        <p className='form-label text-slate-300'>
           {locale === 'th' ? 'ชื่อโปรไฟล์' : 'Profile name'}
         </p>
         <Input
           value={fullName}
           placeholder={t('settings.fullNamePlaceholder')}
           onChange={(event) => setFullName(event.target.value)}
-          className='h-10 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100'
+          className='h-10 rounded-xl bg-[var(--surface-1)] text-slate-100 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100'
         />
       </div>
       <div className='space-y-1.5'>
-        <p className='form-label text-slate-500'>Email</p>
-        <Input value={profileEmail} readOnly className='h-10 rounded-xl bg-white text-slate-700' />
+        <p className='form-label text-slate-300'>Email</p>
+        <Input value={profileEmail} readOnly className='h-10 rounded-xl bg-[var(--surface-1)] text-slate-200' />
       </div>
       <div className='space-y-1.5'>
-        <p className='form-label text-slate-500'>
+        <p className='form-label text-slate-300'>
           {locale === 'th' ? 'รหัสผ่าน' : 'Password'}
         </p>
-        <Input value='••••••••' readOnly className='h-10 rounded-xl bg-white text-slate-700 tracking-[0.2em]' />
+        <Input value='••••••••' readOnly className='h-10 rounded-xl bg-[var(--surface-1)] text-slate-200 tracking-[0.2em]' />
       </div>
       <Button onClick={() => void updateProfile()} disabled={loading} className='h-10 rounded-xl'>
         {loading ? (locale === 'th' ? 'กำลังบันทึก...' : 'Saving...') : t('settings.updateName')}
@@ -375,10 +375,10 @@ export default function SettingsPage() {
   const emailStepOne = (
     <Card className='space-y-4 rounded-[24px] border-0 bg-gradient-to-br from-blue-950 via-indigo-900 to-blue-700 p-5 text-white shadow-[0_18px_40px_rgba(30,64,175,0.35)]'>
       <div>
-        <p className='text-sm font-semibold tracking-wide text-blue-100'>
+        <p className='text-app-body font-semibold text-blue-100'>
           {locale === 'th' ? 'เปลี่ยนอีเมลบัญชี' : 'Change account email'}
         </p>
-        <p className='mt-1 text-xs text-blue-100/90'>
+        <p className='mt-1 text-app-caption text-blue-100/90'>
           {locale === 'th'
             ? 'กรอกอีเมลใหม่ จากนั้นระบบจะส่ง OTP ยืนยัน'
             : 'Enter your new email. We will send OTP for verification.'}
@@ -408,7 +408,7 @@ export default function SettingsPage() {
           {resendIn > 0 ? `${locale === 'th' ? 'ส่งใหม่ใน' : 'Resend in'} ${resendIn}s` : t('settings.requestEmailChange')}
         </Button>
       </div>
-      <div className='rounded-xl border border-cyan-200/40 bg-cyan-300/20 px-3 py-2 text-xs font-medium text-cyan-100'>
+      <div className='rounded-xl border border-cyan-200/40 bg-cyan-300/20 px-3 py-2 text-app-caption font-medium text-cyan-100'>
         {locale === 'th'
           ? 'หากได้รับ OTP แล้ว ไม่ต้องกดขอซ้ำ ให้ใช้ OTP ล่าสุดในอีเมล'
           : 'If OTP already arrived, do not request again. Use the latest OTP.'}
@@ -428,9 +428,9 @@ export default function SettingsPage() {
 
   const emailStepTwo = (
     <Card className='space-y-4 rounded-[24px] border-0 bg-gradient-to-br from-blue-950 via-indigo-900 to-blue-700 p-5 text-white shadow-[0_18px_40px_rgba(30,64,175,0.35)]'>
-      <p className='text-sm font-semibold tracking-wide text-blue-100'>OTP 6-digit</p>
+      <p className='text-app-body font-semibold text-blue-100'>OTP 6-digit</p>
       <OtpInput value={emailOtp} onChange={setEmailOtp} length={6} ariaLabel={t('otpInput.ariaLabel')} />
-      <div className='rounded-xl border border-cyan-200/40 bg-cyan-300/20 px-3 py-2 text-xs font-medium text-cyan-100'>
+      <div className='rounded-xl border border-cyan-200/40 bg-cyan-300/20 px-3 py-2 text-app-caption font-medium text-cyan-100'>
         {emailAutoLoading
           ? locale === 'th'
             ? 'กำลังยืนยัน OTP และบันทึกอัตโนมัติ...'
@@ -466,7 +466,7 @@ export default function SettingsPage() {
   const emailView = emailStep === 'enter_email' ? emailStepOne : emailStepTwo;
 
   const passwordView = (
-    <Card className='space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
+    <Card className='space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
       <Input
         type='password'
         value={newPassword}
@@ -488,8 +488,8 @@ export default function SettingsPage() {
   );
 
   const languageView = (
-    <Card className='space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
-      <p className='text-sm text-slate-600'>
+    <Card className='space-y-4 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
+      <p className='text-app-body text-slate-300'>
         {locale === 'th' ? 'เลือกภาษาที่ต้องการใช้งาน' : 'Choose your preferred app language.'}
       </p>
       <div className='grid grid-cols-2 gap-2'>
@@ -519,17 +519,17 @@ export default function SettingsPage() {
       className={
         'flex min-h-[52px] items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ' +
         (themeMode === mode
-          ? 'border-blue-300 bg-blue-50/60 text-blue-900 shadow-[0_8px_20px_rgba(37,99,235,0.12)]'
-          : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50/40')
+          ? 'border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-2)_84%,#4f79ff_16%)] text-slate-100 shadow-[var(--glow-soft)]'
+          : 'border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)]')
       }
       aria-pressed={themeMode === mode}
     >
-      <span className='inline-flex items-center gap-2 text-sm font-semibold'>
+      <span className='inline-flex items-center gap-2 text-app-body font-semibold'>
         <Icon className='h-4 w-4' />
         {label}
       </span>
       {themeMode === mode ? (
-        <span className='text-[11px] font-semibold'>
+        <span className='text-app-micro font-semibold'>
           {locale === 'th' ? 'กำลังใช้' : 'Active'}
         </span>
       ) : null}
@@ -537,8 +537,8 @@ export default function SettingsPage() {
   );
 
   const themeView = (
-    <Card className='space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
-      <p className='text-sm text-slate-600'>
+    <Card className='space-y-4 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
+      <p className='text-app-body text-slate-300'>
         {locale === 'th'
           ? `เลือกธีมทั้งระบบ (ตอนนี้แสดงผล: ${resolvedTheme === 'dark' ? 'Dark' : 'Light'})`
           : `Choose app-wide theme (currently showing: ${resolvedTheme})`}
@@ -552,8 +552,8 @@ export default function SettingsPage() {
   );
 
   const logoutView = (
-    <Card className='space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
-      <p className='text-sm text-slate-600'>
+    <Card className='space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
+      <p className='text-app-body text-slate-300'>
         {locale === 'th'
           ? 'ยืนยันการออกจากระบบบนอุปกรณ์นี้'
           : 'Confirm to sign out from this device.'}
@@ -603,8 +603,8 @@ export default function SettingsPage() {
       {active ? null : (
         <div className='flex items-start justify-between gap-3'>
           <div>
-            <h1 className='text-app-h1 font-semibold text-slate-900'>{t('settings.title')}</h1>
-            <p className='text-app-body text-slate-600'>
+            <h1 className='text-app-h1 font-semibold text-slate-100'>{t('settings.title')}</h1>
+            <p className='text-app-body text-slate-300'>
               {locale === 'th' ? 'เลือกเมนูที่ต้องการปรับแต่งโปรไฟล์ของคุณ' : 'Select a menu to update your profile settings.'}
             </p>
           </div>
@@ -632,33 +632,33 @@ export default function SettingsPage() {
         <button
           type='button'
           onClick={() => router.push('/settings/notifications')}
-          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
+          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
         >
           <span className='inline-flex items-center gap-3'>
-            <span className='rounded-xl bg-slate-100 p-2.5 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'>
+            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2.5 text-sky-300 group-hover:text-cyan-200'>
               <Bell className='h-4 w-4' />
             </span>
-            <span className='text-base font-semibold leading-6 text-slate-800'>
+            <span className='text-app-h3 font-semibold text-slate-100'>
               {locale === 'th' ? 'การแจ้งเตือน' : 'Notifications'}
             </span>
           </span>
-          <ChevronRight className='h-4 w-4 text-slate-400' />
+          <ChevronRight className='h-4 w-4 text-slate-300' />
         </button>
 
         <button
           type='button'
           onClick={() => router.push('/help-center')}
-          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]'
+          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
         >
           <span className='inline-flex items-center gap-3'>
-            <span className='rounded-xl bg-slate-100 p-2.5 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'>
+            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2.5 text-sky-300 group-hover:text-cyan-200'>
               <LifeBuoy className='h-4 w-4' />
             </span>
-            <span className='text-base font-semibold leading-6 text-slate-800'>
+            <span className='text-app-h3 font-semibold text-slate-100'>
               {locale === 'th' ? 'ศูนย์ช่วยเหลือ' : 'Help center'}
             </span>
           </span>
-          <ChevronRight className='h-4 w-4 text-slate-400' />
+          <ChevronRight className='h-4 w-4 text-slate-300' />
         </button>
         <TopQuickActions variant='settings-menu' showSecondaryActions={false} />
         {menuBtn('logout', locale === 'th' ? 'ออกจากระบบ' : 'Sign out', LogOut)}
@@ -666,17 +666,17 @@ export default function SettingsPage() {
 
       {body ? (
         <div className='mt-2 space-y-3'>
-          <div className='mx-auto w-full max-w-[540px] rounded-[30px] bg-white px-5 pb-8 pt-5 shadow-[0_10px_35px_rgba(15,23,42,0.16)]'>
+          <div className='mx-auto w-full max-w-[540px] rounded-[30px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-5 pb-8 pt-5 shadow-[var(--glow-soft)]'>
             <div className='mb-5 flex items-center gap-2'>
               <button
                 type='button'
-                className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600'
+                className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-200'
                 onClick={goMenuRoot}
                 aria-label={locale === 'th' ? 'ย้อนกลับ' : 'Back'}
               >
                 <ChevronLeft className='h-4 w-4' />
               </button>
-              <h2 className='text-app-h3 font-semibold text-slate-900'>{activeTitle}</h2>
+              <h2 className='text-app-h3 font-semibold text-slate-100'>{activeTitle}</h2>
             </div>
             {body}
           </div>

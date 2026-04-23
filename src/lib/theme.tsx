@@ -16,9 +16,9 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function getInitialMode(): ThemeMode {
-  if (typeof window === 'undefined') return 'auto';
+  if (typeof window === 'undefined') return 'dark';
   const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-  return saved === 'light' || saved === 'dark' || saved === 'auto' ? saved : 'auto';
+  return saved === 'light' || saved === 'dark' || saved === 'auto' ? saved : 'dark';
 }
 
 function getInitialSystemDark() {

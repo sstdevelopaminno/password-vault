@@ -3,7 +3,7 @@
 :root {
   --background: #0b1433;
   --foreground: #f7faff;
-  --card: linear-gradient(180deg, rgba(20, 31, 72, 0.88), rgba(12, 21, 52, 0.92));
+  --card: linear-gradient(180deg, rgba(18, 30, 72, 0.96), rgba(14, 24, 62, 0.98));
   --muted: #adbee3;
   --primary: #2f7bff;
   --primary-foreground: #ffffff;
@@ -15,8 +15,8 @@
   --logo-indigo: #7758ff;
   --logo-magenta: #cf48ff;
   --logo-pink: #ff3ed1;
-  --surface-1: rgba(21, 34, 78, 0.76);
-  --surface-2: rgba(24, 39, 88, 0.88);
+  --surface-1: rgba(21, 34, 78, 0.92);
+  --surface-2: rgba(24, 39, 88, 0.95);
   --border-soft: rgba(154, 179, 255, 0.26);
   --border-strong: rgba(162, 192, 255, 0.44);
   --glow-soft: 0 18px 44px rgba(5, 10, 30, 0.24);
@@ -25,6 +25,8 @@
   --radius: 24px;
   --font-size-base: 16px;
   --font-size-label: 13px;
+  --font-size-caption: 12px;
+  --font-size-micro: 11px;
   --font-size-h1: clamp(30px, 5vw, 36px);
   --font-size-h2: clamp(22px, 4vw, 28px);
   --font-size-h3: clamp(18px, 3.2vw, 22px);
@@ -125,10 +127,22 @@ button {
   line-height: var(--line-height-base);
 }
 
+.text-app-caption {
+  font-size: var(--font-size-caption);
+  line-height: 1.45;
+}
+
+.text-app-micro {
+  font-size: var(--font-size-micro);
+  line-height: 1.45;
+}
+
 @media (min-width: 768px) {
   :root {
     --font-size-base: 17px;
     --font-size-label: 14px;
+    --font-size-caption: 13px;
+    --font-size-micro: 12px;
     --font-size-h1: 38px;
     --font-size-h2: 30px;
     --font-size-h3: 24px;

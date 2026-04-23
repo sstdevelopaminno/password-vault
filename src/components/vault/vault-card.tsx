@@ -103,17 +103,17 @@ export function VaultCard({
 
   return (
     <div className='relative overflow-hidden rounded-[28px]'>
-      <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[28px] bg-[var(--surface-2)] p-1.5'>
+      <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[28px] bg-[color-mix(in_srgb,var(--surface-2)_94%,#1a2a63_6%)] p-1.5'>
         <button
           type='button'
           onClick={() => {
             closeSwipe();
             onEdit(id);
           }}
-          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-indigo-500 to-blue-600 text-white shadow-[0_8px_16px_rgba(37,99,235,0.26)] transition hover:brightness-110'
+          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-indigo-600 to-blue-700 text-white shadow-[0_8px_16px_rgba(37,99,235,0.36)] transition hover:brightness-110'
         >
           <Pencil className='h-4 w-4' />
-          <span className='mt-1 text-[10px] font-semibold'>{t('vaultDetail.edit')}</span>
+          <span className='mt-1 text-app-micro font-semibold'>{t('vaultDetail.edit')}</span>
         </button>
 
         <button
@@ -122,10 +122,10 @@ export function VaultCard({
             closeSwipe();
             onDelete(id);
           }}
-          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-rose-500 to-fuchsia-600 text-white shadow-[0_8px_16px_rgba(225,29,72,0.26)] transition hover:brightness-110'
+          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-rose-600 to-fuchsia-700 text-white shadow-[0_8px_16px_rgba(225,29,72,0.36)] transition hover:brightness-110'
         >
           <Trash2 className='h-4 w-4' />
-          <span className='mt-1 text-[10px] font-semibold'>{t('vaultDetail.delete')}</span>
+          <span className='mt-1 text-app-micro font-semibold'>{t('vaultDetail.delete')}</span>
         </button>
       </div>
 
@@ -147,24 +147,24 @@ export function VaultCard({
             </span>
 
             <div className='min-w-0 flex-1'>
-              <p className='line-clamp-1 text-[18px] font-semibold leading-tight text-slate-900'>{title}</p>
-              <p className='mt-0.5 truncate text-[14px] text-slate-600'>{username}</p>
+              <p className='line-clamp-1 text-app-h3 font-semibold text-slate-100'>{title}</p>
+              <p className='mt-0.5 truncate text-app-body text-slate-300'>{username}</p>
             </div>
 
             <div className='shrink-0'>
-              <span className='inline-flex max-w-[148px] items-center truncate rounded-full border border-fuchsia-300/45 bg-fuchsia-500/15 px-3 py-1 text-[11px] font-semibold text-fuchsia-200'>
+              <span className='inline-flex max-w-[148px] items-center truncate rounded-full border border-fuchsia-300/65 bg-fuchsia-700 px-3 py-1 text-app-micro font-semibold text-fuchsia-100'>
                 {category}
               </span>
             </div>
           </div>
 
-          <div className='flex items-center justify-between gap-2 text-[12px] text-slate-500'>
+          <div className='flex items-center justify-between gap-2 text-app-caption text-slate-300'>
             <span className='inline-flex items-center gap-1.5 truncate'>
-              <KeyRound className='h-4 w-4 shrink-0 text-slate-500' />
+              <KeyRound className='h-4 w-4 shrink-0 text-slate-300' />
               {t('vault.protectedByPin')}
             </span>
             <span className='inline-flex items-center gap-1.5 whitespace-nowrap'>
-              <Globe className='h-4 w-4 shrink-0 text-slate-500' />
+              <Globe className='h-4 w-4 shrink-0 text-slate-300' />
               <span>{updatedAt}</span>
             </span>
           </div>
@@ -173,7 +173,7 @@ export function VaultCard({
             <div className='flex items-center gap-1.5'>
               {isSharedToTeam ? (
                 <span
-                  className='inline-flex items-center gap-1 rounded-full border border-emerald-300/35 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300'
+                  className='inline-flex items-center gap-1 rounded-full border border-emerald-300/45 bg-emerald-700 px-2 py-0.5 text-app-micro font-semibold text-emerald-100'
                   title={locale === 'th' ? 'แชร์ไปทีมแล้ว' : 'Shared to team'}
                 >
                   <span className='h-2 w-2 rounded-full bg-emerald-400' />
@@ -182,7 +182,7 @@ export function VaultCard({
               ) : null}
               {pending ? (
                 <span
-                  className='inline-flex items-center gap-1 rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300'
+                  className='inline-flex items-center gap-1 rounded-full border border-amber-300/45 bg-amber-700 px-2 py-0.5 text-app-micro font-semibold text-amber-100'
                   title={locale === 'th' ? 'รอซิงก์' : 'Pending sync'}
                 >
                   <span className='h-2 w-2 rounded-full bg-amber-400' />
@@ -200,7 +200,7 @@ export function VaultCard({
                     closeSwipe();
                     onShare(id);
                   }}
-                  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/35 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/20'
+                  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/55 bg-cyan-700 text-cyan-100 transition hover:brightness-110'
                   title={locale === 'th' ? 'แชร์ไปทีม' : 'Share to team'}
                   aria-label={locale === 'th' ? 'แชร์ไปทีม' : 'Share to team'}
                 >
@@ -216,7 +216,7 @@ export function VaultCard({
                     closeSwipe();
                     onUnshare(id);
                   }}
-                  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-300/35 bg-rose-400/10 text-rose-200 transition hover:bg-rose-400/20'
+                  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-300/55 bg-rose-700 text-rose-100 transition hover:brightness-110'
                   title={locale === 'th' ? 'ยกเลิกแชร์ไปทีม' : 'Cancel team share'}
                   aria-label={locale === 'th' ? 'ยกเลิกแชร์ไปทีม' : 'Cancel team share'}
                 >

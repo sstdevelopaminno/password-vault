@@ -1232,15 +1232,15 @@ setDeleting(true);
 
  <div className='neon-search relative'>
  <Search className='pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500' />
- <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={isTh ? 'ค้นหาโน้ต' : 'Search notes'} className='h-[50px] rounded-[18px] border-transparent bg-transparent pl-11 text-[15px] text-slate-900 placeholder:text-slate-500 focus:border-transparent focus:ring-0' />
+ <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={isTh ? 'ค้นหาโน้ต' : 'Search notes'} className='h-[50px] rounded-[18px] border-transparent bg-transparent pl-11 text-app-body text-slate-900 placeholder:text-slate-500 focus:border-transparent focus:ring-0' />
  </div>
 
  {viewMode === 'paper' ? (
  <div ref={paperSectionRef} id='notes-paper-section' className='space-y-3 sm:space-y-4'>
- {loading && notes.length === 0 ? <p className='text-center text-sm text-slate-500'>{isTh ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
+ {loading && notes.length === 0 ? <p className='text-center text-app-body text-slate-500'>{isTh ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
  {!loading && notes.length === 0 ? (
  <Card className='space-y-1 border-[var(--border-soft)] bg-[var(--card)] text-center'>
- <p className='text-sm font-semibold text-slate-900'>{isTh ? 'ยังไม่มีโน้ต' : 'No notes yet'}</p>
+ <p className='text-app-body font-semibold text-slate-900'>{isTh ? 'ยังไม่มีโน้ต' : 'No notes yet'}</p>
  </Card>
  ) : null}
  {notes.map((note) => {
@@ -1274,11 +1274,11 @@ setDeleting(true);
  </span>
  <div className='min-w-0 flex-1'>
  <div className='flex flex-wrap items-center gap-1.5'>
- <span className={'inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ' + statusTone}>{statusLabel}</span>
+ <span className={'inline-flex rounded-full px-2.5 py-1 text-app-micro font-semibold ring-1 ' + statusTone}>{statusLabel}</span>
  </div>
- <p className='mt-1 line-clamp-1 text-[17px] font-semibold leading-[1.25] tracking-[-0.01em] text-slate-900 sm:text-[18px]'>{note.title}</p>
- <p className='mt-0.5 text-[11px] font-medium leading-5 text-slate-600 sm:mt-1 sm:text-[12px]'>{isTh ? 'เอกสารบันทึกสำคัญประจำวัน' : 'Personal note and reminders'}</p>
- <p className='mt-1.5 text-[11px] font-semibold text-slate-500 sm:mt-2 sm:text-xs'>{isTh ? 'อัปเดตล่าสุด' : 'Updated'} {updatedLabel}</p>
+ <p className='mt-1 line-clamp-1 text-app-h3 font-semibold text-slate-900'>{note.title}</p>
+ <p className='mt-0.5 text-app-caption font-medium leading-5 text-slate-600 sm:mt-1'>{isTh ? 'เอกสารบันทึกสำคัญประจำวัน' : 'Personal note and reminders'}</p>
+ <p className='mt-1.5 text-app-micro font-semibold text-slate-500 sm:mt-2'>{isTh ? 'อัปเดตล่าสุด' : 'Updated'} {updatedLabel}</p>
  </div>
  <button
  type='button'
@@ -1289,7 +1289,7 @@ setDeleting(true);
  <ChevronRight className='h-4 w-4' />
  </button>
  </div>
- <div className='flex flex-wrap gap-1.5 text-[10px] font-medium text-slate-600 sm:text-[11px]'>
+ <div className='flex flex-wrap gap-1.5 text-app-micro font-medium text-slate-600'>
  <span className='inline-flex items-center gap-1 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] px-2 py-1 sm:px-2.5'>
  <Clock3 className='h-3.5 w-3.5 text-slate-500' />
  {isTh ? 'เตือน' : 'Reminder'} {reminderLabel}
@@ -1304,15 +1304,15 @@ setDeleting(true);
  <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[rgba(255,105,157,0.36)] bg-[rgba(64,14,44,0.58)] p-0 text-[#ff88b0] hover:border-rose-300/60 hover:text-[#ff92ba] sm:h-9 sm:w-9' onClick={() => requestDeleteWithPin(note)}><Trash2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-fuchsia-300 hover:border-fuchsia-300/50 hover:text-fuchsia-200 sm:h-9 sm:w-9' onClick={() => requestShareWithPin(note)}><Share2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-sky-300 hover:border-cyan-300/50 hover:text-sky-200 sm:h-9 sm:w-9' onClick={() => requestCopyWithPin(note)}><Copy className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] px-2.5 text-[10px] font-semibold text-slate-700 hover:border-cyan-300/45 hover:text-slate-900 sm:h-9 sm:px-3 sm:text-[11px]' onClick={() => requestPdfWithPin(note)}>{isTh ? 'ไฟล์ PDF' : 'PDF file'}</Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] px-2.5 text-app-micro font-semibold text-slate-700 hover:border-cyan-300/45 hover:text-slate-900 sm:h-9 sm:px-3' onClick={() => requestPdfWithPin(note)}>{isTh ? 'ไฟล์ PDF' : 'PDF file'}</Button>
  </div>
  </Card>
  );
  })}
  <div className='flex items-center justify-between gap-2'>
- <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page - 1, searchDebounced)} disabled={!pagination.hasPrev || loading}>{isTh ? 'ก่อนหน้า' : 'Prev'}</Button>
- <p className='text-xs font-semibold text-slate-600'>{isTh ? 'หน้า' : 'Page'} {pagination.page} / {pagination.totalPages}</p>
- <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-xs' onClick={() => void loadNotes(pagination.page + 1, searchDebounced)} disabled={!pagination.hasNext || loading}>{isTh ? 'ถัดไป' : 'Next'}</Button>
+ <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-app-caption' onClick={() => void loadNotes(pagination.page - 1, searchDebounced)} disabled={!pagination.hasPrev || loading}>{isTh ? 'ก่อนหน้า' : 'Prev'}</Button>
+ <p className='text-app-caption font-semibold text-slate-600'>{isTh ? 'หน้า' : 'Page'} {pagination.page} / {pagination.totalPages}</p>
+ <Button type='button' variant='secondary' className='h-9 rounded-xl px-3 text-app-caption' onClick={() => void loadNotes(pagination.page + 1, searchDebounced)} disabled={!pagination.hasNext || loading}>{isTh ? 'ถัดไป' : 'Next'}</Button>
  </div>
  </div>
  ) : (
@@ -1320,10 +1320,10 @@ setDeleting(true);
  <Card className='space-y-3 rounded-[20px]'>
  <div className='flex items-center justify-between gap-2'>
  <Button type='button' variant='secondary' size='sm' className='h-9 rounded-xl px-2.5' onClick={() => setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}><ChevronLeft className='h-4 w-4' /></Button>
- <p className='text-sm font-semibold text-slate-800'>{monthLabel}</p>
+ <p className='text-app-body font-semibold text-slate-800'>{monthLabel}</p>
  <Button type='button' variant='secondary' size='sm' className='h-9 rounded-xl px-2.5' onClick={() => setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}><ChevronRight className='h-4 w-4' /></Button>
  </div>
- <div className='grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500'>{weekLabels.map((item) => <div key={item}>{item}</div>)}</div>
+ <div className='grid grid-cols-7 gap-1 text-center text-app-micro font-semibold text-slate-500'>{weekLabels.map((item) => <div key={item}>{item}</div>)}</div>
  <div className='grid grid-cols-7 gap-1'>
  {calendarCells.map((date, index) => {
  if (!date) return <div key={'empty-' + index} className='h-12 rounded-xl border border-transparent' />;
@@ -1335,10 +1335,10 @@ setDeleting(true);
  key={key}
  type='button'
  onClick={() => handleCalendarDateClick(key)}
- className={'relative h-12 rounded-xl border text-xs transition ' + (active ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200')}
+ className={'relative h-12 rounded-xl border text-app-caption transition ' + (active ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200')}
  >
  {date.getDate()}
- {count > 0 ? <span className='absolute right-1 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-semibold text-white'>{count}</span> : null}
+ {count > 0 ? <span className='absolute right-1 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-app-micro font-semibold text-white'>{count}</span> : null}
  </button>
  );
  })}
@@ -1352,7 +1352,7 @@ setDeleting(true);
  <div className='w-full max-w-[760px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
  <div className='flex items-start justify-between gap-3'>
  <div>
- <p className='text-xs font-semibold uppercase tracking-[0.1em] text-slate-500'>{isTh ? 'รายการวันเลือก' : 'Selected date notes'}</p>
+ <p className='text-app-caption font-semibold uppercase tracking-[0.1em] text-slate-500'>{isTh ? 'รายการวันเลือก' : 'Selected date notes'}</p>
  <h3 className='mt-1 text-app-h3 font-semibold text-slate-900'>{calendarDatePopup.dateKey}</h3>
  </div>
  <button
@@ -1365,7 +1365,7 @@ setDeleting(true);
  </button>
  </div>
 
- <p className='mt-1 text-xs text-slate-500'>
+ <p className='mt-1 text-app-caption text-slate-500'>
  {isTh ? `ทั้งหมด ${calendarDatePopup.notes.length} รายการ` : `${calendarDatePopup.notes.length} item(s)`}
  </p>
 
@@ -1384,7 +1384,7 @@ setDeleting(true);
  })
  }
  className={
- 'inline-flex min-w-[130px] shrink-0 items-center rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ' +
+ 'inline-flex min-w-[130px] shrink-0 items-center rounded-xl border px-3 py-2 text-left text-app-caption font-semibold transition ' +
  (active
  ? 'border-blue-300 bg-blue-50 text-blue-700'
  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200')
@@ -1405,21 +1405,21 @@ setDeleting(true);
  if (!activeNote) return null;
  return (
  <div className='mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3 sm:px-4'>
- <p className='text-sm font-semibold text-slate-900 sm:text-base'>{activeNote.title}</p>
- {activeNote.pending ? <p className='mt-1 text-[11px] font-semibold text-amber-600'>{isTh ? 'รอซิงก์' : 'Pending sync'}</p> : null}
- <div className='mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500'>
+ <p className='text-app-body font-semibold text-slate-900'>{activeNote.title}</p>
+ {activeNote.pending ? <p className='mt-1 text-app-micro font-semibold text-amber-600'>{isTh ? 'รอซิงก์' : 'Pending sync'}</p> : null}
+ <div className='mt-2 flex flex-wrap gap-2 text-app-micro text-slate-500'>
  <p className='inline-flex items-center gap-1'><Clock3 className='h-3 w-3' /> {isTh ? 'เตือน' : 'Reminder'}: {activeNote.reminderAt ? new Date(activeNote.reminderAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
  <p className='inline-flex items-center gap-1'><Calendar className='h-3 w-3' /> {isTh ? 'นัดหมาย' : 'Meeting'}: {activeNote.meetingAt ? new Date(activeNote.meetingAt).toLocaleString(isTh ? 'th-TH' : 'en-US') : '-'}</p>
  </div>
  <div className='mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5'>
- <p className='whitespace-pre-wrap break-words text-sm leading-6 text-slate-700'>{activeNote.content}</p>
+ <p className='whitespace-pre-wrap break-words text-app-body leading-6 text-slate-700'>{activeNote.content}</p>
  </div>
  <div className='mt-3 flex justify-end'>
  <Button
  type='button'
  variant='secondary'
  size='sm'
- className='h-8 rounded-lg px-3 text-[11px]'
+ className='h-8 rounded-lg px-3 text-app-micro'
  onClick={() => {
  setCalendarDatePopup(null);
  setPaperPreviewNote(activeNote);
@@ -1464,12 +1464,12 @@ setDeleting(true);
  <BellRing className='h-5 w-5 animate-pulse' />
  </span>
  <div>
- <p className='text-base font-semibold text-slate-900'>
+ <p className='text-app-h3 font-semibold text-slate-900'>
  {activeDueNotice.kind === 'meeting'
  ? (isTh ? 'แจ้งเตือนนัดหมาย' : 'Meeting reminder')
  : (isTh ? 'แจ้งเตือนรายการโน้ต' : 'Note reminder')}
  </p>
- <p className='text-xs text-slate-500'>
+ <p className='text-app-caption text-slate-500'>
  {new Date(activeDueNotice.at).toLocaleString(isTh ? 'th-TH' : 'en-US')}
  </p>
  </div>
@@ -1480,8 +1480,8 @@ setDeleting(true);
  </div>
 
  <div className='mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5'>
- <p className='line-clamp-1 text-sm font-semibold text-slate-900'>{activeDueNotice.title}</p>
- <p className='mt-1 text-xs leading-5 text-slate-600'>
+ <p className='line-clamp-1 text-app-body font-semibold text-slate-900'>{activeDueNotice.title}</p>
+ <p className='mt-1 text-app-caption leading-5 text-slate-600'>
  {activeDueNote?.content
  ? activeDueNote.content.slice(0, 120) + (activeDueNote.content.length > 120 ? '...' : '')
  : (isTh ? 'รายการนี้พร้อมให้เปิดดูรายละเอียด' : 'This note is ready to open.')}
@@ -1515,7 +1515,7 @@ setDeleting(true);
  <div className='w-full max-w-[920px] animate-slide-up rounded-[26px] border border-slate-200/90 bg-slate-50/95 p-3 shadow-2xl sm:p-4'>
  <div className='mb-3 flex items-start justify-between gap-3'>
  <div>
- <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'มุมมองกระดาษ A4' : 'A4 paper view'}</p>
+ <p className='text-app-caption font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'มุมมองกระดาษ A4' : 'A4 paper view'}</p>
  <h3 className='mt-1 line-clamp-1 text-app-h3 font-semibold text-slate-900'>{paperPreviewNote.title}</h3>
  </div>
  <button
@@ -1529,12 +1529,12 @@ setDeleting(true);
  </div>
  <div className='preserve-white mx-auto w-full max-w-[794px] rounded-[10px] border border-slate-300/90 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.18)]'>
  <div className='max-h-[calc(100dvh-250px)] overflow-y-auto px-5 py-6 sm:px-10 sm:py-10'>
- <h4 className='text-[24px] font-semibold leading-tight text-slate-900 sm:text-[30px]'>{paperPreviewNote.title}</h4>
- <p className='mt-2 text-[11px] font-medium text-slate-500 sm:text-xs'>
+ <h4 className='text-app-h2 font-semibold text-slate-900'>{paperPreviewNote.title}</h4>
+ <p className='mt-2 text-app-micro font-medium text-slate-500'>
  {isTh ? 'อัปเดตล่าสุด' : 'Updated'} {new Date(paperPreviewNote.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US')}
  </p>
  <div className='mt-6 border-t border-slate-200 pt-5'>
- <p className='whitespace-pre-wrap break-words text-[15px] leading-8 text-slate-800 sm:text-[16px]'>
+ <p className='whitespace-pre-wrap break-words text-app-body leading-8 text-slate-800'>
  {paperPreviewNote.content}
  </p>
  </div>
@@ -1637,7 +1637,7 @@ setDeleting(true);
  <div className='fixed inset-0 z-[85] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='w-full max-w-[460px] animate-slide-up rounded-[24px] border border-rose-100 bg-white p-4 shadow-2xl'>
  <h2 className='text-app-h3 font-semibold text-slate-900'>{isTh ? 'ยืนยันการลบโน้ต' : 'Confirm Note Deletion'}</h2>
- <p className='mt-2 text-sm text-slate-600'>
+ <p className='mt-2 text-app-body text-slate-600'>
  {isTh ? 'ต้องการลบโน้ตนี้ใช่หรือไม่' : 'Do you want to delete this note?'}
  <span className='mt-1 block truncate font-semibold text-slate-800'>{deleteTarget.title}</span>
  </p>
@@ -1670,7 +1670,7 @@ setDeleting(true);
  key={option.code}
  type='button'
  className={
- 'rounded-lg px-2 py-1 text-[10px] font-semibold transition ' +
+ 'rounded-lg px-2 py-1 text-app-micro font-semibold transition ' +
  (ocrLanguage === option.code
  ? 'bg-indigo-100 text-indigo-700'
  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700')
@@ -1694,7 +1694,7 @@ setDeleting(true);
  type='button'
  variant='secondary'
  size='sm'
- className='h-8 rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700'
+ className='h-8 rounded-xl border border-slate-200 bg-white px-2.5 text-app-micro font-semibold text-slate-700'
  onClick={triggerImageOcrPicker}
  disabled={ocrRunning || saving}
  >
@@ -1703,10 +1703,10 @@ setDeleting(true);
  </Button>
  </div>
  </div>
- <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[240px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-sm text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
+ <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[240px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-app-body text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
  {ocrRunning ? (
  <div className='rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2'>
- <p className='flex items-center gap-1 text-[11px] font-semibold text-sky-700'>
+ <p className='flex items-center gap-1 text-app-micro font-semibold text-sky-700'>
  <Sparkles className='h-3.5 w-3.5' />
  {isTh ? 'กำลังสแกนข้อความจากภาพ...' : 'Extracting text from image...'}
  </p>
@@ -1715,25 +1715,25 @@ setDeleting(true);
  </div>
  </div>
  ) : null}
- <p className='text-[11px] leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ และจะแสดงหน้าพรีวิวก่อนนำข้อความลงเนื้อหา' : 'Supports Thai/English OCR and shows a preview before inserting text.'}</p>
+ <p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ และจะแสดงหน้าพรีวิวก่อนนำข้อความลงเนื้อหา' : 'Supports Thai/English OCR and shows a preview before inserting text.'}</p>
  </div>
  <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-2.5'>
  <div className='mb-2 flex items-center justify-between gap-2'>
  <label className='form-label text-slate-700'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</label>
  <div className='flex items-center gap-1'>
- <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-[10px]' onClick={() => fillDateTimeNow('reminder')}>{isTh ? 'ตอนนี้' : 'Now'}</Button>
- <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-[10px]' onClick={() => clearDateTime('reminder')}>{isTh ? 'ล้าง' : 'Clear'}</Button>
+ <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-app-micro' onClick={() => fillDateTimeNow('reminder')}>{isTh ? 'ตอนนี้' : 'Now'}</Button>
+ <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-app-micro' onClick={() => clearDateTime('reminder')}>{isTh ? 'ล้าง' : 'Clear'}</Button>
  </div>
  </div>
  <button
  type='button'
  onClick={() => openDateTimePicker('reminder')}
- className='flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-left text-[13px] text-slate-700 transition hover:border-sky-300 hover:bg-white'
+ className='flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-left text-app-body text-slate-700 transition hover:border-sky-300 hover:bg-white'
  >
  <span className='line-clamp-1'>{formatDateTimeDraftLabel(draftReminder, isTh)}</span>
  <Calendar className='h-4 w-4 text-slate-500' />
  </button>
- <p className='mt-2 text-[11px] leading-5 text-slate-500'>
+ <p className='mt-2 text-app-micro leading-5 text-slate-500'>
  {isTh ? 'เมื่อถึงเวลา ระบบจะส่งแจ้งเตือนในแอป/พุช และอีเมล (ถ้าตั้งค่าอีเมลเซิร์ฟเวอร์ไว้)' : 'When due, the app sends in-app/push and email reminders (if email provider is configured).'}
  </p>
  </div>
@@ -1741,14 +1741,14 @@ setDeleting(true);
  <div className='mb-2 flex items-center justify-between gap-2'>
  <label className='form-label text-slate-700'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</label>
  <div className='flex items-center gap-1'>
- <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-[10px]' onClick={() => fillDateTimeNow('meeting')}>{isTh ? 'ตอนนี้' : 'Now'}</Button>
- <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-[10px]' onClick={() => clearDateTime('meeting')}>{isTh ? 'ล้าง' : 'Clear'}</Button>
+ <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-app-micro' onClick={() => fillDateTimeNow('meeting')}>{isTh ? 'ตอนนี้' : 'Now'}</Button>
+ <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-app-micro' onClick={() => clearDateTime('meeting')}>{isTh ? 'ล้าง' : 'Clear'}</Button>
  </div>
  </div>
  <button
  type='button'
  onClick={() => openDateTimePicker('meeting')}
- className='flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-left text-[13px] text-slate-700 transition hover:border-violet-300 hover:bg-white'
+ className='flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-left text-app-body text-slate-700 transition hover:border-violet-300 hover:bg-white'
  >
  <span className='line-clamp-1'>{formatDateTimeDraftLabel(draftMeeting, isTh)}</span>
  <Calendar className='h-4 w-4 text-slate-500' />
@@ -1767,7 +1767,7 @@ setDeleting(true);
  <div className='w-full max-w-[680px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
  <div className='flex items-start justify-between gap-2'>
  <div>
- <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'พรีวิว OCR' : 'OCR preview'}</p>
+ <p className='text-app-caption font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'พรีวิว OCR' : 'OCR preview'}</p>
  <h3 className='mt-1 text-app-h3 font-semibold text-slate-900'>{isTh ? 'ตรวจสอบข้อความจากภาพก่อนเพิ่มลงโน้ต' : 'Review extracted text before adding'}</h3>
  </div>
  <button type='button' onClick={() => setOcrPreviewOpen(false)} className='rounded-full p-1 text-slate-500 transition hover:bg-slate-100'>
@@ -1777,7 +1777,7 @@ setDeleting(true);
  <textarea
  value={ocrPreviewText}
  onChange={(event) => setOcrPreviewText(event.target.value)}
- className='mt-3 min-h-[220px] max-h-[46dvh] w-full resize-y rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm leading-6 text-slate-800 outline-none focus:border-sky-300'
+ className='mt-3 min-h-[220px] max-h-[46dvh] w-full resize-y rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3 text-app-body leading-6 text-slate-800 outline-none focus:border-sky-300'
  />
  <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3'>
  <Button type='button' variant='secondary' className='w-full' onClick={() => setOcrPreviewOpen(false)}>
@@ -1798,7 +1798,7 @@ setDeleting(true);
  <div className='w-full max-w-[420px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
  <div className='flex items-start justify-between gap-2'>
  <div>
- <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'เลือกวันเวลา' : 'Pick date/time'}</p>
+ <p className='text-app-caption font-semibold uppercase tracking-[0.12em] text-slate-500'>{isTh ? 'เลือกวันเวลา' : 'Pick date/time'}</p>
  <h3 className='mt-1 text-app-h3 font-semibold text-slate-900'>
  {dateTimePickerState.target === 'reminder'
  ? (isTh ? 'เวลาแจ้งเตือน' : 'Reminder time')
@@ -1814,12 +1814,12 @@ setDeleting(true);
  <Button type='button' variant='secondary' size='sm' className='h-8 rounded-lg px-2.5' onClick={() => shiftDateTimePickerMonth(-1)}>
  <ChevronLeft className='h-4 w-4' />
  </Button>
- <p className='text-sm font-semibold text-slate-800'>{dateTimePickerMonthLabel}</p>
+ <p className='text-app-body font-semibold text-slate-800'>{dateTimePickerMonthLabel}</p>
  <Button type='button' variant='secondary' size='sm' className='h-8 rounded-lg px-2.5' onClick={() => shiftDateTimePickerMonth(1)}>
  <ChevronRight className='h-4 w-4' />
  </Button>
  </div>
- <div className='grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500'>
+ <div className='grid grid-cols-7 gap-1 text-center text-app-micro font-semibold text-slate-500'>
  {weekLabels.map((item, index) => <div key={item + String(index)}>{item}</div>)}
  </div>
  <div className='mt-1 grid grid-cols-7 gap-1'>
@@ -1833,7 +1833,7 @@ setDeleting(true);
  type='button'
  onClick={() => setDateTimePickerState((prev) => (prev ? { ...prev, selectedDateKey: key } : prev))}
  className={
- 'h-9 rounded-lg border text-xs transition ' +
+ 'h-9 rounded-lg border text-app-caption transition ' +
  (active ? 'border-sky-300 bg-sky-100 text-sky-800' : 'border-slate-200 bg-white text-slate-700 hover:border-sky-200')
  }
  >
@@ -1843,12 +1843,12 @@ setDeleting(true);
  })}
  </div>
  <div className='mt-3 space-y-2'>
- <label className='text-xs font-semibold text-slate-600'>{isTh ? 'เวลา' : 'Time'}</label>
+ <label className='form-label text-slate-600'>{isTh ? 'เวลา' : 'Time'}</label>
  <input
  type='time'
  value={dateTimePickerState.selectedTime}
  onChange={(event) => setDateTimePickerState((prev) => (prev ? { ...prev, selectedTime: event.target.value } : prev))}
- className='h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-sky-300'
+ className='h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-app-body text-slate-700 outline-none focus:border-sky-300'
  />
  </div>
  </div>
@@ -1869,8 +1869,8 @@ setDeleting(true);
  <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white shadow-[0_10px_25px_rgba(59,130,246,0.4)]'>
  {saveOverlay.stage === 'saving' ? <Loader2 className='h-6 w-6 animate-spin' /> : <CheckCircle2 className='h-6 w-6' />}
  </div>
- <p className='mt-3 text-center text-base font-semibold text-slate-900'>{saveOverlay.stage === 'saving' ? (isTh ? 'กำลังบันทึก' : 'Saving') : (isTh ? 'สำเร็จ' : 'Success')}</p>
- <p className='mt-1 text-center text-sm leading-6 text-slate-600'>{saveOverlay.message}</p>
+ <p className='mt-3 text-center text-app-h3 font-semibold text-slate-900'>{saveOverlay.stage === 'saving' ? (isTh ? 'กำลังบันทึก' : 'Saving') : (isTh ? 'สำเร็จ' : 'Success')}</p>
+ <p className='mt-1 text-center text-app-body leading-6 text-slate-600'>{saveOverlay.message}</p>
  </div>
  </div>
  ) : null}
