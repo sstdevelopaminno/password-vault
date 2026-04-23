@@ -1527,7 +1527,7 @@ setDeleting(true);
  <X className='h-5 w-5' />
  </button>
  </div>
- <div className='mx-auto w-full max-w-[794px] rounded-[10px] border border-slate-300/90 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.18)]'>
+ <div className='preserve-white mx-auto w-full max-w-[794px] rounded-[10px] border border-slate-300/90 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.18)]'>
  <div className='max-h-[calc(100dvh-250px)] overflow-y-auto px-5 py-6 sm:px-10 sm:py-10'>
  <h4 className='text-[24px] font-semibold leading-tight text-slate-900 sm:text-[30px]'>{paperPreviewNote.title}</h4>
  <p className='mt-2 text-[11px] font-medium text-slate-500 sm:text-xs'>

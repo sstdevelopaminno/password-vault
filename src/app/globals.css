@@ -89,6 +89,221 @@ body {
     radial-gradient(circle at 50% 100%, rgba(119, 88, 255, 0.1), transparent 28%);
 }
 
+.vault-user-theme {
+  --user-surface-main: rgba(9, 16, 39, 0.94);
+  --user-surface-soft: rgba(10, 20, 50, 0.78);
+  --user-surface-quiet: rgba(15, 27, 62, 0.62);
+  --user-border: rgba(118, 145, 221, 0.34);
+  --user-text-strong: #f4f8ff;
+  --user-text-main: #d9e6ff;
+  --user-text-soft: #abc0e8;
+  --user-text-muted: #90a6d2;
+}
+
+.vault-user-theme .bg-white {
+  background-color: var(--user-surface-main);
+}
+
+.vault-user-theme .bg-white\/95 {
+  background-color: rgba(9, 16, 39, 0.95);
+}
+
+.vault-user-theme .bg-white\/92 {
+  background-color: rgba(9, 16, 39, 0.92);
+}
+
+.vault-user-theme .bg-white\/90 {
+  background-color: rgba(9, 16, 39, 0.9);
+}
+
+.vault-user-theme .bg-white\/85 {
+  background-color: rgba(9, 16, 39, 0.86);
+}
+
+.vault-user-theme .bg-white\/80 {
+  background-color: rgba(11, 22, 54, 0.82);
+}
+
+.vault-user-theme .bg-slate-50 {
+  background-color: var(--user-surface-soft);
+}
+
+.vault-user-theme .bg-slate-50\/95 {
+  background-color: rgba(10, 20, 50, 0.95);
+}
+
+.vault-user-theme .bg-slate-50\/80 {
+  background-color: rgba(10, 20, 50, 0.8);
+}
+
+.vault-user-theme .bg-slate-50\/70 {
+  background-color: rgba(10, 20, 50, 0.72);
+}
+
+.vault-user-theme .bg-slate-100 {
+  background-color: rgba(16, 30, 66, 0.92);
+}
+
+.vault-user-theme .bg-slate-300 {
+  background-color: rgba(75, 92, 128, 0.94);
+}
+
+.vault-user-theme .bg-blue-50 {
+  background-color: rgba(41, 102, 255, 0.2);
+}
+
+.vault-user-theme .bg-blue-50\/60 {
+  background-color: rgba(41, 102, 255, 0.28);
+}
+
+.vault-user-theme .bg-blue-100 {
+  background-color: rgba(55, 116, 255, 0.28);
+}
+
+.vault-user-theme .bg-violet-50 {
+  background-color: rgba(118, 88, 255, 0.22);
+}
+
+.vault-user-theme .bg-emerald-50 {
+  background-color: rgba(20, 148, 114, 0.2);
+}
+
+.vault-user-theme .bg-amber-50 {
+  background-color: rgba(179, 115, 30, 0.22);
+}
+
+.vault-user-theme .bg-rose-50 {
+  background-color: rgba(190, 60, 108, 0.22);
+}
+
+.vault-user-theme .border-slate-100 {
+  border-color: rgba(112, 136, 206, 0.24);
+}
+
+.vault-user-theme .border-slate-200 {
+  border-color: var(--user-border);
+}
+
+.vault-user-theme .border-slate-300 {
+  border-color: rgba(128, 155, 230, 0.48);
+}
+
+.vault-user-theme .border-blue-200 {
+  border-color: rgba(106, 160, 255, 0.5);
+}
+
+.vault-user-theme .border-blue-300 {
+  border-color: rgba(116, 178, 255, 0.62);
+}
+
+.vault-user-theme .border-violet-200 {
+  border-color: rgba(157, 123, 255, 0.5);
+}
+
+.vault-user-theme .border-emerald-200 {
+  border-color: rgba(44, 188, 146, 0.48);
+}
+
+.vault-user-theme .border-amber-200 {
+  border-color: rgba(229, 163, 63, 0.5);
+}
+
+.vault-user-theme .border-rose-200 {
+  border-color: rgba(230, 104, 146, 0.5);
+}
+
+.vault-user-theme .text-slate-900 {
+  color: var(--user-text-strong);
+}
+
+.vault-user-theme .text-slate-800 {
+  color: #ebf2ff;
+}
+
+.vault-user-theme .text-slate-700 {
+  color: var(--user-text-main);
+}
+
+.vault-user-theme .text-slate-600 {
+  color: var(--user-text-soft);
+}
+
+.vault-user-theme .text-slate-500 {
+  color: var(--user-text-muted);
+}
+
+.vault-user-theme .text-slate-400 {
+  color: #7f95bf;
+}
+
+.vault-user-theme .text-blue-900 {
+  color: #d7e7ff;
+}
+
+.vault-user-theme .text-blue-800 {
+  color: #bfd7ff;
+}
+
+.vault-user-theme .text-blue-700 {
+  color: #9fc7ff;
+}
+
+.vault-user-theme .text-emerald-800 {
+  color: #8ff0c8;
+}
+
+.vault-user-theme .text-amber-800 {
+  color: #ffd490;
+}
+
+.vault-user-theme .text-rose-700 {
+  color: #ffb4cf;
+}
+
+.vault-user-theme button:disabled,
+.vault-user-theme a[aria-disabled="true"] {
+  opacity: 1 !important;
+  color: #bdd2ff !important;
+  border-color: rgba(118, 145, 221, 0.38) !important;
+  background: linear-gradient(180deg, rgba(34, 49, 92, 0.92), rgba(24, 37, 72, 0.94)) !important;
+}
+
+.vault-user-theme .preserve-white {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.vault-user-theme .preserve-white .text-slate-900 {
+  color: #0f172a;
+}
+
+.vault-user-theme .preserve-white .text-slate-800 {
+  color: #1e293b;
+}
+
+.vault-user-theme .preserve-white .text-slate-700 {
+  color: #334155;
+}
+
+.vault-user-theme .preserve-white .text-slate-600 {
+  color: #475569;
+}
+
+.vault-user-theme .preserve-white .text-slate-500 {
+  color: #64748b;
+}
+
+.vault-user-theme .preserve-white .bg-slate-50,
+.vault-user-theme .preserve-white .bg-slate-50\/70,
+.vault-user-theme .preserve-white .bg-slate-50\/80 {
+  background-color: rgba(248, 250, 252, 0.92);
+}
+
+.vault-user-theme .preserve-white .border-slate-200,
+.vault-user-theme .preserve-white .border-slate-300 {
+  border-color: rgba(148, 163, 184, 0.46);
+}
+
 button,
 a {
   touch-action: manipulation;

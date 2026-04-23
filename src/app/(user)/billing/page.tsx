@@ -971,7 +971,7 @@ export default function BillingPage() {
 
       {previewOpen && previewDocumentId ? (
         <div className='fixed inset-0 z-[84] bg-slate-900/45 backdrop-blur-[1px] animate-overlay-in'>
-          <div className='app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-white animate-screen-in'>
+          <div className='preserve-white app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-white animate-screen-in'>
             <div className='flex items-center justify-between border-b border-slate-200 px-3 py-2'>
               <div className='flex items-center gap-2'>
                 <Button type='button' size='sm' variant={previewTemplate === 'a4' ? 'default' : 'secondary'} onClick={() => setPreviewTemplate('a4')}>
@@ -986,7 +986,7 @@ export default function BillingPage() {
               </Button>
             </div>
             <div className='flex-1 bg-slate-100'>
-              <iframe title='Billing Preview' src={previewUrl} className='h-full w-full border-0 bg-white' />
+              <iframe title='Billing Preview' src={previewUrl} className='preserve-white h-full w-full border-0 bg-white' />
             </div>
           </div>
         </div>
