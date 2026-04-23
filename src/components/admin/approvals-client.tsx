@@ -153,19 +153,19 @@ export function ApprovalsClient() {
 
 <section className='space-y-4 pb-24 pt-1'>
  <header className='space-y-1 px-1'>
- <h1 className='text-[38px] font-semibold leading-[1.05] tracking-[-0.02em] text-slate-900'>{text.title}</h1>
- <p className='text-[14px] leading-6 text-slate-500'>{text.subtitle}</p>
+ <h1 className='text-app-h1 font-semibold leading-[1.05] tracking-[-0.02em] text-slate-900'>{text.title}</h1>
+ <p className='text-app-body leading-6 text-slate-500'>{text.subtitle}</p>
  </header>
 
  <div className='px-1'>
- <Button variant='secondary' className='h-11 w-full rounded-[14px] text-[14px] font-semibold' disabled={refreshing} onClick={() => void loadRequests(false, false)}>
+ <Button variant='secondary' className='h-11 w-full rounded-[14px] text-app-body font-semibold' disabled={refreshing} onClick={() => void loadRequests(false, false)}>
  <RefreshCcw className={'mr-2 h-4 w-4' + (refreshing ? ' animate-spin' : '')} />
  {refreshing ? text.fetching : text.refresh}
  </Button>
  </div>
 
  {requests.length === 0 ? (
- <Card className='rounded-[22px] border border-slate-200 bg-white px-4 py-5 text-[17px] font-medium text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.06)]'>
+ <Card className='rounded-[22px] border border-slate-200 bg-white px-4 py-5 text-app-h3 font-medium text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.06)]'>
  {text.empty}
  </Card>
  ) : null}
@@ -177,27 +177,27 @@ export function ApprovalsClient() {
  <Card key={r.id} className='animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)]' style={{ animationDelay: String(index * 30) + 'ms' }}>
  <div className='space-y-3'>
  <div className='rounded-[16px] border border-slate-200 bg-slate-50/80 px-3 py-3'>
- <div className='flex items-center gap-2 text-[12px] font-semibold text-slate-500'>
+ <div className='flex items-center gap-2 text-app-caption font-semibold text-slate-500'>
  <UserRound className='h-3.5 w-3.5' />
  {text.nameLabel}
  </div>
- <p className='mt-1 text-[17px] font-semibold leading-6 text-slate-900'>{r.profiles?.full_name ?? text.unknownName}</p>
+ <p className='mt-1 text-app-h3 font-semibold leading-6 text-slate-900'>{r.profiles?.full_name ?? text.unknownName}</p>
 
- <div className='mt-3 flex items-center gap-2 text-[12px] font-semibold text-slate-500'>
+ <div className='mt-3 flex items-center gap-2 text-app-caption font-semibold text-slate-500'>
  <Mail className='h-3.5 w-3.5' />
  {text.emailLabel}
  </div>
- <p className='mt-1 break-all text-[15px] leading-6 text-slate-700'>{r.profiles?.email ?? '-'}</p>
+ <p className='mt-1 break-all text-app-body leading-6 text-slate-700'>{r.profiles?.email ?? '-'}</p>
  </div>
 
- <p className='text-[12px] text-slate-500'>{text.requestedAt}: {toLocalTime(r.created_at, locale)}</p>
+ <p className='text-app-caption text-slate-500'>{text.requestedAt}: {toLocalTime(r.created_at, locale)}</p>
 
  <div className='grid grid-cols-2 gap-2'>
- <Button disabled={loading} className='h-11 rounded-[14px] bg-gradient-to-r from-blue-600 to-indigo-500 text-[14px] font-semibold text-white' onClick={() => setPendingDecision({ userId: r.user_id, approved: true })}>
+ <Button disabled={loading} className='h-11 rounded-[14px] bg-gradient-to-r from-blue-600 to-indigo-500 text-app-body font-semibold text-white' onClick={() => setPendingDecision({ userId: r.user_id, approved: true })}>
  <CheckCircle2 className='mr-2 h-4 w-4' />
  {text.approve}
  </Button>
- <Button disabled={loading} variant='destructive' className='h-11 rounded-[14px] text-[14px] font-semibold' onClick={() => setPendingDecision({ userId: r.user_id, approved: false })}>
+ <Button disabled={loading} variant='destructive' className='h-11 rounded-[14px] text-app-body font-semibold' onClick={() => setPendingDecision({ userId: r.user_id, approved: false })}>
  <Trash2 className='mr-2 h-4 w-4' />
  {text.remove}
  </Button>
@@ -230,4 +230,5 @@ export function ApprovalsClient() {
 </section>
  );
 }
+
 

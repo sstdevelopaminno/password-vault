@@ -95,7 +95,7 @@ export default function AuditLogsPage() {
 
  return (
  <section className='space-y-3 pb-20'>
- <h1 className='text-xl font-semibold'>Audit Logs</h1>
+ <h1 className='text-app-h2 font-semibold'>Audit Logs</h1>
 
  <Card className='space-y-3'>
  <div className='grid gap-2 sm:grid-cols-2'>
@@ -114,10 +114,10 @@ export default function AuditLogsPage() {
 
  {logs.map((log) => (
  <Card key={log.id} className='space-y-1'>
- <p className='text-sm font-medium'>{log.action_type}</p>
- <p className='text-xs text-slate-500'>{new Date(log.created_at).toLocaleString()}</p>
- <p className='text-xs text-slate-500'>actor: {log.actor_user_id ?? '-'}</p>
- <p className='text-xs text-slate-500'>target user: {log.target_user_id ?? '-'}</p>
+ <p className='text-app-body font-medium'>{log.action_type}</p>
+ <p className='text-app-caption text-slate-500'>{new Date(log.created_at).toLocaleString()}</p>
+ <p className='text-app-caption text-slate-500'>actor: {log.actor_user_id ?? '-'}</p>
+ <p className='text-app-caption text-slate-500'>target user: {log.target_user_id ?? '-'}</p>
  </Card>
  ))}
 
@@ -131,4 +131,5 @@ export default function AuditLogsPage() {
  </section>
  );
 }
+
 

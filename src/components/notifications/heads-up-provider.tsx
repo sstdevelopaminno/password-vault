@@ -739,12 +739,12 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
                     {item.kind === "security" ? <ShieldAlert className="h-3.5 w-3.5" /> : <BellRing className="h-3.5 w-3.5" />}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-xs font-semibold text-slate-600">{APP_NAME}</span>
-                    <span className="line-clamp-1 text-sm font-semibold text-slate-900">{item.title}</span>
+                    <span className="block truncate text-app-caption font-semibold text-slate-600">{APP_NAME}</span>
+                    <span className="line-clamp-1 text-app-body font-semibold text-slate-900">{item.title}</span>
                   </span>
                 </button>
                 <div className="flex items-center gap-1">
-                  <span className="text-[11px] text-slate-500">{itemTime}</span>
+                  <span className="text-app-micro text-slate-500">{itemTime}</span>
                   <button type="button" onClick={() => removeItem(item.id)} className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -753,8 +753,8 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
 
               <div className="flex gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm leading-5 text-slate-700 ${opened ? "" : "line-clamp-2"}`}>{item.message}</p>
-                  {opened && item.details ? <p className="mt-1 text-xs leading-5 text-slate-500">{item.details}</p> : null}
+                  <p className={`text-app-body leading-5 text-slate-700 ${opened ? "" : "line-clamp-2"}`}>{item.message}</p>
+                  {opened && item.details ? <p className="mt-1 text-app-caption leading-5 text-slate-500">{item.details}</p> : null}
                 </div>
                 {item.thumbnailUrl ? (
                   <Image
@@ -774,7 +774,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
                   <button
                     type="button"
                     onClick={() => setExpanded((prev) => ({ ...prev, [item.id]: !opened }))}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-blue-600"
+                    className="inline-flex items-center gap-1 text-app-caption font-medium text-blue-600"
                   >
                     {opened ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     {opened ? (locale === "th" ? "ย่อรายละเอียด" : "Collapse") : (locale === "th" ? "ขยายรายละเอียด" : "Expand")}
@@ -787,7 +787,7 @@ export function HeadsUpNotificationProvider({ children }: { children: React.Reac
                   <button
                     type="button"
                     onClick={() => window.location.assign(item.href!)}
-                    className="text-xs font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4"
+                    className="text-app-caption font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4"
                   >
                     {locale === "th" ? "ดูต่อ" : "Open"}
                   </button>
@@ -808,6 +808,8 @@ export function useHeadsUpNotifications() {
   }
   return ctx;
 }
+
+
 
 
 

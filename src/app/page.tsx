@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -26,15 +26,15 @@ export default function LandingPage() {
             <Image src={BRAND_LOGO_URL} alt='Vault Logo' width={88} height={88} className='h-[88px] w-[88px] rounded-[22px] object-cover' priority />
             <ShieldCheck className='hidden' />
           </div>
-          <h1 className='neon-title mt-6 text-[46px] font-semibold leading-[0.96] tracking-[-0.03em]'>{t('common.appName')}</h1>
-          <p className='mt-2 text-[17px] font-semibold text-[#dbe8ff]'>by Master Password</p>
+          <h1 className='neon-title mt-6 text-app-h1 font-semibold leading-[0.96] tracking-[-0.03em]'>{t('common.appName')}</h1>
+          <p className='mt-2 text-app-h3 font-semibold text-[#dbe8ff]'>by Master Password</p>
           <div className='neon-divider mt-5 w-28' />
-          <p className='mt-5 max-w-[340px] text-[16px] leading-7 text-[#9aaace]'>{t('landing.subtitle')}</p>
+          <p className='mt-5 max-w-[340px] text-app-body leading-7 text-[#9aaace]'>{t('landing.subtitle')}</p>
         </section>
 
         <section className='mx-auto mt-12 flex w-full max-w-[420px] flex-col gap-4'>
           <Link href='/login' className='block'>
-            <Button className='h-14 w-full justify-between rounded-[20px] px-5 text-[17px] font-semibold'>
+            <Button className='h-14 w-full justify-between rounded-[20px] px-5 text-app-h3 font-semibold'>
               <span className='inline-flex items-center gap-3'>
                 <LockKeyhole className='h-6 w-6' />
                 {t('landing.login')}
@@ -43,7 +43,7 @@ export default function LandingPage() {
             </Button>
           </Link>
           <Link href='/register' className='block'>
-            <Button variant='secondary' className='h-14 w-full justify-between rounded-[20px] px-5 text-[17px] font-semibold'>
+            <Button variant='secondary' className='h-14 w-full justify-between rounded-[20px] px-5 text-app-h3 font-semibold'>
               <span className='inline-flex items-center gap-3'>
                 <UserPlus className='h-6 w-6' />
                 {t('landing.createAccount')}
@@ -58,10 +58,11 @@ export default function LandingPage() {
           <div className='mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(118,143,220,0.4)] bg-[rgba(10,17,41,0.84)] text-[#5dd8ff] shadow-[0_0_24px_rgba(98,119,255,0.2)]'>
             <ShieldCheck className='h-8 w-8' />
           </div>
-          <p className='mt-3 text-[16px] font-semibold text-[#eef4ff]'>เข้ารหัสข้อมูลอย่างปลอดภัย</p>
-          <p className='mt-1 text-sm text-[#90a3ca]'>ปกป้องรหัสผ่านและข้อมูลสำคัญของคุณ</p>
+          <p className='mt-3 text-app-body font-semibold text-[#eef4ff]'>เน€เธเนเธฒเธฃเธซเธฑเธชเธเนเธญเธกเธนเธฅเธญเธขเนเธฒเธเธเธฅเธญเธ”เธ เธฑเธข</p>
+          <p className='mt-1 text-app-body text-[#90a3ca]'>เธเธเธเนเธญเธเธฃเธซเธฑเธชเธเนเธฒเธเนเธฅเธฐเธเนเธญเธกเธนเธฅเธชเธณเธเธฑเธเธเธญเธเธเธธเธ“</p>
         </section>
       </main>
     </MobileShell>
   );
 }
+

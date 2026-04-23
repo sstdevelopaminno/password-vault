@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -42,22 +42,22 @@ function mapRegisterError(message: unknown, locale: "th" | "en", fallback: strin
   const lower = text.toLowerCase();
 
   if (lower.includes("invalid signup payload")) {
-    return locale === "th" ? "ข้อมูลสมัครสมาชิกไม่ถูกต้อง" : "Invalid signup payload";
+    return locale === "th" ? "เธเนเธญเธกเธนเธฅเธชเธกเธฑเธเธฃเธชเธกเธฒเธเธดเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ" : "Invalid signup payload";
   }
   if (lower.includes("email already registered")) {
-    return locale === "th" ? "อีเมลนี้ถูกใช้งานแล้ว" : "Email already registered";
+    return locale === "th" ? "เธญเธตเน€เธกเธฅเธเธตเนเธ–เธนเธเนเธเนเธเธฒเธเนเธฅเนเธง" : "Email already registered";
   }
   if (lower.includes("token") || lower.includes("invalid otp")) {
-    return locale === "th" ? "OTP ไม่ถูกต้องหรือหมดอายุ" : "Invalid or expired OTP";
+    return locale === "th" ? "OTP เนเธกเนเธ–เธนเธเธ•เนเธญเธเธซเธฃเธทเธญเธซเธกเธ”เธญเธฒเธขเธธ" : "Invalid or expired OTP";
   }
   if (isOtpRateLimited(text)) {
-    return locale === "th" ? "ขอ OTP บ่อยเกินไป กรุณารอสักครู่" : "OTP rate limited. Please wait.";
+    return locale === "th" ? "เธเธญ OTP เธเนเธญเธขเน€เธเธดเธเนเธ เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน" : "OTP rate limited. Please wait.";
   }
   if (lower.includes("unable to send otp right now")) {
-    return locale === "th" ? "ยังไม่สามารถส่ง OTP ได้ในขณะนี้ กรุณาลองใหม่" : "Unable to send OTP right now. Please try again.";
+    return locale === "th" ? "เธขเธฑเธเนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธชเนเธ OTP เนเธ”เนเนเธเธเธ“เธฐเธเธตเน เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเน" : "Unable to send OTP right now. Please try again.";
   }
   if (lower.includes("otp delivery service unavailable")) {
-    return locale === "th" ? "ระบบส่ง OTP ยังไม่พร้อมใช้งาน กรุณาลองใหม่" : "OTP delivery service unavailable. Please try again.";
+    return locale === "th" ? "เธฃเธฐเธเธเธชเนเธ OTP เธขเธฑเธเนเธกเนเธเธฃเนเธญเธกเนเธเนเธเธฒเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเน" : "OTP delivery service unavailable. Please try again.";
   }
 
   return text || fallback;
@@ -68,10 +68,10 @@ function mapRegisterSuccess(message: unknown, locale: "th" | "en", fallback: str
   const lower = text.toLowerCase();
 
   if (lower.includes("otp sent")) {
-    return locale === "th" ? "ส่ง OTP ไปที่อีเมลแล้ว" : "OTP sent to your email";
+    return locale === "th" ? "เธชเนเธ OTP เนเธเธ—เธตเนเธญเธตเน€เธกเธฅเนเธฅเนเธง" : "OTP sent to your email";
   }
   if (lower.includes("account is now active")) {
-    return locale === "th" ? "ยืนยัน OTP สำเร็จ บัญชีพร้อมใช้งานแล้ว" : "OTP verified. Account is active.";
+    return locale === "th" ? "เธขเธทเธเธขเธฑเธ OTP เธชเธณเน€เธฃเนเธ เธเธฑเธเธเธตเธเธฃเนเธญเธกเนเธเนเธเธฒเธเนเธฅเนเธง" : "OTP verified. Account is active.";
   }
 
   return text || fallback;
@@ -157,7 +157,7 @@ export default function RegisterPage() {
         setEmailInlineError(
           exists
             ? isThai
-              ? "อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น"
+              ? "เธญเธตเน€เธกเธฅเธเธตเนเธ–เธนเธเนเธเนเธเธฒเธเนเธฅเนเธง เธเธฃเธธเธ“เธฒเนเธเนเธญเธตเน€เธกเธฅเธญเธทเนเธ"
               : "This email is already registered. Please use another email."
             : "",
         );
@@ -181,22 +181,22 @@ export default function RegisterPage() {
 
   function validateBeforeOtp() {
     if (!allRequiredFilled) {
-      return isThai ? "กรุณากรอกข้อมูลให้ครบก่อนขอ OTP" : "Please fill in all fields before requesting OTP.";
+      return isThai ? "เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธเนเธญเธกเธนเธฅเนเธซเนเธเธฃเธเธเนเธญเธเธเธญ OTP" : "Please fill in all fields before requesting OTP.";
     }
     if (!emailFormatValid) {
-      return isThai ? "รูปแบบอีเมลไม่ถูกต้อง" : "Invalid email format.";
+      return isThai ? "เธฃเธนเธเนเธเธเธญเธตเน€เธกเธฅเนเธกเนเธ–เธนเธเธ•เนเธญเธ" : "Invalid email format.";
     }
     if (form.password.length < 8) {
-      return isThai ? "รหัสผ่านต้องอย่างน้อย 8 ตัวอักษร" : "Password must be at least 8 characters.";
+      return isThai ? "เธฃเธซเธฑเธชเธเนเธฒเธเธ•เนเธญเธเธญเธขเนเธฒเธเธเนเธญเธข 8 เธ•เธฑเธงเธญเธฑเธเธฉเธฃ" : "Password must be at least 8 characters.";
     }
     if (passwordMismatch) {
-      return isThai ? "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน" : "Passwords do not match.";
+      return isThai ? "เธฃเธซเธฑเธชเธเนเธฒเธเนเธฅเธฐเธขเธทเธเธขเธฑเธเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ•เธฃเธเธเธฑเธ" : "Passwords do not match.";
     }
     if (emailExists) {
-      return isThai ? "อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น" : "This email is already registered. Please use another email.";
+      return isThai ? "เธญเธตเน€เธกเธฅเธเธตเนเธ–เธนเธเนเธเนเธเธฒเธเนเธฅเนเธง เธเธฃเธธเธ“เธฒเนเธเนเธญเธตเน€เธกเธฅเธญเธทเนเธ" : "This email is already registered. Please use another email.";
     }
     if (emailChecking) {
-      return isThai ? "กำลังตรวจสอบอีเมล กรุณารอสักครู่" : "Checking email. Please wait.";
+      return isThai ? "เธเธณเธฅเธฑเธเธ•เธฃเธงเธเธชเธญเธเธญเธตเน€เธกเธฅ เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน" : "Checking email. Please wait.";
     }
     return "";
   }
@@ -240,7 +240,7 @@ export default function RegisterPage() {
 
       const message = rateLimited
         ? isThai
-          ? `ขอ OTP บ่อยเกินไป กรุณารอ ${waitSec} วินาที`
+          ? `เธเธญ OTP เธเนเธญเธขเน€เธเธดเธเนเธ เธเธฃเธธเธ“เธฒเธฃเธญ ${waitSec} เธงเธดเธเธฒเธ—เธต`
           : `OTP rate limited. Please wait ${waitSec}s.`
         : mapRegisterError(body.error, locale, t("register.failedSendOtp"));
 
@@ -288,7 +288,7 @@ export default function RegisterPage() {
 
       const message = rateLimited
         ? isThai
-          ? `ขอ OTP บ่อยเกินไป กรุณารอ ${waitSec} วินาที`
+          ? `เธเธญ OTP เธเนเธญเธขเน€เธเธดเธเนเธ เธเธฃเธธเธ“เธฒเธฃเธญ ${waitSec} เธงเธดเธเธฒเธ—เธต`
           : `OTP rate limited. Please wait ${waitSec}s.`
         : mapRegisterError(body.error, locale, t("register.failedSendOtp"));
 
@@ -336,7 +336,7 @@ export default function RegisterPage() {
     }
 
     showToast(
-      mapRegisterSuccess(body.message, locale, isThai ? "สมัครสำเร็จ บัญชีพร้อมใช้งานแล้ว" : "Registration complete. Account is active."),
+      mapRegisterSuccess(body.message, locale, isThai ? "เธชเธกเธฑเธเธฃเธชเธณเน€เธฃเนเธ เธเธฑเธเธเธตเธเธฃเนเธญเธกเนเธเนเธเธฒเธเนเธฅเนเธง" : "Registration complete. Account is active."),
       "success",
     );
 
@@ -360,7 +360,7 @@ export default function RegisterPage() {
     <MobileShell>
       <main className="flex flex-1 items-center px-5 py-8">
         <Card className="w-full space-y-4 animate-slide-up">
-          <h1 className="text-xl font-semibold">{t("register.title")}</h1>
+          <h1 className="text-app-h2 font-semibold">{t("register.title")}</h1>
 
           <form
             className="space-y-3"
@@ -404,11 +404,11 @@ export default function RegisterPage() {
                     required
                   />
                   {emailChecking && normalizedEmail && emailFormatValid ? (
-                    <p className="text-xs text-slate-500">
-                      {isThai ? "กำลังตรวจสอบอีเมล..." : "Checking email..."}
+                    <p className="text-app-caption text-slate-500">
+                      {isThai ? "เธเธณเธฅเธฑเธเธ•เธฃเธงเธเธชเธญเธเธญเธตเน€เธกเธฅ..." : "Checking email..."}
                     </p>
                   ) : null}
-                  {emailInlineError ? <p className="text-sm text-rose-600">{emailInlineError}</p> : null}
+                  {emailInlineError ? <p className="text-app-body text-rose-600">{emailInlineError}</p> : null}
                 </div>
                 <Input
                   type="password"
@@ -427,16 +427,16 @@ export default function RegisterPage() {
                     required
                   />
                   {passwordMismatch ? (
-                    <p className="text-sm text-rose-600">
-                      {isThai ? "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน" : "Passwords do not match."}
+                    <p className="text-app-body text-rose-600">
+                      {isThai ? "เธฃเธซเธฑเธชเธเนเธฒเธเนเธฅเธฐเธขเธทเธเธขเธฑเธเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ•เธฃเธเธเธฑเธ" : "Passwords do not match."}
                     </p>
                   ) : null}
                 </div>
               </>
             ) : (
               <div className="space-y-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-3">
-                <p className="text-sm text-slate-600">
-                  {isThai ? "กรุณากรอก OTP 6 หลักจากอีเมลเพื่อยืนยันการสมัคร" : "Please enter the 6-digit OTP from your email."}
+                <p className="text-app-body text-slate-600">
+                  {isThai ? "เธเธฃเธธเธ“เธฒเธเธฃเธญเธ OTP 6 เธซเธฅเธฑเธเธเธฒเธเธญเธตเน€เธกเธฅเน€เธเธทเนเธญเธขเธทเธเธขเธฑเธเธเธฒเธฃเธชเธกเธฑเธเธฃ" : "Please enter the 6-digit OTP from your email."}
                 </p>
                 <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={t("otpInput.ariaLabel")} />
 
@@ -450,7 +450,7 @@ export default function RegisterPage() {
                       setError("");
                     }}
                   >
-                    {isThai ? "แก้ไขข้อมูล" : "Edit info"}
+                    {isThai ? "เนเธเนเนเธเธเนเธญเธกเธนเธฅ" : "Edit info"}
                   </Button>
 
                   <Button
@@ -461,7 +461,7 @@ export default function RegisterPage() {
                   >
                     {resendIn > 0
                       ? isThai
-                        ? `ขอใหม่ใน ${resendIn}s`
+                        ? `เธเธญเนเธซเธกเนเนเธ ${resendIn}s`
                         : `Resend in ${resendIn}s`
                       : t("register.sendOtp")}
                   </Button>
@@ -469,7 +469,7 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+            {error ? <p className="text-app-body text-rose-600">{error}</p> : null}
 
             <Button
               className="w-full"
@@ -480,7 +480,7 @@ export default function RegisterPage() {
                   <Spinner /> {otpSent ? t("register.creating") : t("register.sendingOtp")}
                 </span>
               ) : otpSent ? (
-                isThai ? "ยืนยัน OTP และเข้าใช้งาน" : "Verify OTP and continue"
+                isThai ? "เธขเธทเธเธขเธฑเธ OTP เนเธฅเธฐเน€เธเนเธฒเนเธเนเธเธฒเธ" : "Verify OTP and continue"
               ) : (
                 t("register.sendOtp")
               )}
@@ -492,40 +492,40 @@ export default function RegisterPage() {
       {agreementOpen ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]">
           <Card className="w-full max-w-[560px] space-y-3 rounded-3xl bg-white p-5">
-            <h2 className="text-lg font-semibold text-slate-900">
-              {isThai ? "ข้อตกลงการใช้งานระบบ" : "Terms of Use"}
+            <h2 className="text-app-h3 font-semibold text-slate-900">
+              {isThai ? "เธเนเธญเธ•เธเธฅเธเธเธฒเธฃเนเธเนเธเธฒเธเธฃเธฐเธเธ" : "Terms of Use"}
             </h2>
 
-            <p className="text-sm leading-6 text-slate-700">
+            <p className="text-app-body leading-6 text-slate-700">
               {isThai
-                ? "ก่อนเข้าใช้งาน กรุณาอ่านและยอมรับข้อตกลงต่อไปนี้"
+                ? "เธเนเธญเธเน€เธเนเธฒเนเธเนเธเธฒเธ เธเธฃเธธเธ“เธฒเธญเนเธฒเธเนเธฅเธฐเธขเธญเธกเธฃเธฑเธเธเนเธญเธ•เธเธฅเธเธ•เนเธญเนเธเธเธตเน"
                 : "Before proceeding, please read and accept the terms below."}
             </p>
 
-            <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+            <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-app-body leading-6 text-slate-700">
               <p>
                 {isThai
-                  ? "1) ระบบมีฟังก์ชันหลักด้านความปลอดภัย เช่น OTP, PIN และการเข้ารหัสข้อมูล"
+                  ? "1) เธฃเธฐเธเธเธกเธตเธเธฑเธเธเนเธเธฑเธเธซเธฅเธฑเธเธ”เนเธฒเธเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข เน€เธเนเธ OTP, PIN เนเธฅเธฐเธเธฒเธฃเน€เธเนเธฒเธฃเธซเธฑเธชเธเนเธญเธกเธนเธฅ"
                   : "1) The app includes core security features such as OTP, PIN, and data encryption."}
               </p>
               <p>
                 {isThai
-                  ? "2) ทีมงานให้การดูแลและแก้ไขปัญหาระบบตลอด 24/7 เพื่อให้ผู้ใช้ใช้งานได้อย่างต่อเนื่อง"
+                  ? "2) เธ—เธตเธกเธเธฒเธเนเธซเนเธเธฒเธฃเธ”เธนเนเธฅเนเธฅเธฐเนเธเนเนเธเธเธฑเธเธซเธฒเธฃเธฐเธเธเธ•เธฅเธญเธ” 24/7 เน€เธเธทเนเธญเนเธซเนเธเธนเนเนเธเนเนเธเนเธเธฒเธเนเธ”เนเธญเธขเนเธฒเธเธ•เนเธญเน€เธเธทเนเธญเธ"
                   : "2) Our team provides 24/7 support and incident response to keep the service available."}
               </p>
               <p>
                 {isThai
-                  ? "3) ผู้ใช้ต้องรักษาความลับของบัญชี รหัสผ่าน PIN และอุปกรณ์ของตนเอง หากเกิดความเสียหายจากการใช้งานผิดวิธี ความประมาท หรือการเปิดเผยข้อมูลโดยผู้ใช้ ทางระบบขอสงวนสิทธิ์ไม่รับผิดชอบต่อความเสียหายดังกล่าว"
+                  ? "3) เธเธนเนเนเธเนเธ•เนเธญเธเธฃเธฑเธเธฉเธฒเธเธงเธฒเธกเธฅเธฑเธเธเธญเธเธเธฑเธเธเธต เธฃเธซเธฑเธชเธเนเธฒเธ PIN เนเธฅเธฐเธญเธธเธเธเธฃเธ“เนเธเธญเธเธ•เธเน€เธญเธ เธซเธฒเธเน€เธเธดเธ”เธเธงเธฒเธกเน€เธชเธตเธขเธซเธฒเธขเธเธฒเธเธเธฒเธฃเนเธเนเธเธฒเธเธเธดเธ”เธงเธดเธเธต เธเธงเธฒเธกเธเธฃเธฐเธกเธฒเธ— เธซเธฃเธทเธญเธเธฒเธฃเน€เธเธดเธ”เน€เธเธขเธเนเธญเธกเธนเธฅเนเธ”เธขเธเธนเนเนเธเน เธ—เธฒเธเธฃเธฐเธเธเธเธญเธชเธเธงเธเธชเธดเธ—เธเธดเนเนเธกเนเธฃเธฑเธเธเธดเธ”เธเธญเธเธ•เนเธญเธเธงเธฒเธกเน€เธชเธตเธขเธซเธฒเธขเธ”เธฑเธเธเธฅเนเธฒเธง"
                   : "3) Users are responsible for account, password, PIN, and device security. We are not liable for damages caused by user negligence, misuse, or user-side data disclosure."}
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Button variant="secondary" onClick={() => router.replace("/login")}>
-                {isThai ? "ยังไม่ยอมรับ (กลับไปหน้าเข้าสู่ระบบ)" : "Decline (Back to Login)"}
+                {isThai ? "เธขเธฑเธเนเธกเนเธขเธญเธกเธฃเธฑเธ (เธเธฅเธฑเธเนเธเธซเธเนเธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ)" : "Decline (Back to Login)"}
               </Button>
               <Button onClick={acceptAgreement}>
-                {isThai ? "ยอมรับข้อตกลงและเริ่มใช้งาน" : "Accept and Continue"}
+                {isThai ? "เธขเธญเธกเธฃเธฑเธเธเนเธญเธ•เธเธฅเธเนเธฅเธฐเน€เธฃเธดเนเธกเนเธเนเธเธฒเธ" : "Accept and Continue"}
               </Button>
             </div>
           </Card>
@@ -534,3 +534,4 @@ export default function RegisterPage() {
     </MobileShell>
   );
 }
+

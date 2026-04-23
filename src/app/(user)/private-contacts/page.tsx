@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -158,7 +158,7 @@ export default function PrivateContactsPage() {
     const name = manualName.trim();
     const number = normalizePhoneNumber(manualNumber);
     if (!name || !number) {
-      showToast('กรุณากรอกชื่อและหมายเลขให้ครบ', 'error');
+      showToast('เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธเธทเนเธญเนเธฅเธฐเธซเธกเธฒเธขเน€เธฅเธเนเธซเนเธเธฃเธ', 'error');
       return;
     }
 
@@ -186,7 +186,7 @@ export default function PrivateContactsPage() {
   async function handleLoadDeviceContacts() {
     if (!canReadDeviceContacts) {
       setPermissionState('unknown');
-      showToast('การอ่านรายชื่อมือถือรองรับเฉพาะ Android Native App', 'error');
+      showToast('เธเธฒเธฃเธญเนเธฒเธเธฃเธฒเธขเธเธทเนเธญเธกเธทเธญเธ–เธทเธญเธฃเธญเธเธฃเธฑเธเน€เธเธเธฒเธฐ Android Native App', 'error');
       return;
     }
 
@@ -195,7 +195,7 @@ export default function PrivateContactsPage() {
       const permission = await requestVaultShieldContactsPermission();
       setPermissionState(permission);
       if (permission !== 'granted') {
-        showToast('ยังไม่ได้รับสิทธิ์อ่านรายชื่อมือถือ', 'error');
+        showToast('เธขเธฑเธเนเธกเนเนเธ”เนเธฃเธฑเธเธชเธดเธ—เธเธดเนเธญเนเธฒเธเธฃเธฒเธขเธเธทเนเธญเธกเธทเธญเธ–เธทเธญ', 'error');
         return;
       }
 
@@ -205,9 +205,9 @@ export default function PrivateContactsPage() {
       setSelectedDeviceContactIds([]);
 
       if (rows.length === 0) {
-        showToast('ไม่พบรายชื่อในมือถือ', 'error');
+        showToast('เนเธกเนเธเธเธฃเธฒเธขเธเธทเนเธญเนเธเธกเธทเธญเธ–เธทเธญ', 'error');
       } else {
-        showToast('โหลดรายชื่อมือถือแล้ว');
+        showToast('เนเธซเธฅเธ”เธฃเธฒเธขเธเธทเนเธญเธกเธทเธญเธ–เธทเธญเนเธฅเนเธง');
       }
     } finally {
       setLoadingDeviceContacts(false);
@@ -224,7 +224,7 @@ export default function PrivateContactsPage() {
   function addContactsFromDevice(importAll: boolean) {
     const source = importAll ? deviceContacts : deviceContacts.filter((item) => selectedDeviceContactIds.includes(item.id));
     if (source.length === 0) {
-      showToast('ยังไม่ได้เลือกรายชื่อ', 'error');
+      showToast('เธขเธฑเธเนเธกเนเนเธ”เนเน€เธฅเธทเธญเธเธฃเธฒเธขเธเธทเนเธญ', 'error');
       return;
     }
 
@@ -239,21 +239,21 @@ export default function PrivateContactsPage() {
 
     setPrivateContacts((prev) => mergePrivateContacts(prev, mapped));
     setSelectedDeviceContactIds([]);
-    showToast(importAll ? 'ดึงรายชื่อทั้งหมดเข้ารายการลับแล้ว' : 'เพิ่มรายชื่อที่เลือกเข้ารายการลับแล้ว');
+    showToast(importAll ? 'เธ”เธถเธเธฃเธฒเธขเธเธทเนเธญเธ—เธฑเนเธเธซเธกเธ”เน€เธเนเธฒเธฃเธฒเธขเธเธฒเธฃเธฅเธฑเธเนเธฅเนเธง' : 'เน€เธเธดเนเธกเธฃเธฒเธขเธเธทเนเธญเธ—เธตเนเน€เธฅเธทเธญเธเน€เธเนเธฒเธฃเธฒเธขเธเธฒเธฃเธฅเธฑเธเนเธฅเนเธง');
   }
 
   function handleDeletePrivateContact(id: string) {
     setPrivateContacts((prev) => prev.filter((item) => item.id !== id));
-    showToast('ลบรายการแล้ว');
+    showToast('เธฅเธเธฃเธฒเธขเธเธฒเธฃเนเธฅเนเธง');
   }
 
   function handleDeleteAllPrivateContacts() {
     if (privateContacts.length === 0) return;
-    const ok = window.confirm('ยืนยันลบรายการเบอร์โทรลับทั้งหมด?');
+    const ok = window.confirm('เธขเธทเธเธขเธฑเธเธฅเธเธฃเธฒเธขเธเธฒเธฃเน€เธเธญเธฃเนเนเธ—เธฃเธฅเธฑเธเธ—เธฑเนเธเธซเธกเธ”?');
     if (!ok) return;
     setPrivateContacts([]);
     setContactsPage(1);
-    showToast('ลบรายการทั้งหมดแล้ว');
+    showToast('เธฅเธเธฃเธฒเธขเธเธฒเธฃเธ—เธฑเนเธเธซเธกเธ”เนเธฅเนเธง');
   }
 
   function handleCallContact(number: string) {
@@ -269,35 +269,35 @@ export default function PrivateContactsPage() {
             <Phone className='h-5 w-5' />
           </div>
           <div className='min-w-0'>
-            <h1 className='text-lg font-semibold text-slate-900'>เบอร์โทรลับ</h1>
-            <p className='text-xs text-slate-500'>เก็บเบอร์ที่ต้องการไว้แบบส่วนตัวในแอปของคุณ โดยไม่ไปแก้ไขรายชื่อในมือถือ</p>
+            <h1 className='text-app-h3 font-semibold text-slate-900'>เน€เธเธญเธฃเนเนเธ—เธฃเธฅเธฑเธ</h1>
+            <p className='text-app-caption text-slate-500'>เน€เธเนเธเน€เธเธญเธฃเนเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเนเธงเนเนเธเธเธชเนเธงเธเธ•เธฑเธงเนเธเนเธญเธเธเธญเธเธเธธเธ“ เนเธ”เธขเนเธกเนเนเธเนเธเนเนเธเธฃเธฒเธขเธเธทเนเธญเนเธเธกเธทเธญเธ–เธทเธญ</p>
           </div>
         </div>
 
-        <div className='rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800'>
+        <div className='rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-app-caption text-emerald-800'>
           <div className='inline-flex items-center gap-1.5 font-semibold'>
             <ShieldCheck className='h-4 w-4' />
-            รายการที่บันทึกที่นี่แยกจากสมุดโทรศัพท์มือถือ
+            เธฃเธฒเธขเธเธฒเธฃเธ—เธตเนเธเธฑเธเธ—เธถเธเธ—เธตเนเธเธตเนเนเธขเธเธเธฒเธเธชเธกเธธเธ”เนเธ—เธฃเธจเธฑเธเธ—เนเธกเธทเธญเธ–เธทเธญ
           </div>
         </div>
 
         <div className='grid grid-cols-2 gap-2'>
           <Button type='button' variant='secondary' className='h-10 w-full justify-center gap-2' onClick={() => setIsManualModalOpen(true)}>
             <UserPlus className='h-4 w-4' />
-            เพิ่มรายการใหม่
+            เน€เธเธดเนเธกเธฃเธฒเธขเธเธฒเธฃเนเธซเธกเน
           </Button>
           <Button type='button' className='h-10 w-full justify-center gap-2' onClick={handleLoadDeviceContacts} disabled={loadingDeviceContacts}>
             {loadingDeviceContacts ? <Loader2 className='h-4 w-4 animate-spin' /> : <Users className='h-4 w-4' />}
-            ดูรายชื่อในมือถือ
+            เธ”เธนเธฃเธฒเธขเธเธทเนเธญเนเธเธกเธทเธญเธ–เธทเธญ
           </Button>
         </div>
       </Card>
 
       {permissionState !== 'idle' && permissionState !== 'granted' ? (
-        <Card className='rounded-2xl border-amber-200 bg-amber-50 p-3 text-xs text-amber-800'>
+        <Card className='rounded-2xl border-amber-200 bg-amber-50 p-3 text-app-caption text-amber-800'>
           <div className='inline-flex items-center gap-1.5 font-semibold'>
             <AlertCircle className='h-4 w-4' />
-            ยังไม่สามารถอ่านรายชื่อในมือถือ ({permissionState})
+            เธขเธฑเธเนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธญเนเธฒเธเธฃเธฒเธขเธเธทเนเธญเนเธเธกเธทเธญเธ–เธทเธญ ({permissionState})
           </div>
         </Card>
       ) : null}
@@ -305,8 +305,8 @@ export default function PrivateContactsPage() {
       {deviceContacts.length > 0 ? (
         <Card className='space-y-3 rounded-2xl border-slate-200 bg-white p-4'>
           <div className='flex flex-wrap items-center justify-between gap-2'>
-            <h2 className='text-sm font-semibold text-slate-900'>รายชื่อจากมือถือ ({deviceContacts.length})</h2>
-            <p className='text-xs text-slate-500'>เลือกบางรายการ หรือดึงทั้งหมด</p>
+            <h2 className='text-app-body font-semibold text-slate-900'>เธฃเธฒเธขเธเธทเนเธญเธเธฒเธเธกเธทเธญเธ–เธทเธญ ({deviceContacts.length})</h2>
+            <p className='text-app-caption text-slate-500'>เน€เธฅเธทเธญเธเธเธฒเธเธฃเธฒเธขเธเธฒเธฃ เธซเธฃเธทเธญเธ”เธถเธเธ—เธฑเนเธเธซเธกเธ”</p>
           </div>
 
           <div className='flex flex-wrap gap-2'>
@@ -316,22 +316,22 @@ export default function PrivateContactsPage() {
               size='sm'
               onClick={() => setSelectedDeviceContactIds(deviceContacts.map((item) => item.id))}
             >
-              เลือกทั้งหมด
+              เน€เธฅเธทเธญเธเธ—เธฑเนเธเธซเธกเธ”
             </Button>
             <Button type='button' size='sm' variant='secondary' onClick={() => addContactsFromDevice(false)}>
-              เพิ่มรายการที่เลือก
+              เน€เธเธดเนเธกเธฃเธฒเธขเธเธฒเธฃเธ—เธตเนเน€เธฅเธทเธญเธ
             </Button>
             <Button type='button' size='sm' onClick={() => addContactsFromDevice(true)}>
-              ดึงทั้งหมด
+              เธ”เธถเธเธ—เธฑเนเธเธซเธกเธ”
             </Button>
           </div>
 
           <div className='max-h-64 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2'>
             {deviceContacts.map((item) => (
-              <label key={item.id} className='flex cursor-pointer items-center justify-between rounded-lg bg-white px-3 py-2 text-sm text-slate-700'>
+              <label key={item.id} className='flex cursor-pointer items-center justify-between rounded-lg bg-white px-3 py-2 text-app-body text-slate-700'>
                 <div className='min-w-0'>
                   <p className='truncate font-semibold text-slate-900'>{item.name}</p>
-                  <p className='text-xs text-slate-500'>{normalizePhoneNumber(item.number)}</p>
+                  <p className='text-app-caption text-slate-500'>{normalizePhoneNumber(item.number)}</p>
                 </div>
                 <input
                   type='checkbox'
@@ -347,45 +347,45 @@ export default function PrivateContactsPage() {
 
       <Card className='space-y-3 rounded-2xl border-slate-200 bg-white p-4'>
         <div className='flex items-center justify-between gap-2'>
-          <h2 className='text-sm font-semibold text-slate-900'>รายการเบอร์โทรลับ ({privateContacts.length})</h2>
+          <h2 className='text-app-body font-semibold text-slate-900'>เธฃเธฒเธขเธเธฒเธฃเน€เธเธญเธฃเนเนเธ—เธฃเธฅเธฑเธ ({privateContacts.length})</h2>
           {privateContacts.length > 0 ? (
-            <Button type='button' variant='secondary' size='sm' className='h-8 px-2.5 text-xs' onClick={handleDeleteAllPrivateContacts}>
+            <Button type='button' variant='secondary' size='sm' className='h-8 px-2.5 text-app-caption' onClick={handleDeleteAllPrivateContacts}>
               <Trash2 className='h-3.5 w-3.5' />
-              ลบทั้งหมด
+              เธฅเธเธ—เธฑเนเธเธซเธกเธ”
             </Button>
           ) : null}
         </div>
 
         {!loadedFromStorage ? (
-          <div className='flex items-center gap-2 text-sm text-slate-500'>
+          <div className='flex items-center gap-2 text-app-body text-slate-500'>
             <Loader2 className='h-4 w-4 animate-spin' />
-            กำลังโหลดรายการ...
+            เธเธณเธฅเธฑเธเนเธซเธฅเธ”เธฃเธฒเธขเธเธฒเธฃ...
           </div>
         ) : privateContacts.length === 0 ? (
           <div className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center'>
             <div className='mx-auto mb-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-fuchsia-500 text-white shadow-[0_8px_18px_rgba(79,123,255,0.28)]'>
               <Sparkles className='h-5 w-5' />
             </div>
-            <p className='text-sm font-semibold text-slate-900'>ยังไม่มีรายการเบอร์โทรลับ</p>
-            <p className='text-xs text-slate-500'>กดปุ่มเพิ่มรายการใหม่ หรือดึงจากรายชื่อมือถือได้ทันที</p>
+            <p className='text-app-body font-semibold text-slate-900'>เธขเธฑเธเนเธกเนเธกเธตเธฃเธฒเธขเธเธฒเธฃเน€เธเธญเธฃเนเนเธ—เธฃเธฅเธฑเธ</p>
+            <p className='text-app-caption text-slate-500'>เธเธ”เธเธธเนเธกเน€เธเธดเนเธกเธฃเธฒเธขเธเธฒเธฃเนเธซเธกเน เธซเธฃเธทเธญเธ”เธถเธเธเธฒเธเธฃเธฒเธขเธเธทเนเธญเธกเธทเธญเธ–เธทเธญเนเธ”เนเธ—เธฑเธเธ—เธต</p>
           </div>
         ) : (
           <div className='space-y-2'>
             {pagedPrivateContacts.map((item) => (
               <div key={item.id} className='flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2'>
                 <div className='min-w-0'>
-                  <p className='truncate text-sm font-semibold text-slate-900'>{item.name}</p>
-                  <p className='break-all text-xs text-slate-600'>{item.number}</p>
-                  <p className='text-[11px] text-slate-500'>{item.source === 'device' ? 'เพิ่มจากรายชื่อมือถือ' : 'เพิ่มด้วยตนเอง'}</p>
+                  <p className='truncate text-app-body font-semibold text-slate-900'>{item.name}</p>
+                  <p className='break-all text-app-caption text-slate-600'>{item.number}</p>
+                  <p className='text-app-micro text-slate-500'>{item.source === 'device' ? 'เน€เธเธดเนเธกเธเธฒเธเธฃเธฒเธขเธเธทเนเธญเธกเธทเธญเธ–เธทเธญ' : 'เน€เธเธดเนเธกเธ”เนเธงเธขเธ•เธเน€เธญเธ'}</p>
                 </div>
                 <div className='flex shrink-0 items-center gap-1.5'>
-                  <Button type='button' variant='secondary' size='sm' className='h-8 gap-1 px-2 text-xs' onClick={() => handleDeletePrivateContact(item.id)}>
+                  <Button type='button' variant='secondary' size='sm' className='h-8 gap-1 px-2 text-app-caption' onClick={() => handleDeletePrivateContact(item.id)}>
                     <Trash2 className='h-3.5 w-3.5' />
-                    ลบ
+                    เธฅเธ
                   </Button>
-                  <Button type='button' size='sm' className='h-8 gap-1 px-2 text-xs' onClick={() => handleCallContact(item.number)}>
+                  <Button type='button' size='sm' className='h-8 gap-1 px-2 text-app-caption' onClick={() => handleCallContact(item.number)}>
                     <Phone className='h-3.5 w-3.5' />
-                    โทร
+                    เนเธ—เธฃ
                   </Button>
                 </div>
               </div>
@@ -397,13 +397,13 @@ export default function PrivateContactsPage() {
           <div className='flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2'>
             <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setContactsPage((prev) => Math.max(1, prev - 1))} disabled={contactsPage === 1}>
               <ChevronLeft className='h-3.5 w-3.5' />
-              ก่อนหน้า
+              เธเนเธญเธเธซเธเนเธฒ
             </Button>
-            <p className='text-xs font-semibold text-slate-600'>
-              หน้า {contactsPage} / {totalContactPages}
+            <p className='text-app-caption font-semibold text-slate-600'>
+              เธซเธเนเธฒ {contactsPage} / {totalContactPages}
             </p>
             <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setContactsPage((prev) => Math.min(totalContactPages, prev + 1))} disabled={contactsPage === totalContactPages}>
-              ถัดไป
+              เธ–เธฑเธ”เนเธ
               <ChevronRight className='h-3.5 w-3.5' />
             </Button>
           </div>
@@ -413,18 +413,18 @@ export default function PrivateContactsPage() {
       {isManualModalOpen ? (
         <div className='fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/32 px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-20 backdrop-blur-[1px] animate-overlay-in sm:items-center'>
           <div className='w-full max-w-md rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_22px_52px_rgba(15,23,42,0.34)] animate-modal-pop-in'>
-            <h2 className='text-base font-semibold text-slate-900'>เพิ่มรายการใหม่</h2>
+            <h2 className='text-app-body font-semibold text-slate-900'>เน€เธเธดเนเธกเธฃเธฒเธขเธเธฒเธฃเนเธซเธกเน</h2>
             <div className='mt-3 space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
-              <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>ข้อมูลติดต่อ</p>
-              <Input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder='ชื่อรายการ' className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
-              <Input value={manualNumber} onChange={(event) => setManualNumber(event.target.value)} placeholder='หมายเลขเบอร์โทร' inputMode='tel' className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+              <p className='text-app-micro font-semibold uppercase tracking-[0.08em] text-slate-500'>เธเนเธญเธกเธนเธฅเธ•เธดเธ”เธ•เนเธญ</p>
+              <Input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder='เธเธทเนเธญเธฃเธฒเธขเธเธฒเธฃ' className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+              <Input value={manualNumber} onChange={(event) => setManualNumber(event.target.value)} placeholder='เธซเธกเธฒเธขเน€เธฅเธเน€เธเธญเธฃเนเนเธ—เธฃ' inputMode='tel' className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
             </div>
             <div className='mt-3 grid grid-cols-2 gap-2'>
               <Button type='button' variant='secondary' className='h-10 w-full' onClick={() => { setIsManualModalOpen(false); resetManualForm(); }}>
-                ยกเลิก
+                เธขเธเน€เธฅเธดเธ
               </Button>
               <Button type='button' className='h-10 w-full' onClick={handleAddManualContact}>
-                บันทึกรายการ
+                เธเธฑเธเธ—เธถเธเธฃเธฒเธขเธเธฒเธฃ
               </Button>
             </div>
           </div>
@@ -437,11 +437,11 @@ export default function PrivateContactsPage() {
             <div className='mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-fuchsia-500 text-white'>
               {savePopupState === 'saving' ? <Loader2 className='h-6 w-6 animate-spin' /> : <CheckCircle2 className='h-6 w-6' />}
             </div>
-            <p className='text-sm font-semibold text-slate-900'>
-              {savePopupState === 'saving' ? 'กำลังบันทึกรายการ...' : 'บันทึกสำเร็จแล้ว'}
+            <p className='text-app-body font-semibold text-slate-900'>
+              {savePopupState === 'saving' ? 'เธเธณเธฅเธฑเธเธเธฑเธเธ—เธถเธเธฃเธฒเธขเธเธฒเธฃ...' : 'เธเธฑเธเธ—เธถเธเธชเธณเน€เธฃเนเธเนเธฅเนเธง'}
             </p>
-            <p className='mt-1 text-xs text-slate-500'>
-              {savePopupState === 'saving' ? 'กรุณารอสักครู่' : 'เพิ่มเบอร์โทรลับเรียบร้อย'}
+            <p className='mt-1 text-app-caption text-slate-500'>
+              {savePopupState === 'saving' ? 'เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน' : 'เน€เธเธดเนเธกเน€เธเธญเธฃเนเนเธ—เธฃเธฅเธฑเธเน€เธฃเธตเธขเธเธฃเนเธญเธข'}
             </p>
           </div>
         </div>
@@ -449,3 +449,5 @@ export default function PrivateContactsPage() {
     </section>
   );
 }
+
+

@@ -6,7 +6,7 @@ export function LanguageSwitcher() {
   const { locale, setLocale, t } = useI18n();
 
   return (
-    <div className="inline-flex h-10 items-center rounded-[14px] border border-[var(--border-soft)] bg-white/92 px-1.5 text-sm shadow-[0_8px_18px_rgba(30,41,59,0.12)]">
+    <div className="inline-flex h-10 items-center rounded-[14px] border border-[var(--border-soft)] bg-white/92 px-1.5 text-app-body shadow-[0_8px_18px_rgba(30,41,59,0.12)]">
       <button
         type="button"
         onClick={() => setLocale("th")}
@@ -24,3 +24,4 @@ export function LanguageSwitcher() {
     </div>
   );
 }
+

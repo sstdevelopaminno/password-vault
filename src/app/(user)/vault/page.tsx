@@ -483,8 +483,8 @@ export default function VaultPage() {
  <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.7rem)] sm:pt-2'>
  <header className='flex items-start justify-between gap-3'>
  <div className='min-w-0 space-y-1'>
- <h1 className='text-[32px] font-semibold leading-none tracking-[-0.02em] text-[#f3f8ff]'>{t('vault.title')}</h1>
- <p className='text-[15px] leading-6 text-[#9eb1d8]'>{t('vault.subtitle')}</p>
+ <h1 className='text-app-h1 font-semibold leading-none tracking-[-0.02em] text-[#f3f8ff]'>{t('vault.title')}</h1>
+ <p className='text-app-body leading-6 text-[#9eb1d8]'>{t('vault.subtitle')}</p>
  </div>
  <div className='neon-icon-wrap inline-flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[22px]'>
  <Image src={BRAND_LOGO_URL} alt='Vault Shield' width={42} height={42} className='h-10 w-10 rounded-xl object-cover' />
@@ -497,7 +497,7 @@ export default function VaultPage() {
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  placeholder={t('vault.searchPlaceholder')}
- className='h-[50px] rounded-[18px] border-transparent bg-transparent pl-11 text-[15px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0'
+ className='h-[50px] rounded-[18px] border-transparent bg-transparent pl-11 text-app-body text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0'
  />
  </div>
 
@@ -538,12 +538,12 @@ export default function VaultPage() {
  ))}
  </div>
 
- {loadingPage && items.length === 0 ? <p className='text-center text-sm text-[#9eb2da]'>{t('common.loading')}</p> : null}
- {!loadingPage && items.length === 0 ? <p className='text-center text-sm text-[#9eb2da]'>{locale === 'th' ? 'ยังไม่มีรายการในคลังรหัส' : 'No vault items yet'}</p> : null}
+ {loadingPage && items.length === 0 ? <p className='text-center text-app-body text-[#9eb2da]'>{t('common.loading')}</p> : null}
+ {!loadingPage && items.length === 0 ? <p className='text-center text-app-body text-[#9eb2da]'>{locale === 'th' ? 'ยังไม่มีรายการในคลังรหัส' : 'No vault items yet'}</p> : null}
 
  {items.length > 0 ? (
  <div className='space-y-2 pt-1'>
- <p className='text-center text-xs text-[#9ab0da]'>
+ <p className='text-center text-app-caption text-[#9ab0da]'>
  {locale === 'th'
  ? `หน้า ${page}/${totalPages} • ทั้งหมด ${totalItems} รายการ`
  : `Page ${page}/${totalPages} • ${totalItems} total items`}
@@ -552,7 +552,7 @@ export default function VaultPage() {
  <Button
  type='button'
  variant='secondary'
- className='h-9 rounded-xl px-3 text-xs'
+ className='h-9 rounded-xl px-3 text-app-caption'
  onClick={() => setPage((v) => Math.max(1, v - 1))}
  disabled={page <= 1 || loadingPage}
  >
@@ -562,8 +562,8 @@ export default function VaultPage() {
 
  {pageNumbers[0] > 1 ? (
  <>
- <Button type='button' variant='secondary' className='h-9 min-w-[2.2rem] rounded-xl px-0 text-xs' onClick={() => setPage(1)} disabled={loadingPage}>1</Button>
- <span className='px-1 text-xs text-[#8197c3]'>...</span>
+ <Button type='button' variant='secondary' className='h-9 min-w-[2.2rem] rounded-xl px-0 text-app-caption' onClick={() => setPage(1)} disabled={loadingPage}>1</Button>
+ <span className='px-1 text-app-caption text-[#8197c3]'>...</span>
  </>
  ) : null}
 
@@ -572,7 +572,7 @@ export default function VaultPage() {
  key={num}
  type='button'
  variant={num === page ? 'default' : 'secondary'}
- className='h-9 min-w-[2.2rem] rounded-xl px-0 text-xs'
+ className='h-9 min-w-[2.2rem] rounded-xl px-0 text-app-caption'
  onClick={() => setPage(num)}
  disabled={loadingPage}
  >
@@ -582,15 +582,15 @@ export default function VaultPage() {
 
  {pageNumbers[pageNumbers.length - 1] < totalPages ? (
  <>
- <span className='px-1 text-xs text-[#8197c3]'>...</span>
- <Button type='button' variant='secondary' className='h-9 min-w-[2.2rem] rounded-xl px-0 text-xs' onClick={() => setPage(totalPages)} disabled={loadingPage}>{totalPages}</Button>
+ <span className='px-1 text-app-caption text-[#8197c3]'>...</span>
+ <Button type='button' variant='secondary' className='h-9 min-w-[2.2rem] rounded-xl px-0 text-app-caption' onClick={() => setPage(totalPages)} disabled={loadingPage}>{totalPages}</Button>
  </>
  ) : null}
 
  <Button
  type='button'
  variant='secondary'
- className='h-9 rounded-xl px-3 text-xs'
+ className='h-9 rounded-xl px-3 text-app-caption'
  onClick={() => setPage((v) => Math.min(totalPages, v + 1))}
  disabled={page >= totalPages || loadingPage}
  >
@@ -693,4 +693,6 @@ export default function VaultPage() {
  </section>
  );
 }
+
+
 

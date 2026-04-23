@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleHelp, LifeBuoy, Mail, Send, ShieldCheck, Ticket, UserRound } from "lucide-react";
@@ -55,10 +55,10 @@ function formatDate(value: string, locale: "th" | "en") {
 
 function statusLabel(status: SupportTicket["status"], locale: "th" | "en") {
   if (locale === "th") {
-    if (status === "open") return "เปิด";
-    if (status === "in_progress") return "กำลังดำเนินการ";
-    if (status === "resolved") return "แก้ไขแล้ว";
-    return "ปิดงาน";
+    if (status === "open") return "เน€เธเธดเธ”";
+    if (status === "in_progress") return "เธเธณเธฅเธฑเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ";
+    if (status === "resolved") return "เนเธเนเนเธเนเธฅเนเธง";
+    return "เธเธดเธ”เธเธฒเธ";
   }
   if (status === "open") return "Open";
   if (status === "in_progress") return "In progress";
@@ -97,7 +97,7 @@ export default function HelpCenterPage() {
       setTickets(Array.isArray(ticketBody.tickets) ? (ticketBody.tickets as SupportTicket[]) : []);
       setContacts(Array.isArray(contactBody.contacts) ? (contactBody.contacts as SupportContact[]) : []);
     } catch {
-      toast.showToast(locale === "th" ? "โหลดข้อมูลศูนย์ช่วยเหลือไม่สำเร็จ" : "Failed to load help center", "error");
+      toast.showToast(locale === "th" ? "เนเธซเธฅเธ”เธเนเธญเธกเธนเธฅเธจเธนเธเธขเนเธเนเธงเธขเน€เธซเธฅเธทเธญเนเธกเนเธชเธณเน€เธฃเนเธ" : "Failed to load help center", "error");
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,7 @@ export default function HelpCenterPage() {
     void loadData();
   }, [loadData]);
 
-  const headline = locale === "th" ? "ศูนย์ช่วยเหลือ" : "Help Center";
+  const headline = locale === "th" ? "เธจเธนเธเธขเนเธเนเธงเธขเน€เธซเธฅเธทเธญ" : "Help Center";
 
   const cardStats = useMemo(
     () => [
@@ -118,12 +118,12 @@ export default function HelpCenterPage() {
       },
       {
         icon: Ticket,
-        label: locale === "th" ? "Ticket ของคุณ" : "Your tickets",
+        label: locale === "th" ? "Ticket เธเธญเธเธเธธเธ“" : "Your tickets",
         value: String(tickets.length),
       },
       {
         icon: UserRound,
-        label: locale === "th" ? "ผู้ดูแลที่ติดต่อได้" : "Admin contacts",
+        label: locale === "th" ? "เธเธนเนเธ”เธนเนเธฅเธ—เธตเนเธ•เธดเธ”เธ•เนเธญเนเธ”เน" : "Admin contacts",
         value: String(contacts.length),
       },
     ],
@@ -134,7 +134,7 @@ export default function HelpCenterPage() {
     const subject = form.subject.trim();
     const message = form.message.trim();
     if (subject.length < 3 || message.length < 10) {
-      toast.showToast(locale === "th" ? "กรอกหัวข้อและรายละเอียดให้ครบก่อนส่ง Ticket" : "Please complete subject and message", "error");
+      toast.showToast(locale === "th" ? "เธเธฃเธญเธเธซเธฑเธงเธเนเธญเนเธฅเธฐเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เนเธซเนเธเธฃเธเธเนเธญเธเธชเนเธ Ticket" : "Please complete subject and message", "error");
       return;
     }
 
@@ -158,9 +158,9 @@ export default function HelpCenterPage() {
 
       setForm(initialForm);
       setTickets((prev) => [body.ticket as SupportTicket, ...prev].slice(0, 6));
-      toast.showToast(locale === "th" ? "ส่ง Ticket สำเร็จแล้ว" : "Ticket submitted");
+      toast.showToast(locale === "th" ? "เธชเนเธ Ticket เธชเธณเน€เธฃเนเธเนเธฅเนเธง" : "Ticket submitted");
     } catch {
-      toast.showToast(locale === "th" ? "ส่ง Ticket ไม่สำเร็จ" : "Failed to submit ticket", "error");
+      toast.showToast(locale === "th" ? "เธชเนเธ Ticket เนเธกเนเธชเธณเน€เธฃเนเธ" : "Failed to submit ticket", "error");
     } finally {
       setSubmitting(false);
     }
@@ -174,10 +174,10 @@ export default function HelpCenterPage() {
             <LifeBuoy className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{headline}</h1>
-            <p className="text-sm text-slate-500">
+            <h1 className="text-app-h1 font-semibold text-slate-900">{headline}</h1>
+            <p className="text-app-body text-slate-500">
               {locale === "th"
-                ? "FAQ, Ticket และช่องทางติดต่อแอดมิน เชื่อมต่อ API จริงแล้ว"
+                ? "FAQ, Ticket เนเธฅเธฐเธเนเธญเธเธ—เธฒเธเธ•เธดเธ”เธ•เนเธญเนเธญเธ”เธกเธดเธ เน€เธเธทเนเธญเธกเธ•เนเธญ API เธเธฃเธดเธเนเธฅเนเธง"
                 : "FAQ, tickets, and admin contacts are connected to live APIs."}
             </p>
           </div>
@@ -190,9 +190,9 @@ export default function HelpCenterPage() {
               <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
                 <div className="flex items-center gap-1.5 text-slate-600">
                   <Icon className="h-3.5 w-3.5" />
-                  <p className="text-[11px] font-semibold">{item.label}</p>
+                  <p className="text-app-micro font-semibold">{item.label}</p>
                 </div>
-                <p className="mt-1 text-2xl font-semibold leading-none text-slate-900">{item.value}</p>
+                <p className="mt-1 text-app-h1 font-semibold leading-none text-slate-900">{item.value}</p>
               </div>
             );
           })}
@@ -200,65 +200,65 @@ export default function HelpCenterPage() {
       </div>
 
       <Card className="space-y-3 rounded-[22px] border border-slate-200 bg-white/95 p-4">
-        <h2 className="text-sm font-semibold text-slate-800">
-          {locale === "th" ? "เปิด Ticket ใหม่" : "Create support ticket"}
+        <h2 className="text-app-body font-semibold text-slate-800">
+          {locale === "th" ? "เน€เธเธดเธ” Ticket เนเธซเธกเน" : "Create support ticket"}
         </h2>
         <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-            {locale === "th" ? "รายละเอียด Ticket" : "Ticket details"}
+          <p className="text-app-micro font-semibold uppercase tracking-[0.08em] text-slate-500">
+            {locale === "th" ? "เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ” Ticket" : "Ticket details"}
           </p>
           <div className="grid grid-cols-2 gap-2">
             <label className="space-y-1">
-              <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "หมวดหมู่" : "Category"}</span>
+              <span className="text-app-caption font-semibold text-slate-500">{locale === "th" ? "เธซเธกเธงเธ”เธซเธกเธนเน" : "Category"}</span>
               <select
                 value={form.category}
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, category: event.target.value as TicketFormState["category"] }))
                 }
-                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
+                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-app-body text-slate-800 outline-none focus:border-blue-300"
               >
-                <option value="general">{locale === "th" ? "ทั่วไป" : "General"}</option>
-                <option value="account">{locale === "th" ? "บัญชีผู้ใช้" : "Account"}</option>
-                <option value="security">{locale === "th" ? "ความปลอดภัย" : "Security"}</option>
-                <option value="team">{locale === "th" ? "ทีมและสิทธิ์" : "Team access"}</option>
+                <option value="general">{locale === "th" ? "เธ—เธฑเนเธงเนเธ" : "General"}</option>
+                <option value="account">{locale === "th" ? "เธเธฑเธเธเธตเธเธนเนเนเธเน" : "Account"}</option>
+                <option value="security">{locale === "th" ? "เธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข" : "Security"}</option>
+                <option value="team">{locale === "th" ? "เธ—เธตเธกเนเธฅเธฐเธชเธดเธ—เธเธดเน" : "Team access"}</option>
               </select>
             </label>
             <label className="space-y-1">
-              <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "ความเร่งด่วน" : "Priority"}</span>
+              <span className="text-app-caption font-semibold text-slate-500">{locale === "th" ? "เธเธงเธฒเธกเน€เธฃเนเธเธ”เนเธงเธ" : "Priority"}</span>
               <select
                 value={form.priority}
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, priority: event.target.value as TicketFormState["priority"] }))
                 }
-                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
+                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-app-body text-slate-800 outline-none focus:border-blue-300"
               >
-                <option value="low">{locale === "th" ? "ต่ำ" : "Low"}</option>
-                <option value="normal">{locale === "th" ? "ปกติ" : "Normal"}</option>
-                <option value="high">{locale === "th" ? "สูง" : "High"}</option>
+                <option value="low">{locale === "th" ? "เธ•เนเธณ" : "Low"}</option>
+                <option value="normal">{locale === "th" ? "เธเธเธ•เธด" : "Normal"}</option>
+                <option value="high">{locale === "th" ? "เธชเธนเธ" : "High"}</option>
               </select>
             </label>
           </div>
 
           <label className="space-y-1">
-            <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "หัวข้อ" : "Subject"}</span>
+            <span className="text-app-caption font-semibold text-slate-500">{locale === "th" ? "เธซเธฑเธงเธเนเธญ" : "Subject"}</span>
             <input
               value={form.subject}
               onChange={(event) => setForm((prev) => ({ ...prev, subject: event.target.value }))}
-              className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
-              placeholder={locale === "th" ? "เช่น ไม่สามารถเข้าระบบได้" : "e.g. Cannot sign in"}
+              className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-app-body text-slate-800 outline-none focus:border-blue-300"
+              placeholder={locale === "th" ? "เน€เธเนเธ เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เน€เธเนเธฒเธฃเธฐเธเธเนเธ”เน" : "e.g. Cannot sign in"}
               maxLength={140}
             />
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "รายละเอียดปัญหา" : "Details"}</span>
+            <span className="text-app-caption font-semibold text-slate-500">{locale === "th" ? "เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เธเธฑเธเธซเธฒ" : "Details"}</span>
             <textarea
               value={form.message}
               onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-              className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-300"
+              className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-app-body text-slate-800 outline-none focus:border-blue-300"
               placeholder={
                 locale === "th"
-                  ? "อธิบายปัญหาให้ละเอียด เช่น เวลาเกิดปัญหาและหน้าที่ใช้งาน"
+                  ? "เธญเธเธดเธเธฒเธขเธเธฑเธเธซเธฒเนเธซเนเธฅเธฐเน€เธญเธตเธขเธ” เน€เธเนเธ เน€เธงเธฅเธฒเน€เธเธดเธ”เธเธฑเธเธซเธฒเนเธฅเธฐเธซเธเนเธฒเธ—เธตเนเนเธเนเธเธฒเธ"
                   : "Describe the issue, when it happens, and where it occurs."
               }
               maxLength={4000}
@@ -275,35 +275,35 @@ export default function HelpCenterPage() {
           <Send className="mr-1.5 h-4 w-4" />
           {submitting
             ? locale === "th"
-              ? "กำลังส่ง..."
+              ? "เธเธณเธฅเธฑเธเธชเนเธ..."
               : "Submitting..."
             : locale === "th"
-              ? "ส่ง Ticket"
+              ? "เธชเนเธ Ticket"
               : "Submit ticket"}
         </Button>
       </Card>
 
       <Card className="space-y-3 rounded-[22px] border border-slate-200 bg-white/95 p-4">
-        <h2 className="text-sm font-semibold text-slate-800">{locale === "th" ? "Ticket ล่าสุดของคุณ" : "Your recent tickets"}</h2>
+        <h2 className="text-app-body font-semibold text-slate-800">{locale === "th" ? "Ticket เธฅเนเธฒเธชเธธเธ”เธเธญเธเธเธธเธ“" : "Your recent tickets"}</h2>
         {loading ? (
-          <p className="text-sm text-slate-500">{locale === "th" ? "กำลังโหลด..." : "Loading..."}</p>
+          <p className="text-app-body text-slate-500">{locale === "th" ? "เธเธณเธฅเธฑเธเนเธซเธฅเธ”..." : "Loading..."}</p>
         ) : tickets.length === 0 ? (
-          <p className="text-sm text-slate-500">{locale === "th" ? "ยังไม่มี Ticket" : "No tickets yet."}</p>
+          <p className="text-app-body text-slate-500">{locale === "th" ? "เธขเธฑเธเนเธกเนเธกเธต Ticket" : "No tickets yet."}</p>
         ) : (
           <div className="space-y-2">
             {tickets.map((ticket) => (
               <div key={ticket.id} className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-800">{ticket.subject}</p>
-                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                  <p className="text-app-body font-semibold text-slate-800">{ticket.subject}</p>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-app-micro font-semibold text-blue-700">
                     {statusLabel(ticket.status, locale)}
                   </span>
                 </div>
-                <p className="mt-1 line-clamp-2 text-xs text-slate-600">{ticket.message}</p>
-                <p className="mt-1 text-[11px] text-slate-500">{formatDate(ticket.createdAt, locale)}</p>
+                <p className="mt-1 line-clamp-2 text-app-caption text-slate-600">{ticket.message}</p>
+                <p className="mt-1 text-app-micro text-slate-500">{formatDate(ticket.createdAt, locale)}</p>
                 {ticket.adminResponse ? (
-                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs text-emerald-800">
-                    <span className="font-semibold">{locale === "th" ? "คำตอบจากแอดมิน: " : "Admin response: "}</span>
+                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-app-caption text-emerald-800">
+                    <span className="font-semibold">{locale === "th" ? "เธเธณเธ•เธญเธเธเธฒเธเนเธญเธ”เธกเธดเธ: " : "Admin response: "}</span>
                     <span>{ticket.adminResponse}</span>
                   </div>
                 ) : null}
@@ -316,12 +316,12 @@ export default function HelpCenterPage() {
       <Card className="space-y-3 rounded-[22px] border border-slate-200 bg-white/95 p-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-slate-600" />
-          <h2 className="text-sm font-semibold text-slate-800">{locale === "th" ? "ติดต่อแอดมิน" : "Contact admin"}</h2>
+          <h2 className="text-app-body font-semibold text-slate-800">{locale === "th" ? "เธ•เธดเธ”เธ•เนเธญเนเธญเธ”เธกเธดเธ" : "Contact admin"}</h2>
         </div>
         {loading ? (
-          <p className="text-sm text-slate-500">{locale === "th" ? "กำลังโหลด..." : "Loading..."}</p>
+          <p className="text-app-body text-slate-500">{locale === "th" ? "เธเธณเธฅเธฑเธเนเธซเธฅเธ”..." : "Loading..."}</p>
         ) : contacts.length === 0 ? (
-          <p className="text-sm text-slate-500">{locale === "th" ? "ยังไม่มีรายชื่อผู้ดูแล" : "No admin contacts found."}</p>
+          <p className="text-app-body text-slate-500">{locale === "th" ? "เธขเธฑเธเนเธกเนเธกเธตเธฃเธฒเธขเธเธทเนเธญเธเธนเนเธ”เธนเนเธฅ" : "No admin contacts found."}</p>
         ) : (
           <div className="space-y-2">
             {contacts.map((contact) => (
@@ -331,10 +331,10 @@ export default function HelpCenterPage() {
                 className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 transition hover:border-blue-200 hover:bg-blue-50/60"
               >
                 <span>
-                  <p className="text-sm font-semibold text-slate-800">{contact.fullName}</p>
-                  <p className="text-xs text-slate-500">{contact.roleLabel}</p>
+                  <p className="text-app-body font-semibold text-slate-800">{contact.fullName}</p>
+                  <p className="text-app-caption text-slate-500">{contact.roleLabel}</p>
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
+                <span className="inline-flex items-center gap-1 text-app-caption font-semibold text-blue-700">
                   <Mail className="h-3.5 w-3.5" />
                   {contact.email}
                 </span>
@@ -345,17 +345,17 @@ export default function HelpCenterPage() {
       </Card>
 
       <Card className="space-y-3 rounded-[22px] border border-slate-200 bg-white/95 p-4">
-        <h2 className="text-sm font-semibold text-slate-800">{locale === "th" ? "คำถามที่พบบ่อย (FAQ)" : "Frequently asked questions"}</h2>
+        <h2 className="text-app-body font-semibold text-slate-800">{locale === "th" ? "เธเธณเธ–เธฒเธกเธ—เธตเนเธเธเธเนเธญเธข (FAQ)" : "Frequently asked questions"}</h2>
         {loading ? (
-          <p className="text-sm text-slate-500">{locale === "th" ? "กำลังโหลด..." : "Loading..."}</p>
+          <p className="text-app-body text-slate-500">{locale === "th" ? "เธเธณเธฅเธฑเธเนเธซเธฅเธ”..." : "Loading..."}</p>
         ) : faqs.length === 0 ? (
-          <p className="text-sm text-slate-500">{locale === "th" ? "ยังไม่มี FAQ" : "No FAQs available."}</p>
+          <p className="text-app-body text-slate-500">{locale === "th" ? "เธขเธฑเธเนเธกเนเธกเธต FAQ" : "No FAQs available."}</p>
         ) : (
           <div className="space-y-2">
             {faqs.map((faq) => (
               <div key={faq.id} className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
-                <p className="text-sm font-semibold text-slate-800">{faq.question}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-600">{faq.answer}</p>
+                <p className="text-app-body font-semibold text-slate-800">{faq.question}</p>
+                <p className="mt-1 text-app-caption leading-5 text-slate-600">{faq.answer}</p>
               </div>
             ))}
           </div>
@@ -364,3 +364,5 @@ export default function HelpCenterPage() {
     </section>
   );
 }
+
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { KeyRound, ShieldCheck, UserPlus } from "lucide-react";
@@ -53,19 +53,19 @@ function mapLoginError(input: {
 
   if (lower.includes("account is disabled")) {
     return locale === "th"
-      ? "บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
+      ? "เธเธฑเธเธเธตเธเธตเนเธ–เธนเธเธเธดเธ”เนเธเนเธเธฒเธ เธเธฃเธธเธ“เธฒเธ•เธดเธ”เธ•เนเธญเธเธนเนเธ”เธนเนเธฅเธฃเธฐเธเธ"
       : "This account is disabled. Please contact an administrator.";
   }
 
   if (lower.includes("profile mismatch")) {
     return locale === "th"
-      ? "ตรวจพบข้อมูลบัญชีไม่ตรงกัน ระบบกำลังซ่อมแซมอัตโนมัติ กรุณาลองอีกครั้ง"
+      ? "เธ•เธฃเธงเธเธเธเธเนเธญเธกเธนเธฅเธเธฑเธเธเธตเนเธกเนเธ•เธฃเธเธเธฑเธ เธฃเธฐเธเธเธเธณเธฅเธฑเธเธเนเธญเธกเนเธเธกเธญเธฑเธ•เนเธเธกเธฑเธ•เธด เธเธฃเธธเธ“เธฒเธฅเธญเธเธญเธตเธเธเธฃเธฑเนเธ"
       : "Account profile mismatch detected. Please retry shortly.";
   }
 
   if (lower.includes("unable to secure this login session")) {
     return locale === "th"
-      ? "ไม่สามารถยืนยันความปลอดภัยของเซสชันได้ กรุณาเข้าสู่ระบบใหม่"
+      ? "เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธขเธทเธเธขเธฑเธเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธขเธเธญเธเน€เธเธชเธเธฑเธเนเธ”เน เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธซเธกเน"
       : "Unable to secure this login session. Please sign in again.";
   }
 
@@ -73,23 +73,23 @@ function mapLoginError(input: {
     const retry = Number(input.retryAfterSec ?? 0);
     if (Number.isFinite(retry) && retry > 0) {
       return locale === "th"
-        ? `ลองใหม่อีกครั้งใน ${retry} วินาที`
+        ? `เธฅเธญเธเนเธซเธกเนเธญเธตเธเธเธฃเธฑเนเธเนเธ ${retry} เธงเธดเธเธฒเธ—เธต`
         : `Please retry in ${retry} seconds.`;
     }
     return locale === "th"
-      ? "พยายามเข้าสู่ระบบถี่เกินไป กรุณารอสักครู่"
+      ? "เธเธขเธฒเธขเธฒเธกเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธ–เธตเนเน€เธเธดเธเนเธ เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน"
       : "Too many attempts. Please wait a moment.";
   }
 
   if (lower.includes("invalid login credentials")) {
     return locale === "th"
-      ? "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
+      ? "เธญเธตเน€เธกเธฅเธซเธฃเธทเธญเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ"
       : "Invalid email or password.";
   }
 
   if (lower.includes("email not confirmed")) {
     return locale === "th"
-      ? "ยังไม่ยืนยันอีเมล กรุณายืนยัน OTP ก่อนเข้าสู่ระบบ"
+      ? "เธขเธฑเธเนเธกเนเธขเธทเธเธขเธฑเธเธญเธตเน€เธกเธฅ เธเธฃเธธเธ“เธฒเธขเธทเธเธขเธฑเธ OTP เธเนเธญเธเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ"
       : "Email not confirmed. Please verify OTP first.";
   }
 
@@ -297,7 +297,7 @@ export default function LoginPage() {
         mapLoginError({
           message: result.body.error,
           locale,
-          fallback: locale === "th" ? "เครือข่ายไม่เสถียร กรุณาลองอีกครั้ง" : "Network unstable. Please retry.",
+          fallback: locale === "th" ? "เน€เธเธฃเธทเธญเธเนเธฒเธขเนเธกเนเน€เธชเธ–เธตเธขเธฃ เธเธฃเธธเธ“เธฒเธฅเธญเธเธญเธตเธเธเธฃเธฑเนเธ" : "Network unstable. Please retry.",
         }),
         "error",
       );
@@ -323,14 +323,14 @@ export default function LoginPage() {
       if (response.status === 429 || errorText.toLowerCase().includes("too many login attempts")) {
         notify({
           kind: "security",
-          title: locale === "th" ? "ตรวจพบความเสี่ยงด้านความปลอดภัย" : "Security risk detected",
+          title: locale === "th" ? "เธ•เธฃเธงเธเธเธเธเธงเธฒเธกเน€เธชเธตเนเธขเธเธ”เนเธฒเธเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข" : "Security risk detected",
           message:
             locale === "th"
-              ? "มีการพยายามเข้าสู่ระบบถี่ผิดปกติ ระบบจำกัดการเข้าชั่วคราว"
+              ? "เธกเธตเธเธฒเธฃเธเธขเธฒเธขเธฒเธกเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธ–เธตเนเธเธดเธ”เธเธเธ•เธด เธฃเธฐเธเธเธเธณเธเธฑเธ”เธเธฒเธฃเน€เธเนเธฒเธเธฑเนเธงเธเธฃเธฒเธง"
               : "Unusual repeated sign-in attempts detected. Access was temporarily rate-limited.",
           details:
             locale === "th"
-              ? "หากไม่ใช่คุณ แนะนำเปลี่ยนรหัสผ่านทันที"
+              ? "เธซเธฒเธเนเธกเนเนเธเนเธเธธเธ“ เนเธเธฐเธเธณเน€เธเธฅเธตเนเธขเธเธฃเธซเธฑเธชเธเนเธฒเธเธ—เธฑเธเธ—เธต"
               : "If this wasn't you, change your password immediately.",
           href: "/forgot-password",
           persistent: true,
@@ -343,10 +343,10 @@ export default function LoginPage() {
 
     notify({
       kind: "auth",
-      title: locale === "th" ? "เข้าสู่ระบบสำเร็จ" : "Login successful",
+      title: locale === "th" ? "เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธชเธณเน€เธฃเนเธ" : "Login successful",
       message:
         locale === "th"
-          ? "ยินดีต้อนรับกลับสู่ Vault"
+          ? "เธขเธดเธเธ”เธตเธ•เนเธญเธเธฃเธฑเธเธเธฅเธฑเธเธชเธนเน Vault"
           : "Welcome back to Vault.",
       href: "/home",
       alsoSystem: true,
@@ -425,16 +425,16 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <p className="text-[24px] font-semibold leading-tight text-[#f3f8ff]">{t("common.appName")}</p>
-                <p className="text-sm text-[#95abd7]">{t("landing.subtitle")}</p>
+                <p className="text-app-h2 font-semibold leading-tight text-[#f3f8ff]">{t("common.appName")}</p>
+                <p className="text-app-body text-[#95abd7]">{t("landing.subtitle")}</p>
               </div>
             </div>
 
             <div className="space-y-1">
-              <h1 className="text-xl font-semibold text-[#f3f8ff]">{t("login.title")}</h1>
-              <p className="text-xs text-[#8ea3cf]">
+              <h1 className="text-app-h2 font-semibold text-[#f3f8ff]">{t("login.title")}</h1>
+              <p className="text-app-caption text-[#8ea3cf]">
                 {locale === "th"
-                  ? `โหมด: ${getRuntimeModeLabel(runtimeMode, locale)} | แอป ${APP_VERSION}${latestApkVersion ? ` | APK ล่าสุด ${latestApkVersion}` : ""}`
+                  ? `เนเธซเธกเธ”: ${getRuntimeModeLabel(runtimeMode, locale)} | เนเธญเธ ${APP_VERSION}${latestApkVersion ? ` | APK เธฅเนเธฒเธชเธธเธ” ${latestApkVersion}` : ""}`
                   : `Mode: ${getRuntimeModeLabel(runtimeMode, locale)} | App ${APP_VERSION}${latestApkVersion ? ` | Latest APK ${latestApkVersion}` : ""}`}
               </p>
             </div>
@@ -460,7 +460,7 @@ export default function LoginPage() {
               required
             />
 
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-2 gap-2 text-app-body">
               <Link className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[rgba(129,149,224,0.46)] bg-[linear-gradient(180deg,rgba(13,23,52,0.94),rgba(9,16,38,0.97))] px-3 font-semibold text-[#edf5ff] transition hover:border-[rgba(153,176,255,0.6)] hover:text-white" href="/forgot-password">
                 <KeyRound className="h-4 w-4" />
                 {t("login.forgotPassword")}
@@ -495,7 +495,7 @@ export default function LoginPage() {
             ) : null}
           </form>
 
-          <div className="hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4 text-sm text-slate-600">
+          <div className="hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4 text-app-body text-slate-600">
             <ul className="mt-2 space-y-2">
               {flowNotes.map((note) => (
                 <li key={note} className="leading-6">
@@ -509,3 +509,4 @@ export default function LoginPage() {
     </MobileShell>
   );
 }
+

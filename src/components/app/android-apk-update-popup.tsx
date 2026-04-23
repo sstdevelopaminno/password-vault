@@ -371,22 +371,22 @@ export function AndroidApkUpdatePopup() {
             <Smartphone className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-base font-semibold text-slate-900">{title}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">{detail}</p>
+            <p className="text-app-body font-semibold text-slate-900">{title}</p>
+            <p className="mt-1 text-app-caption leading-5 text-slate-600">{detail}</p>
           </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-3">
-          <p className="text-xs font-semibold text-slate-700">{locale === "th" ? "แพ็กเกจติดตั้งล่าสุด" : "Latest build package"}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-600">{release.packageName} | {release.publishedAt}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
+          <p className="text-app-caption font-semibold text-slate-700">{locale === "th" ? "แพ็กเกจติดตั้งล่าสุด" : "Latest build package"}</p>
+          <p className="mt-1 text-app-caption leading-5 text-slate-600">{release.packageName} | {release.publishedAt}</p>
+          <p className="mt-1 text-app-caption leading-5 text-slate-600">
             {locale === "th"
               ? `เวอร์ชันที่เครื่องนี้กำลังรัน: ${installedVersionName}${installedVersionCode ? ` (${installedVersionCode})` : ""}`
               : `Current running version: ${installedVersionName}${installedVersionCode ? ` (${installedVersionCode})` : ""}`}
           </p>
         </div>
 
-        <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
+        <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-app-caption text-emerald-900">
           <p className="inline-flex items-center gap-1 font-semibold">
             <ShieldCheck className="h-3.5 w-3.5" />
             {locale === "th" ? "สถานะความเข้ากันได้" : "Compatibility"}
@@ -394,10 +394,10 @@ export function AndroidApkUpdatePopup() {
           <p className="mt-1">{compatibilityText}</p>
         </div>
 
-        <p className="mt-2 text-[11px] leading-5 text-slate-500">{installPolicyHint}</p>
+        <p className="mt-2 text-app-micro leading-5 text-slate-500">{installPolicyHint}</p>
 
         {waitingInstallPermission ? (
-          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-app-micro text-amber-800">
             {locale === "th"
               ? "กำลังรอสิทธิ์ Install unknown apps เมื่อกลับจากหน้าตั้งค่า ระบบจะพยายามดาวน์โหลดต่อให้อัตโนมัติ"
               : "Waiting for Install unknown apps permission. Update will resume automatically after returning from settings."}
@@ -450,3 +450,5 @@ export function AndroidApkUpdatePopup() {
     </div>
   );
 }
+
+

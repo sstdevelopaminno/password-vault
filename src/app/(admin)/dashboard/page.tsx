@@ -36,15 +36,16 @@ export default function AdminDashboardPage() {
 
   return (
     <section className="grid gap-3 pb-20">
-      <h1 className="text-xl font-semibold">Admin Dashboard</h1>
+      <h1 className="text-app-h2 font-semibold">Admin Dashboard</h1>
       <div className="grid gap-3 sm:grid-cols-2">
         {cards.map((item) => (
           <Card key={item.key} className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{item.label}</p>
-            <p className="text-2xl font-semibold text-slate-900">{stats?.[item.key] ?? 0}</p>
+            <p className="text-app-caption font-medium uppercase tracking-wide text-slate-500">{item.label}</p>
+            <p className="text-app-h1 font-semibold text-slate-900">{stats?.[item.key] ?? 0}</p>
           </Card>
         ))}
       </div>
     </section>
   );
 }
+

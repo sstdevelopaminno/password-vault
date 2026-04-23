@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -48,22 +48,22 @@ function mapGateError(message: unknown, locale: string) {
   const lower = text.toLowerCase();
 
   if (lower.includes("unauthorized") || lower.includes("session expired")) {
-    return locale === "th" ? "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่" : "Session expired. Please sign in again.";
+    return locale === "th" ? "เน€เธเธชเธเธฑเธเธซเธกเธ”เธญเธฒเธขเธธ เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธซเธกเน" : "Session expired. Please sign in again.";
   }
   if (lower.includes("session synchronization") || lower.includes("sync")) {
-    return locale === "th" ? "กำลังซิงก์เซสชันความปลอดภัย กรุณารอสักครู่" : "Session synchronization in progress. Please wait.";
+    return locale === "th" ? "เธเธณเธฅเธฑเธเธเธดเธเธเนเน€เธเธชเธเธฑเธเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน" : "Session synchronization in progress. Please wait.";
   }
 
   if (lower.includes("token")) {
-    return locale === "th" ? "OTP ไม่ถูกต้องหรือหมดอายุ" : "Invalid or expired OTP";
+    return locale === "th" ? "OTP เนเธกเนเธ–เธนเธเธ•เนเธญเธเธซเธฃเธทเธญเธซเธกเธ”เธญเธฒเธขเธธ" : "Invalid or expired OTP";
   }
   if (lower.includes("rate")) {
-    return locale === "th" ? "ขอ OTP บ่อยเกินไป กรุณารอสักครู่" : "OTP rate limited. Please wait.";
+    return locale === "th" ? "เธเธญ OTP เธเนเธญเธขเน€เธเธดเธเนเธ เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน" : "OTP rate limited. Please wait.";
   }
   if (text) {
     return text;
   }
-  return locale === "th" ? "ดำเนินการไม่สำเร็จ กรุณาลองใหม่" : "Request failed. Please retry.";
+  return locale === "th" ? "เธ”เธณเน€เธเธดเธเธเธฒเธฃเนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเน" : "Request failed. Please retry.";
 }
 
 export function UserAccessGate(props: { children: React.ReactNode }) {
@@ -122,7 +122,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
           if (showErrorToast) {
             showToast(
               isThai
-                ? "กำลังซิงก์เซสชันความปลอดภัย กรุณารอสักครู่"
+                ? "เธเธณเธฅเธฑเธเธเธดเธเธเนเน€เธเธชเธเธฑเธเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน"
                 : "Session synchronization in progress. Please wait.",
               "error",
             );
@@ -155,12 +155,12 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         }
 
         if (modeRef.current !== "active") {
-          showToast(isThai ? "เข้าสู่ระบบเรียบร้อย" : "Signed in successfully", "success");
+          showToast(isThai ? "เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเน€เธฃเธตเธขเธเธฃเนเธญเธข" : "Signed in successfully", "success");
         }
         setMode("active");
       } catch {
         if (showErrorToast) {
-          showToast(isThai ? "เครือข่ายไม่เสถียร กำลังลองใหม่..." : "Network unstable. Retrying...", "error");
+          showToast(isThai ? "เน€เธเธฃเธทเธญเธเนเธฒเธขเนเธกเนเน€เธชเธ–เธตเธขเธฃ เธเธณเธฅเธฑเธเธฅเธญเธเนเธซเธกเน..." : "Network unstable. Retrying...", "error");
         }
         window.setTimeout(() => {
           void loadProfileRef.current(false);
@@ -197,14 +197,14 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
 
     if (Boolean(body.pendingApproval)) {
       showToast(
-        isThai ? "ยืนยัน OTP สำเร็จ ระบบกำลังตรวจสอบสิทธิ์บัญชี" : "OTP verified. System is checking account access.",
+        isThai ? "เธขเธทเธเธขเธฑเธ OTP เธชเธณเน€เธฃเนเธ เธฃเธฐเธเธเธเธณเธฅเธฑเธเธ•เธฃเธงเธเธชเธญเธเธชเธดเธ—เธเธดเนเธเธฑเธเธเธต" : "OTP verified. System is checking account access.",
         "success",
       );
       setMode("pending");
       return;
     }
 
-    showToast(isThai ? "ยืนยัน OTP สำเร็จ เข้าสู่ระบบเรียบร้อย" : "OTP verified. Signed in successfully", "success");
+    showToast(isThai ? "เธขเธทเธเธขเธฑเธ OTP เธชเธณเน€เธฃเนเธ เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเน€เธฃเธตเธขเธเธฃเนเธญเธข" : "OTP verified. Signed in successfully", "success");
     setMode("active");
     void loadProfile(false);
   }, [email, isThai, loading, locale, otp, showToast, loadProfile]);
@@ -233,7 +233,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     if (Number.isFinite(retryAfter) && retryAfter > 0) {
       setResendIn(retryAfter);
     }
-    showToast(isThai ? "ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล" : "OTP resent. Please check your inbox.", "success");
+    showToast(isThai ? "เธชเนเธ OTP เนเธซเธกเนเนเธฅเนเธง เธเธฃเธธเธ“เธฒเธ•เธฃเธงเธเธชเธญเธเธญเธตเน€เธกเธฅ" : "OTP resent. Please check your inbox.", "success");
   }, [email, isThai, locale, resendIn, resendLoading, showToast]);
 
   useEffect(() => {
@@ -284,27 +284,27 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   const title =
     mode === "otp"
       ? isThai
-        ? "ยืนยัน OTP ก่อนเข้าใช้งาน"
+        ? "เธขเธทเธเธขเธฑเธ OTP เธเนเธญเธเน€เธเนเธฒเนเธเนเธเธฒเธ"
         : "Verify OTP before access"
       : mode === "pending"
         ? isThai
-          ? "กำลังตรวจสอบสิทธิ์บัญชี"
+          ? "เธเธณเธฅเธฑเธเธ•เธฃเธงเธเธชเธญเธเธชเธดเธ—เธเธดเนเธเธฑเธเธเธต"
           : "Checking account access"
         : isThai
-          ? "กำลังตรวจสอบสิทธิ์"
+          ? "เธเธณเธฅเธฑเธเธ•เธฃเธงเธเธชเธญเธเธชเธดเธ—เธเธดเน"
           : "Checking access";
 
   const subtitle =
     mode === "otp"
       ? isThai
-        ? "กรอกรหัส OTP 6 หลักจากอีเมลที่สมัคร"
+        ? "เธเธฃเธญเธเธฃเธซเธฑเธช OTP 6 เธซเธฅเธฑเธเธเธฒเธเธญเธตเน€เธกเธฅเธ—เธตเนเธชเธกเธฑเธเธฃ"
         : "Enter your 6-digit OTP from email"
       : mode === "pending"
         ? isThai
-          ? "ระบบกำลังตรวจสอบข้อมูลการยืนยันตัวตน กรุณารอสักครู่"
+          ? "เธฃเธฐเธเธเธเธณเธฅเธฑเธเธ•เธฃเธงเธเธชเธญเธเธเนเธญเธกเธนเธฅเธเธฒเธฃเธขเธทเธเธขเธฑเธเธ•เธฑเธงเธ•เธ เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน"
           : "The system is checking identity verification details. Please wait."
         : isThai
-          ? "กรุณารอสักครู่"
+          ? "เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน"
           : "Please wait";
 
   return (
@@ -312,26 +312,26 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
       <div className="mx-auto mt-8 w-full max-w-[520px]">
         <Card className="relative space-y-4 rounded-[30px] border border-[rgba(123,144,217,0.32)] bg-[linear-gradient(180deg,rgba(8,16,40,0.94),rgba(5,11,30,0.98))] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">
           <div className="pointer-events-none absolute left-4 top-4 h-20 w-20 rounded-2xl neon-dot-grid opacity-50" />
-          <h2 className={'relative text-xl font-semibold ' + (mode === "otp" ? 'text-[#f6fbff]' : 'neon-title')}>{title}</h2>
-          <p className="relative text-sm leading-6 text-[#99aed7]">{subtitle}</p>
+          <h2 className={'relative text-app-h2 font-semibold ' + (mode === "otp" ? 'text-[#f6fbff]' : 'neon-title')}>{title}</h2>
+          <p className="relative text-app-body leading-6 text-[#99aed7]">{subtitle}</p>
 
           {mode === "otp" ? (
             <div className="space-y-3">
               <Input value={email} readOnly className="bg-[rgba(10,18,42,0.72)] text-[#dfecff]" />
-              <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={isThai ? "กรอก OTP" : "OTP input"} />
+              <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={isThai ? "เธเธฃเธญเธ OTP" : "OTP input"} />
 
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="secondary" onClick={() => router.replace("/login")}>
-                  {isThai ? "ออกจากระบบ" : "Sign out"}
+                  {isThai ? "เธญเธญเธเธเธฒเธเธฃเธฐเธเธ" : "Sign out"}
                 </Button>
                 <Button onClick={() => void verifyOtpNow()} disabled={loading}>
                   {loading ? (
                     <span className="inline-flex items-center gap-2">
                       <Spinner />
-                      {isThai ? "กำลังยืนยัน..." : "Verifying..."}
+                      {isThai ? "เธเธณเธฅเธฑเธเธขเธทเธเธขเธฑเธ..." : "Verifying..."}
                     </span>
                   ) : isThai ? (
-                    "ยืนยัน OTP"
+                    "เธขเธทเธเธขเธฑเธ OTP"
                   ) : (
                     "Verify OTP"
                   )}
@@ -341,14 +341,14 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
               <Button variant="secondary" className="w-full" onClick={() => void resendOtpNow()} disabled={resendDisabled}>
                 {resendLoading
                   ? isThai
-                    ? "กำลังส่ง OTP..."
+                    ? "เธเธณเธฅเธฑเธเธชเนเธ OTP..."
                     : "Sending OTP..."
                   : resendIn !== 0
                     ? isThai
-                      ? `ส่งใหม่ใน ${resendIn} วินาที`
+                      ? `เธชเนเธเนเธซเธกเนเนเธ ${resendIn} เธงเธดเธเธฒเธ—เธต`
                       : `Resend in ${resendIn}s`
                     : isThai
-                      ? "ส่ง OTP ใหม่"
+                      ? "เธชเนเธ OTP เนเธซเธกเน"
                       : "Resend OTP"}
               </Button>
             </div>
@@ -359,13 +359,13 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
                 style={{ backgroundImage: `url(${ACCESS_CHECK_ART_URL})` }}
                 aria-hidden
               />
-              <div className="rounded-2xl border border-[rgba(124,145,220,0.36)] bg-[rgba(11,20,50,0.75)] p-4 text-sm text-[#c9dcff]">{subtitle}</div>
+              <div className="rounded-2xl border border-[rgba(124,145,220,0.36)] bg-[rgba(11,20,50,0.75)] p-4 text-app-body text-[#c9dcff]">{subtitle}</div>
               <button
                 type="button"
-                className="h-11 w-full rounded-xl border border-[rgba(123,147,224,0.44)] bg-[linear-gradient(180deg,rgba(10,18,43,0.9),rgba(7,13,33,0.96))] text-sm font-semibold text-[#d7e7ff] transition hover:text-white"
+                className="h-11 w-full rounded-xl border border-[rgba(123,147,224,0.44)] bg-[linear-gradient(180deg,rgba(10,18,43,0.9),rgba(7,13,33,0.96))] text-app-body font-semibold text-[#d7e7ff] transition hover:text-white"
                 onClick={() => void loadProfile(true)}
               >
-                {isThai ? "ตรวจสอบอีกครั้ง" : "Check again"}
+                {isThai ? "เธ•เธฃเธงเธเธชเธญเธเธญเธตเธเธเธฃเธฑเนเธ" : "Check again"}
               </button>
             </div>
           ) : (
@@ -375,10 +375,10 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
                 style={{ backgroundImage: `url(${ACCESS_CHECK_ART_URL})` }}
                 aria-hidden
               />
-              <div className="flex items-center justify-center py-1 text-sm text-[#9eb2da]">
+              <div className="flex items-center justify-center py-1 text-app-body text-[#9eb2da]">
                 <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(124,145,220,0.4)] bg-[rgba(10,18,42,0.82)] px-4 py-2 shadow-sm backdrop-blur">
                   <Spinner className="h-4 w-4 border-[rgba(137,154,217,0.45)] border-t-[#36d7ff]" />
-                  {isThai ? "กำลังตรวจสอบสิทธิ์..." : "Checking access..."}
+                  {isThai ? "เธเธณเธฅเธฑเธเธ•เธฃเธงเธเธชเธญเธเธชเธดเธ—เธเธดเน..." : "Checking access..."}
                 </span>
               </div>
             </div>
@@ -388,3 +388,4 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     </div>
   );
 }
+
