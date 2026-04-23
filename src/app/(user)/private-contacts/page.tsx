@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   Phone,
   ShieldCheck,
@@ -34,6 +36,7 @@ type PrivateContact = {
 
 const PRIVATE_CONTACTS_STORAGE_KEY = 'pv_private_contacts_v1';
 const DEVICE_CONTACTS_LIMIT = 500;
+const CONTACTS_PER_PAGE = 8;
 
 function normalizePhoneNumber(value: string) {
   return value
@@ -86,6 +89,7 @@ export default function PrivateContactsPage() {
 
   const [privateContacts, setPrivateContacts] = useState<PrivateContact[]>([]);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
+  const [contactsPage, setContactsPage] = useState(1);
 
   const [deviceContacts, setDeviceContacts] = useState<VaultShieldDeviceContact[]>([]);
   const [selectedDeviceContactIds, setSelectedDeviceContactIds] = useState<string[]>([]);
@@ -130,6 +134,20 @@ export default function PrivateContactsPage() {
       // ignore write failure
     }
   }, [loadedFromStorage, privateContacts]);
+
+  const totalContactPages = useMemo(
+    () => Math.max(1, Math.ceil(privateContacts.length / CONTACTS_PER_PAGE)),
+    [privateContacts.length],
+  );
+
+  const pagedPrivateContacts = useMemo(() => {
+    const start = (contactsPage - 1) * CONTACTS_PER_PAGE;
+    return privateContacts.slice(start, start + CONTACTS_PER_PAGE);
+  }, [contactsPage, privateContacts]);
+
+  useEffect(() => {
+    setContactsPage((prev) => Math.min(prev, totalContactPages));
+  }, [totalContactPages]);
 
   function resetManualForm() {
     setManualName('');
@@ -229,6 +247,20 @@ export default function PrivateContactsPage() {
     showToast('ลบรายการแล้ว');
   }
 
+  function handleDeleteAllPrivateContacts() {
+    if (privateContacts.length === 0) return;
+    const ok = window.confirm('ยืนยันลบรายการเบอร์โทรลับทั้งหมด?');
+    if (!ok) return;
+    setPrivateContacts([]);
+    setContactsPage(1);
+    showToast('ลบรายการทั้งหมดแล้ว');
+  }
+
+  function handleCallContact(number: string) {
+    if (!number || typeof window === 'undefined') return;
+    window.location.href = 'tel:' + number;
+  }
+
   return (
     <section className='space-y-3 pb-20 pt-[max(10px,env(safe-area-inset-top))]'>
       <Card className='space-y-3 rounded-2xl border-slate-200 bg-white p-4'>
@@ -249,12 +281,12 @@ export default function PrivateContactsPage() {
           </div>
         </div>
 
-        <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
-          <Button type='button' variant='secondary' className='justify-center gap-2' onClick={() => setIsManualModalOpen(true)}>
+        <div className='grid grid-cols-2 gap-2'>
+          <Button type='button' variant='secondary' className='h-10 w-full justify-center gap-2' onClick={() => setIsManualModalOpen(true)}>
             <UserPlus className='h-4 w-4' />
             เพิ่มรายการใหม่
           </Button>
-          <Button type='button' className='justify-center gap-2' onClick={handleLoadDeviceContacts} disabled={loadingDeviceContacts}>
+          <Button type='button' className='h-10 w-full justify-center gap-2' onClick={handleLoadDeviceContacts} disabled={loadingDeviceContacts}>
             {loadingDeviceContacts ? <Loader2 className='h-4 w-4 animate-spin' /> : <Users className='h-4 w-4' />}
             ดูรายชื่อในมือถือ
           </Button>
@@ -314,8 +346,14 @@ export default function PrivateContactsPage() {
       ) : null}
 
       <Card className='space-y-3 rounded-2xl border-slate-200 bg-white p-4'>
-        <div className='flex items-center justify-between'>
+        <div className='flex items-center justify-between gap-2'>
           <h2 className='text-sm font-semibold text-slate-900'>รายการเบอร์โทรลับ ({privateContacts.length})</h2>
+          {privateContacts.length > 0 ? (
+            <Button type='button' variant='secondary' size='sm' className='h-8 px-2.5 text-xs' onClick={handleDeleteAllPrivateContacts}>
+              <Trash2 className='h-3.5 w-3.5' />
+              ลบทั้งหมด
+            </Button>
+          ) : null}
         </div>
 
         {!loadedFromStorage ? (
@@ -333,37 +371,60 @@ export default function PrivateContactsPage() {
           </div>
         ) : (
           <div className='space-y-2'>
-            {privateContacts.map((item) => (
-              <div key={item.id} className='flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2'>
+            {pagedPrivateContacts.map((item) => (
+              <div key={item.id} className='flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2'>
                 <div className='min-w-0'>
                   <p className='truncate text-sm font-semibold text-slate-900'>{item.name}</p>
-                  <p className='truncate text-xs text-slate-600'>{item.number}</p>
+                  <p className='break-all text-xs text-slate-600'>{item.number}</p>
                   <p className='text-[11px] text-slate-500'>{item.source === 'device' ? 'เพิ่มจากรายชื่อมือถือ' : 'เพิ่มด้วยตนเอง'}</p>
                 </div>
-                <Button type='button' variant='secondary' size='sm' className='h-8 gap-1 px-2 text-xs' onClick={() => handleDeletePrivateContact(item.id)}>
-                  <Trash2 className='h-3.5 w-3.5' />
-                  ลบ
-                </Button>
+                <div className='flex shrink-0 items-center gap-1.5'>
+                  <Button type='button' variant='secondary' size='sm' className='h-8 gap-1 px-2 text-xs' onClick={() => handleDeletePrivateContact(item.id)}>
+                    <Trash2 className='h-3.5 w-3.5' />
+                    ลบ
+                  </Button>
+                  <Button type='button' size='sm' className='h-8 gap-1 px-2 text-xs' onClick={() => handleCallContact(item.number)}>
+                    <Phone className='h-3.5 w-3.5' />
+                    โทร
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
         )}
+
+        {privateContacts.length > CONTACTS_PER_PAGE ? (
+          <div className='flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2'>
+            <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setContactsPage((prev) => Math.max(1, prev - 1))} disabled={contactsPage === 1}>
+              <ChevronLeft className='h-3.5 w-3.5' />
+              ก่อนหน้า
+            </Button>
+            <p className='text-xs font-semibold text-slate-600'>
+              หน้า {contactsPage} / {totalContactPages}
+            </p>
+            <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setContactsPage((prev) => Math.min(totalContactPages, prev + 1))} disabled={contactsPage === totalContactPages}>
+              ถัดไป
+              <ChevronRight className='h-3.5 w-3.5' />
+            </Button>
+          </div>
+        ) : null}
       </Card>
 
       {isManualModalOpen ? (
         <div className='fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/32 px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-20 backdrop-blur-[1px] animate-overlay-in sm:items-center'>
           <div className='w-full max-w-md rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_22px_52px_rgba(15,23,42,0.34)] animate-modal-pop-in'>
             <h2 className='text-base font-semibold text-slate-900'>เพิ่มรายการใหม่</h2>
-            <div className='mt-3 space-y-2'>
-              <Input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder='ชื่อรายการ' className='h-11 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
-              <Input value={manualNumber} onChange={(event) => setManualNumber(event.target.value)} placeholder='หมายเลขเบอร์โทร' inputMode='tel' className='h-11 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+            <div className='mt-3 space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+              <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>ข้อมูลติดต่อ</p>
+              <Input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder='ชื่อรายการ' className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+              <Input value={manualNumber} onChange={(event) => setManualNumber(event.target.value)} placeholder='หมายเลขเบอร์โทร' inputMode='tel' className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
             </div>
-            <div className='mt-4 flex gap-2'>
-              <Button type='button' onClick={handleAddManualContact}>
-                บันทึกรายการ
-              </Button>
-              <Button type='button' variant='secondary' onClick={() => { setIsManualModalOpen(false); resetManualForm(); }}>
+            <div className='mt-3 grid grid-cols-2 gap-2'>
+              <Button type='button' variant='secondary' className='h-10 w-full' onClick={() => { setIsManualModalOpen(false); resetManualForm(); }}>
                 ยกเลิก
+              </Button>
+              <Button type='button' className='h-10 w-full' onClick={handleAddManualContact}>
+                บันทึกรายการ
               </Button>
             </div>
           </div>

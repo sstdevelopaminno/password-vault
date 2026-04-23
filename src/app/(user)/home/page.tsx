@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Activity, Bell, ChevronRight, Phone, ReceiptText, ShieldCheck } from 'lucide-react';
+import { PinModal } from '@/components/vault/pin-modal';
 import { APP_VERSION } from '@/lib/app-version';
 import { BRAND_LOGO_URL } from '@/lib/brand-logo';
 
@@ -16,12 +18,21 @@ type ProfileResponse = {
   status?: string;
 };
 
-const actionTiles = [
+type ActionTile = {
+  href: string;
+  title: string;
+  subtitle: string;
+  icon: typeof Phone;
+  requiresPin?: boolean;
+};
+
+const actionTiles: ActionTile[] = [
   {
     href: '/private-contacts',
     title: 'เบอร์โทรลับ',
     subtitle: 'เก็บรายชื่อส่วนตัว แยกจากสมุดโทรศัพท์ในเครื่อง',
     icon: Phone,
+    requiresPin: true,
   },
   {
     href: '/billing',
@@ -32,9 +43,11 @@ const actionTiles = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [appVersion, setAppVersion] = useState(APP_VERSION);
   const [userRole, setUserRole] = useState('user');
   const [userStatus, setUserStatus] = useState('active');
+  const [pendingProtectedHref, setPendingProtectedHref] = useState<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -112,12 +125,8 @@ export default function HomePage() {
       <div className='grid grid-cols-2 gap-2'>
         {actionTiles.map((tile) => {
           const Icon = tile.icon;
-          return (
-            <Link
-              key={tile.href}
-              href={tile.href}
-              className='neon-panel group flex min-h-[120px] flex-col rounded-[20px] p-2.5'
-            >
+          const tileBody = (
+            <>
               <div className='mb-1.5 flex items-center justify-between gap-1.5'>
                 <div className='neon-icon-wrap inline-flex h-[46px] w-[46px] items-center justify-center rounded-[14px] text-[#79d8ff]'>
                   <Icon className='h-[18px] w-[18px]' />
@@ -132,10 +141,46 @@ export default function HomePage() {
                   {tile.subtitle}
                 </p>
               </div>
+            </>
+          );
+
+          if (tile.requiresPin) {
+            return (
+              <button
+                key={tile.href}
+                type='button'
+                onClick={() => setPendingProtectedHref(tile.href)}
+                className='neon-panel group flex min-h-[120px] w-full flex-col rounded-[20px] p-2.5 text-left'
+              >
+                {tileBody}
+              </button>
+            );
+          }
+
+          return (
+            <Link
+              key={tile.href}
+              href={tile.href}
+              className='neon-panel group flex min-h-[120px] flex-col rounded-[20px] p-2.5'
+            >
+              {tileBody}
             </Link>
           );
         })}
       </div>
+
+      {pendingProtectedHref ? (
+        <PinModal
+          action='unlock_app'
+          actionLabel='เปิดเมนูเบอร์โทรลับ'
+          onVerified={() => {
+            const nextHref = pendingProtectedHref;
+            setPendingProtectedHref(null);
+            router.push(nextHref);
+          }}
+          onClose={() => setPendingProtectedHref(null)}
+        />
+      ) : null}
     </section>
   );
 }

@@ -183,3 +183,36 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   return NextResponse.json({ document: toClient(updated.data as BillingDocumentRow) });
 }
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const admin = createAdminClient();
+  const ownerIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
+
+  const deleted = await admin
+    .from('billing_documents')
+    .delete()
+    .eq('id', id)
+    .in('user_id', ownerIds)
+    .select('id')
+    .maybeSingle();
+
+  if (deleted.error) {
+    return NextResponse.json({ error: deleted.error.message }, { status: 400 });
+  }
+  if (!deleted.data?.id) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+  }
+
+  return NextResponse.json({ deletedId: deleted.data.id });
+}

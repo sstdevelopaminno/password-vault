@@ -375,17 +375,18 @@ export default function OrgSharedPage() {
 
  {createOpen ? (
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
- <div className='mx-auto mt-10 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
+<div className='mx-auto mt-6 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl sm:mt-10'>
  <div className='mb-3 flex items-center justify-between'>
  <h2 className='text-base font-semibold text-slate-900'>{locale === 'th' ? 'สร้างห้องทีมใหม่' : 'Create Team Room'}</h2>
  <button onClick={() => { setCreateOpen(false); resetCreateForm(); }} className='rounded-full p-1 text-slate-500 hover:bg-slate-100'>
  <X className='h-5 w-5' />
  </button>
  </div>
- <Card className='space-y-3'>
- <Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={locale === 'th' ? 'ชื่อห้องทีม' : 'Room name'} maxLength={80} className='h-11 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
- <Input value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} placeholder={locale === 'th' ? 'คำอธิบาย (ไม่บังคับ)' : 'Description (optional)'} maxLength={500} className='h-11 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
- <Button type='button' className='w-full' onClick={() => void createRoom()} disabled={creating}>
+<Card className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+<p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>{locale === 'th' ? 'ข้อมูลห้องทีม' : 'Room details'}</p>
+<Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={locale === 'th' ? 'ชื่อห้องทีม' : 'Room name'} maxLength={80} className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+<Input value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} placeholder={locale === 'th' ? 'คำอธิบาย (ไม่บังคับ)' : 'Description (optional)'} maxLength={500} className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+<Button type='button' className='h-10 w-full' onClick={() => void createRoom()} disabled={creating}>
  {creating ? (locale === 'th' ? 'กำลังสร้าง...' : 'Creating...') : locale === 'th' ? 'สร้างห้อง' : 'Create Room'}
  </Button>
  </Card>
@@ -395,17 +396,18 @@ export default function OrgSharedPage() {
 
  {editingRoom ? (
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
- <div className='mx-auto mt-10 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
+<div className='mx-auto mt-6 w-full max-w-[460px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl sm:mt-10'>
  <div className='mb-3 flex items-center justify-between'>
  <h2 className='text-base font-semibold text-slate-900'>{locale === 'th' ? 'แก้ไขข้อมูลห้องทีม' : 'Edit Team Room'}</h2>
  <button onClick={() => { setEditingRoom(null); resetCreateForm(); }} className='rounded-full p-1 text-slate-500 hover:bg-slate-100'>
  <X className='h-5 w-5' />
  </button>
  </div>
- <Card className='space-y-3'>
- <Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={locale === 'th' ? 'ชื่อห้องทีม' : 'Room name'} maxLength={80} className='h-11 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
- <Input value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} placeholder={locale === 'th' ? 'คำอธิบาย (ไม่บังคับ)' : 'Description (optional)'} maxLength={500} className='h-11 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
- <Button type='button' className='w-full' onClick={() => void updateRoom()} disabled={updatingRoom}>
+<Card className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+<p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>{locale === 'th' ? 'ข้อมูลห้องทีม' : 'Room details'}</p>
+<Input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={locale === 'th' ? 'ชื่อห้องทีม' : 'Room name'} maxLength={80} className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+<Input value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} placeholder={locale === 'th' ? 'คำอธิบาย (ไม่บังคับ)' : 'Description (optional)'} maxLength={500} className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+<Button type='button' className='h-10 w-full' onClick={() => void updateRoom()} disabled={updatingRoom}>
  {updatingRoom ? (locale === 'th' ? 'กำลังบันทึก...' : 'Saving...') : locale === 'th' ? 'บันทึกการแก้ไข' : 'Save changes'}
  </Button>
  </Card>
@@ -443,13 +445,13 @@ export default function OrgSharedPage() {
  </button>
  </div>
 
- <Card className='space-y-3'>
+<Card className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
  <p className='text-xs text-slate-500'>
  {locale === 'th'
  ? 'แชร์ได้เฉพาะอีเมลผู้ใช้งานที่มีบัญชีใน Vault และสถานะ Active'
  : 'Only existing active Vault users can be invited by email.'}
  </p>
- <Input value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder={locale === 'th' ? 'อีเมลผู้ใช้งานในระบบ' : 'App user email'} className='h-11 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
+<Input value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder={locale === 'th' ? 'อีเมลผู้ใช้งานในระบบ' : 'App user email'} className='h-10 rounded-xl border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100' />
 
  {shareEmail.trim().length >= 2 ? (
  <div className='space-y-1 rounded-xl border border-slate-200 bg-slate-50 p-2'>

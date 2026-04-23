@@ -203,68 +203,73 @@ export default function HelpCenterPage() {
         <h2 className="text-sm font-semibold text-slate-800">
           {locale === "th" ? "เปิด Ticket ใหม่" : "Create support ticket"}
         </h2>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+            {locale === "th" ? "รายละเอียด Ticket" : "Ticket details"}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1">
+              <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "หมวดหมู่" : "Category"}</span>
+              <select
+                value={form.category}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, category: event.target.value as TicketFormState["category"] }))
+                }
+                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
+              >
+                <option value="general">{locale === "th" ? "ทั่วไป" : "General"}</option>
+                <option value="account">{locale === "th" ? "บัญชีผู้ใช้" : "Account"}</option>
+                <option value="security">{locale === "th" ? "ความปลอดภัย" : "Security"}</option>
+                <option value="team">{locale === "th" ? "ทีมและสิทธิ์" : "Team access"}</option>
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "ความเร่งด่วน" : "Priority"}</span>
+              <select
+                value={form.priority}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, priority: event.target.value as TicketFormState["priority"] }))
+                }
+                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
+              >
+                <option value="low">{locale === "th" ? "ต่ำ" : "Low"}</option>
+                <option value="normal">{locale === "th" ? "ปกติ" : "Normal"}</option>
+                <option value="high">{locale === "th" ? "สูง" : "High"}</option>
+              </select>
+            </label>
+          </div>
+
           <label className="space-y-1">
-            <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "หมวดหมู่" : "Category"}</span>
-            <select
-              value={form.category}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, category: event.target.value as TicketFormState["category"] }))
-              }
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
-            >
-              <option value="general">{locale === "th" ? "ทั่วไป" : "General"}</option>
-              <option value="account">{locale === "th" ? "บัญชีผู้ใช้" : "Account"}</option>
-              <option value="security">{locale === "th" ? "ความปลอดภัย" : "Security"}</option>
-              <option value="team">{locale === "th" ? "ทีมและสิทธิ์" : "Team access"}</option>
-            </select>
+            <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "หัวข้อ" : "Subject"}</span>
+            <input
+              value={form.subject}
+              onChange={(event) => setForm((prev) => ({ ...prev, subject: event.target.value }))}
+              className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
+              placeholder={locale === "th" ? "เช่น ไม่สามารถเข้าระบบได้" : "e.g. Cannot sign in"}
+              maxLength={140}
+            />
           </label>
+
           <label className="space-y-1">
-            <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "ความเร่งด่วน" : "Priority"}</span>
-            <select
-              value={form.priority}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, priority: event.target.value as TicketFormState["priority"] }))
+            <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "รายละเอียดปัญหา" : "Details"}</span>
+            <textarea
+              value={form.message}
+              onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+              className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-300"
+              placeholder={
+                locale === "th"
+                  ? "อธิบายปัญหาให้ละเอียด เช่น เวลาเกิดปัญหาและหน้าที่ใช้งาน"
+                  : "Describe the issue, when it happens, and where it occurs."
               }
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
-            >
-              <option value="low">{locale === "th" ? "ต่ำ" : "Low"}</option>
-              <option value="normal">{locale === "th" ? "ปกติ" : "Normal"}</option>
-              <option value="high">{locale === "th" ? "สูง" : "High"}</option>
-            </select>
+              maxLength={4000}
+            />
           </label>
         </div>
-
-        <label className="space-y-1">
-          <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "หัวข้อ" : "Subject"}</span>
-          <input
-            value={form.subject}
-            onChange={(event) => setForm((prev) => ({ ...prev, subject: event.target.value }))}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300"
-            placeholder={locale === "th" ? "เช่น ไม่สามารถเข้าระบบได้" : "e.g. Cannot sign in"}
-            maxLength={140}
-          />
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-xs font-semibold text-slate-500">{locale === "th" ? "รายละเอียดปัญหา" : "Details"}</span>
-          <textarea
-            value={form.message}
-            onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-            className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-300"
-            placeholder={
-              locale === "th"
-                ? "อธิบายปัญหาให้ละเอียด เช่น เวลาเกิดปัญหาและหน้าที่ใช้งาน"
-                : "Describe the issue, when it happens, and where it occurs."
-            }
-            maxLength={4000}
-          />
-        </label>
 
         <Button
           type="button"
           disabled={submitting}
-          className="h-10 rounded-xl"
+          className="h-9 rounded-xl"
           onClick={() => void submitTicket()}
         >
           <Send className="mr-1.5 h-4 w-4" />

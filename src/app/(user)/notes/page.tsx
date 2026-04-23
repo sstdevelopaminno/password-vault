@@ -1652,14 +1652,14 @@ setDeleting(true);
  ) : null}
 
  {editorOpen ? (
- <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-[2px]'>
- <div className='mx-auto my-3 w-full max-w-[460px] max-h-[calc(100dvh-24px)] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
- <div className='mb-3 flex items-center justify-between'>
+ <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-[2px]'>
+ <div className='mx-auto my-4 w-full max-w-[460px] max-h-[calc(100dvh-28px)] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
+ <div className='mb-2 flex items-center justify-between'>
  <h2 className='text-base font-semibold text-slate-900'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
  <button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
  </div>
- <div className='space-y-3'>
- <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} />
+ <div className='space-y-2.5'>
+ <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} className='h-10 rounded-xl' />
  <div className='space-y-2 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5'>
  <div className='flex flex-wrap items-center justify-between gap-2'>
  <p className='text-[11px] font-semibold text-slate-600'>{isTh ? 'เนื้อหาแบบกระดาษ A4' : 'A4 paper content'}</p>
@@ -1703,7 +1703,7 @@ setDeleting(true);
  </Button>
  </div>
  </div>
- <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-sm text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
+ <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[240px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-sm text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
  {ocrRunning ? (
  <div className='rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2'>
  <p className='flex items-center gap-1 text-[11px] font-semibold text-sky-700'>
@@ -1717,7 +1717,7 @@ setDeleting(true);
  ) : null}
  <p className='text-[11px] leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ และจะแสดงหน้าพรีวิวก่อนนำข้อความลงเนื้อหา' : 'Supports Thai/English OCR and shows a preview before inserting text.'}</p>
  </div>
- <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-3'>
+ <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-2.5'>
  <div className='mb-2 flex items-center justify-between gap-2'>
  <label className='text-xs font-semibold text-slate-700'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</label>
  <div className='flex items-center gap-1'>
@@ -1737,7 +1737,7 @@ setDeleting(true);
  {isTh ? 'เมื่อถึงเวลา ระบบจะส่งแจ้งเตือนในแอป/พุช และอีเมล (ถ้าตั้งค่าอีเมลเซิร์ฟเวอร์ไว้)' : 'When due, the app sends in-app/push and email reminders (if email provider is configured).'}
  </p>
  </div>
- <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-3'>
+ <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-2.5'>
  <div className='mb-2 flex items-center justify-between gap-2'>
  <label className='text-xs font-semibold text-slate-700'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</label>
  <div className='flex items-center gap-1'>
@@ -1755,9 +1755,9 @@ setDeleting(true);
  </button>
  </div>
  </div>
- <div className='mt-4 grid grid-cols-2 gap-2'>
- <Button type='button' variant='secondary' className='w-full' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
- <Button type='button' className='w-full' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
+ <div className='mt-3 grid grid-cols-2 gap-2'>
+ <Button type='button' variant='secondary' className='h-10 w-full' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
+ <Button type='button' className='h-10 w-full' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
  </div>
  </div>
  </div>

@@ -348,20 +348,20 @@ export default function SettingsPage() {
           value={fullName}
           placeholder={t('settings.fullNamePlaceholder')}
           onChange={(event) => setFullName(event.target.value)}
-          className='h-11 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100'
+          className='h-10 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-300 focus:ring-blue-100'
         />
       </div>
       <div className='space-y-1.5'>
         <p className='text-xs font-semibold text-slate-500'>Email</p>
-        <Input value={profileEmail} readOnly className='h-11 rounded-xl bg-white text-slate-700' />
+        <Input value={profileEmail} readOnly className='h-10 rounded-xl bg-white text-slate-700' />
       </div>
       <div className='space-y-1.5'>
         <p className='text-xs font-semibold text-slate-500'>
           {locale === 'th' ? 'รหัสผ่าน' : 'Password'}
         </p>
-        <Input value='••••••••' readOnly className='h-11 rounded-xl bg-white text-slate-700 tracking-[0.2em]' />
+        <Input value='••••••••' readOnly className='h-10 rounded-xl bg-white text-slate-700 tracking-[0.2em]' />
       </div>
-      <Button onClick={() => void updateProfile()} disabled={loading} className='h-11 rounded-xl'>
+      <Button onClick={() => void updateProfile()} disabled={loading} className='h-10 rounded-xl'>
         {loading ? (locale === 'th' ? 'กำลังบันทึก...' : 'Saving...') : t('settings.updateName')}
       </Button>
     </Card>
@@ -384,19 +384,19 @@ export default function SettingsPage() {
         value={newEmail}
         placeholder={t('settings.newEmailPlaceholder')}
         onChange={(event) => setNewEmail(event.target.value)}
-        className='h-12 rounded-2xl border-2 border-blue-300 bg-white text-slate-900 placeholder:text-slate-400'
+        className='h-10 rounded-2xl border-2 border-blue-300 bg-white text-slate-900 placeholder:text-slate-400'
       />
       <div className='grid grid-cols-2 gap-2'>
         <Button
           variant='secondary'
-          className='h-12 rounded-2xl'
+          className='h-10 rounded-2xl'
           onClick={goMenuRoot}
           disabled={emailLoading}
         >
           {locale === 'th' ? 'ยกเลิก' : 'Cancel'}
         </Button>
         <Button
-          className='h-12 rounded-2xl bg-white text-blue-900 hover:bg-blue-50'
+          className='h-10 rounded-2xl bg-white text-blue-900 hover:bg-blue-50'
           onClick={() => void sendEmailOtp()}
           disabled={emailLoading || resendIn > 0}
         >
@@ -411,7 +411,7 @@ export default function SettingsPage() {
       {showUseLatestOtp ? (
         <Button
           variant='secondary'
-          className='h-11 rounded-xl border border-white/40 bg-white/15 text-white hover:bg-white/20'
+          className='h-10 rounded-xl border border-white/40 bg-white/15 text-white hover:bg-white/20'
           onClick={() => setEmailStep('enter_otp')}
           disabled={emailLoading}
         >
@@ -437,7 +437,7 @@ export default function SettingsPage() {
       <div className='grid grid-cols-2 gap-2'>
         <Button
           variant='secondary'
-          className='h-11 rounded-xl'
+          className='h-10 rounded-xl'
           onClick={() => {
             setEmailStep('enter_email');
             setEmailOtp('');
@@ -448,7 +448,7 @@ export default function SettingsPage() {
           {locale === 'th' ? 'ยกเลิก' : 'Cancel'}
         </Button>
         <Button
-          className='h-11 rounded-xl bg-white text-blue-900 hover:bg-blue-50'
+          className='h-10 rounded-xl bg-white text-blue-900 hover:bg-blue-50'
           onClick={() => void sendEmailOtp()}
           disabled={emailLoading || resendIn > 0}
         >
@@ -461,7 +461,7 @@ export default function SettingsPage() {
   const emailView = emailStep === 'enter_email' ? emailStepOne : emailStepTwo;
 
   const passwordView = (
-    <Card className='space-y-3 rounded-[24px] p-4'>
+    <Card className='space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
       <Input
         type='password'
         value={newPassword}
@@ -471,6 +471,7 @@ export default function SettingsPage() {
       <Button
         onClick={() => void updatePassword()}
         disabled={loading || passwordSaving}
+        className='h-10 rounded-xl'
       >
         {passwordSaving
           ? locale === 'th'
@@ -482,21 +483,21 @@ export default function SettingsPage() {
   );
 
   const languageView = (
-    <Card className='space-y-4 rounded-[24px] p-4'>
+    <Card className='space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
       <p className='text-sm text-slate-600'>
         {locale === 'th' ? 'เลือกภาษาที่ต้องการใช้งาน' : 'Choose your preferred app language.'}
       </p>
       <div className='grid grid-cols-2 gap-2'>
         <Button
           variant={locale === 'th' ? 'default' : 'secondary'}
-          className='h-11 rounded-xl'
+          className='h-10 rounded-xl'
           onClick={() => setLocale('th')}
         >
           ไทย
         </Button>
         <Button
           variant={locale === 'en' ? 'default' : 'secondary'}
-          className='h-11 rounded-xl'
+          className='h-10 rounded-xl'
           onClick={() => setLocale('en')}
         >
           English
@@ -506,13 +507,13 @@ export default function SettingsPage() {
   );
 
   const logoutView = (
-    <Card className='space-y-3 rounded-[24px] p-4'>
+    <Card className='space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4'>
       <p className='text-sm text-slate-600'>
         {locale === 'th'
           ? 'ยืนยันการออกจากระบบบนอุปกรณ์นี้'
           : 'Confirm to sign out from this device.'}
       </p>
-      <Button variant='destructive' className='h-11 rounded-xl' onClick={() => void logout()} disabled={loading}>
+      <Button variant='destructive' className='h-10 rounded-xl' onClick={() => void logout()} disabled={loading}>
         {loading ? (locale === 'th' ? 'กำลังออกจากระบบ...' : 'Signing out...') : (locale === 'th' ? 'ออกจากระบบ' : 'Sign out')}
       </Button>
     </Card>

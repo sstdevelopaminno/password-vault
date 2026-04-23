@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Eye,
   FileText,
@@ -98,8 +100,10 @@ type BillingEmailQueueRecord = {
 };
 
 type ActiveTab = 'queue' | 'documents';
-type PendingAction = null | 'save' | 'queue' | 'send';
+type PendingAction = null | 'save' | 'queue' | 'send' | 'delete' | 'delete_all';
 type BillingQueueStatus = BillingEmailQueueRecord['status'];
+const DOCUMENTS_PER_PAGE = 8;
+const EMAIL_QUEUE_PER_PAGE = 8;
 
 function toTwoDigits(value: number) {
   return String(value).padStart(2, '0');
@@ -249,6 +253,8 @@ export default function BillingPage() {
   const [emailQueue, setEmailQueue] = useState<BillingEmailQueueRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [documentsPage, setDocumentsPage] = useState(1);
+  const [queuePage, setQueuePage] = useState(1);
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
@@ -281,10 +287,32 @@ export default function BillingPage() {
     [emailQueue, selectedDetailDocument],
   );
 
+  const totalDocumentPages = useMemo(
+    () => Math.max(1, Math.ceil(documents.length / DOCUMENTS_PER_PAGE)),
+    [documents.length],
+  );
+
+  const pagedDocuments = useMemo(() => {
+    const start = (documentsPage - 1) * DOCUMENTS_PER_PAGE;
+    return documents.slice(start, start + DOCUMENTS_PER_PAGE);
+  }, [documents, documentsPage]);
+
+  const totalQueuePages = useMemo(
+    () => Math.max(1, Math.ceil(emailQueue.length / EMAIL_QUEUE_PER_PAGE)),
+    [emailQueue.length],
+  );
+
+  const pagedEmailQueue = useMemo(() => {
+    const start = (queuePage - 1) * EMAIL_QUEUE_PER_PAGE;
+    return emailQueue.slice(start, start + EMAIL_QUEUE_PER_PAGE);
+  }, [emailQueue, queuePage]);
+
   const editorTotals = useMemo(
     () => computeBillingTotals(editorDraft.lines, editorDraft.discountPercent, editorDraft.vatPercent),
     [editorDraft.discountPercent, editorDraft.lines, editorDraft.vatPercent],
   );
+
+  const deletingInProgress = pendingAction === 'delete' || pendingAction === 'delete_all';
 
   const loadBillingData = useCallback(async () => {
     setLoading(true);
@@ -322,6 +350,14 @@ export default function BillingPage() {
   useEffect(() => {
     loadBillingData().catch(() => undefined);
   }, [loadBillingData]);
+
+  useEffect(() => {
+    setDocumentsPage((prev) => Math.min(prev, totalDocumentPages));
+  }, [totalDocumentPages]);
+
+  useEffect(() => {
+    setQueuePage((prev) => Math.min(prev, totalQueuePages));
+  }, [totalQueuePages]);
 
   function openCreateDocumentModal() {
     setEditingDocumentId(null);
@@ -466,6 +502,64 @@ export default function BillingPage() {
     }
   }
 
+  async function deleteDocument(documentId: string, options?: { silent?: boolean }) {
+    if (!options?.silent) {
+      const ok = window.confirm('ยืนยันลบเอกสารรายการนี้?');
+      if (!ok) return;
+    }
+
+    setPendingAction('delete');
+    try {
+      const response = await fetchWithSessionRetry('/api/billing/documents/' + encodeURIComponent(documentId), {
+        method: 'DELETE',
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String((body as { error?: string }).error || 'ลบเอกสารไม่สำเร็จ'));
+      }
+
+      setDocuments((prev) => prev.filter((item) => item.id !== documentId));
+      setEmailQueue((prev) => prev.filter((item) => item.documentId !== documentId));
+      if (detailDocumentId === documentId) {
+        closeDetailModal();
+      }
+      if (!options?.silent) {
+        showToast('ลบเอกสารแล้ว');
+      }
+    } catch (error) {
+      if (!options?.silent) {
+        showToast(error instanceof Error ? error.message : 'ลบเอกสารไม่สำเร็จ', 'error');
+      }
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function deleteAllDocuments() {
+    if (documents.length === 0) return;
+    const ok = window.confirm('ยืนยันลบเอกสารทั้งหมด?');
+    if (!ok) return;
+
+    setPendingAction('delete_all');
+    try {
+      const response = await fetchWithSessionRetry('/api/billing/documents', { method: 'DELETE' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String((body as { error?: string }).error || 'ลบเอกสารทั้งหมดไม่สำเร็จ'));
+      }
+
+      setDocuments([]);
+      setEmailQueue((prev) => prev.filter((item) => !documents.some((doc) => doc.id === item.documentId)));
+      setDocumentsPage(1);
+      closeDetailModal();
+      showToast('ลบเอกสารทั้งหมดแล้ว');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'ลบเอกสารทั้งหมดไม่สำเร็จ', 'error');
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   async function scheduleEmail(documentId: string, toEmail: string, scheduleLocal: string, message: string) {
     const safeTo = normalizeText(toEmail, 220).toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTo)) {
@@ -572,12 +666,12 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className='flex flex-wrap gap-2'>
-          <Button type='button' className='gap-2' onClick={openCreateDocumentModal}>
+        <div className='grid grid-cols-2 gap-2'>
+          <Button type='button' className='h-10 w-full justify-center gap-2' onClick={openCreateDocumentModal}>
             <Plus className='h-4 w-4' />
             สร้างเอกสารใหม่
           </Button>
-          <Button type='button' variant='secondary' className='gap-2' onClick={() => loadBillingData().catch(() => undefined)} disabled={loading}>
+          <Button type='button' variant='secondary' className='h-10 w-full justify-center gap-2' onClick={() => loadBillingData().catch(() => undefined)} disabled={loading}>
             <RefreshCw className={'h-4 w-4 ' + (loading ? 'animate-spin' : '')} />
             รีเฟรชข้อมูล
           </Button>
@@ -621,6 +715,15 @@ export default function BillingPage() {
 
       {activeTab === 'documents' ? (
         <Card className='space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
+          {documents.length > 0 ? (
+            <div className='flex items-center justify-between gap-2'>
+              <p className='text-xs font-semibold text-slate-500'>จัดการเอกสารที่บันทึกไว้</p>
+              <Button type='button' variant='secondary' size='sm' className='h-8 px-2.5 text-xs' onClick={deleteAllDocuments} disabled={deletingInProgress || loading}>
+                <Trash2 className='h-3.5 w-3.5' />
+                ลบทั้งหมด
+              </Button>
+            </div>
+          ) : null}
           {loading ? (
             <p className='text-sm text-slate-500'>กำลังโหลดรายการ...</p>
           ) : documents.length === 0 ? (
@@ -630,37 +733,60 @@ export default function BillingPage() {
             </div>
           ) : (
             <div className='space-y-2'>
-              {documents.map((document) => (
-                <button
-                  key={document.id}
-                  type='button'
-                  onClick={() => openDetailModal(document)}
-                  className='w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-left transition hover:border-blue-300'
-                >
-                  <div className='flex items-center justify-between gap-2'>
-                    <div className='flex items-center gap-1.5'>
-                      <span className={'rounded-full px-2 py-1 text-[11px] font-semibold ' + getTypeBadgeClass(document.docKind)}>
-                        {document.docKind === 'receipt' ? 'ใบเสร็จ' : 'ใบแจ้งหนี้'}
-                      </span>
-                      <span className='rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700'>
-                        {document.template.toUpperCase()}
-                      </span>
+              {pagedDocuments.map((document) => (
+                <div key={document.id} className='rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3'>
+                  <button
+                    type='button'
+                    onClick={() => openDetailModal(document)}
+                    className='w-full text-left transition hover:opacity-95'
+                  >
+                    <div className='flex items-center justify-between gap-2'>
+                      <div className='flex items-center gap-1.5'>
+                        <span className={'rounded-full px-2 py-1 text-[11px] font-semibold ' + getTypeBadgeClass(document.docKind)}>
+                          {document.docKind === 'receipt' ? 'ใบเสร็จ' : 'ใบแจ้งหนี้'}
+                        </span>
+                        <span className='rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700'>
+                          {document.template.toUpperCase()}
+                        </span>
+                      </div>
+                      <span className='text-[11px] text-slate-500'>{formatDateTimeDisplay(document.createdAt)}</span>
                     </div>
-                    <span className='text-[11px] text-slate-500'>{formatDateTimeDisplay(document.createdAt)}</span>
-                  </div>
-                  <p className='mt-2 text-sm font-semibold text-slate-900'>{document.documentNo}</p>
-                  <p className='text-xs text-slate-600'>{document.buyerName || '-'}</p>
-                  <div className='mt-2 flex items-center justify-between text-xs text-slate-500'>
-                    <span>คิวอีเมล {queueCountByDocument.get(document.id) ?? 0} รายการ</span>
-                    <span className='inline-flex items-center gap-1 text-blue-600'>
+                    <p className='mt-2 text-sm font-semibold text-slate-900'>{document.documentNo}</p>
+                    <p className='text-xs text-slate-600'>{document.buyerName || '-'}</p>
+                    <div className='mt-2 flex items-center justify-between text-xs text-slate-500'>
+                      <span>คิวอีเมล {queueCountByDocument.get(document.id) ?? 0} รายการ</span>
+                    </div>
+                  </button>
+                  <div className='mt-2 grid grid-cols-2 gap-2'>
+                    <Button type='button' size='sm' variant='secondary' className='h-8 gap-1 text-xs' onClick={() => openDetailModal(document)}>
                       <Eye className='h-3.5 w-3.5' />
                       เปิดรายละเอียด
-                    </span>
+                    </Button>
+                    <Button type='button' size='sm' className='h-8 gap-1 text-xs' onClick={() => deleteDocument(document.id)} disabled={deletingInProgress}>
+                      <Trash2 className='h-3.5 w-3.5' />
+                      ลบ
+                    </Button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
+
+          {documents.length > DOCUMENTS_PER_PAGE ? (
+            <div className='flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2'>
+              <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setDocumentsPage((prev) => Math.max(1, prev - 1))} disabled={documentsPage === 1}>
+                <ChevronLeft className='h-3.5 w-3.5' />
+                ก่อนหน้า
+              </Button>
+              <p className='text-xs font-semibold text-slate-600'>
+                หน้า {documentsPage} / {totalDocumentPages}
+              </p>
+              <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setDocumentsPage((prev) => Math.min(totalDocumentPages, prev + 1))} disabled={documentsPage === totalDocumentPages}>
+                ถัดไป
+                <ChevronRight className='h-3.5 w-3.5' />
+              </Button>
+            </div>
+          ) : null}
         </Card>
       ) : (
         <Card className='space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
@@ -674,7 +800,7 @@ export default function BillingPage() {
             </div>
           ) : (
             <div className='space-y-2'>
-              {emailQueue.map((item) => {
+              {pagedEmailQueue.map((item) => {
                 const linkedDoc = documents.find((doc) => doc.id === item.documentId);
                 return (
                   <div key={item.id} className='rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3'>
@@ -698,25 +824,41 @@ export default function BillingPage() {
               })}
             </div>
           )}
+
+          {emailQueue.length > EMAIL_QUEUE_PER_PAGE ? (
+            <div className='flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2'>
+              <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setQueuePage((prev) => Math.max(1, prev - 1))} disabled={queuePage === 1}>
+                <ChevronLeft className='h-3.5 w-3.5' />
+                ก่อนหน้า
+              </Button>
+              <p className='text-xs font-semibold text-slate-600'>
+                หน้า {queuePage} / {totalQueuePages}
+              </p>
+              <Button type='button' variant='secondary' size='sm' className='h-8 px-2' onClick={() => setQueuePage((prev) => Math.min(totalQueuePages, prev + 1))} disabled={queuePage === totalQueuePages}>
+                ถัดไป
+                <ChevronRight className='h-3.5 w-3.5' />
+              </Button>
+            </div>
+          ) : null}
         </Card>
       )}
 
       {editorOpen ? (
-        <div className='fixed inset-0 z-[80] bg-white animate-overlay-in'>
+        <div className='fixed inset-0 z-[80] bg-slate-950/45 backdrop-blur-[1px] animate-overlay-in'>
           <div className='app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-[var(--background)] animate-screen-in'>
-            <div className='flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3'>
+            <div className='sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-sm'>
               <div>
                 <h2 className='text-base font-semibold text-slate-900'>{editingDocumentId ? 'แก้ไขเอกสาร' : 'สร้างเอกสารใหม่'}</h2>
                 <p className='text-xs text-slate-500'>ฟอร์มเดียว ครบทั้งบันทึกและส่งอีเมลลูกค้า</p>
               </div>
-              <Button type='button' variant='secondary' size='sm' className='h-9 w-9 px-0' onClick={() => setEditorOpen(false)}>
+              <Button type='button' variant='secondary' size='sm' className='h-10 w-10 rounded-xl px-0' onClick={() => setEditorOpen(false)}>
                 <X className='h-4 w-4' />
               </Button>
             </div>
 
-            <div className='flex-1 overflow-y-auto px-4 py-3 pb-32'>
-              <div className='space-y-2'>
-                <div className='flex flex-wrap items-center gap-2'>
+            <div className='flex-1 overflow-y-auto px-4 pb-32 pt-4'>
+              <div className='space-y-3'>
+                <div className='flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5'>
                   <Button
                     type='button'
                     size='sm'
@@ -747,32 +889,38 @@ export default function BillingPage() {
                   </Button>
                 </div>
 
-                <Input value={editorDraft.documentNo} onChange={(event) => updateEditorDraft('documentNo', event.target.value)} placeholder='เลขที่เอกสาร' />
-                <Input value={editorDraft.referenceNo} onChange={(event) => updateEditorDraft('referenceNo', event.target.value)} placeholder='เลขอ้างอิง' />
-                <Input type='date' value={editorDraft.issueDate} onChange={(event) => updateEditorDraft('issueDate', event.target.value)} />
-                <Input type='date' value={editorDraft.dueDate} onChange={(event) => updateEditorDraft('dueDate', event.target.value)} />
+                <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>ข้อมูลเอกสาร</p>
+                  <Input value={editorDraft.documentNo} onChange={(event) => updateEditorDraft('documentNo', event.target.value)} placeholder='เลขที่เอกสาร' />
+                  <Input value={editorDraft.referenceNo} onChange={(event) => updateEditorDraft('referenceNo', event.target.value)} placeholder='เลขอ้างอิง' />
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Input type='date' value={editorDraft.issueDate} onChange={(event) => updateEditorDraft('issueDate', event.target.value)} />
+                    <Input type='date' value={editorDraft.dueDate} onChange={(event) => updateEditorDraft('dueDate', event.target.value)} />
+                  </div>
+                </div>
 
-                <Input value={editorDraft.sellerName} onChange={(event) => updateEditorDraft('sellerName', event.target.value)} placeholder='ชื่อร้าน / ผู้ขาย' />
-                <Input value={editorDraft.sellerTaxId} onChange={(event) => updateEditorDraft('sellerTaxId', event.target.value)} placeholder='Tax ID ผู้ขาย' />
-                <Input value={editorDraft.buyerName} onChange={(event) => updateEditorDraft('buyerName', event.target.value)} placeholder='ชื่อลูกค้า' />
-                <Input value={editorDraft.buyerTaxId} onChange={(event) => updateEditorDraft('buyerTaxId', event.target.value)} placeholder='Tax ID ลูกค้า' />
-                <Input value={editorDraft.contactName} onChange={(event) => updateEditorDraft('contactName', event.target.value)} placeholder='ชื่อผู้ติดต่อ' />
-                <Input value={editorDraft.contactPhone} onChange={(event) => updateEditorDraft('contactPhone', event.target.value)} placeholder='เบอร์ติดต่อ' />
-
-                <textarea
-                  value={editorDraft.sellerAddress}
-                  onChange={(event) => updateEditorDraft('sellerAddress', event.target.value)}
-                  className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
-                  placeholder='ที่อยู่ร้าน / สาขา'
-                />
-                <textarea
-                  value={editorDraft.buyerAddress}
-                  onChange={(event) => updateEditorDraft('buyerAddress', event.target.value)}
-                  className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
-                  placeholder='ที่อยู่ลูกค้า'
-                />
-
-                <div className='rounded-2xl border border-slate-200 bg-slate-50 p-3'>
+                <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>ผู้ขายและลูกค้า</p>
+                  <Input value={editorDraft.sellerName} onChange={(event) => updateEditorDraft('sellerName', event.target.value)} placeholder='ชื่อร้าน / ผู้ขาย' />
+                  <Input value={editorDraft.sellerTaxId} onChange={(event) => updateEditorDraft('sellerTaxId', event.target.value)} placeholder='Tax ID ผู้ขาย' />
+                  <Input value={editorDraft.buyerName} onChange={(event) => updateEditorDraft('buyerName', event.target.value)} placeholder='ชื่อลูกค้า' />
+                  <Input value={editorDraft.buyerTaxId} onChange={(event) => updateEditorDraft('buyerTaxId', event.target.value)} placeholder='Tax ID ลูกค้า' />
+                  <Input value={editorDraft.contactName} onChange={(event) => updateEditorDraft('contactName', event.target.value)} placeholder='ชื่อผู้ติดต่อ' />
+                  <Input value={editorDraft.contactPhone} onChange={(event) => updateEditorDraft('contactPhone', event.target.value)} placeholder='เบอร์ติดต่อ' />
+                  <textarea
+                    value={editorDraft.sellerAddress}
+                    onChange={(event) => updateEditorDraft('sellerAddress', event.target.value)}
+                    className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-slate-50/80 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
+                    placeholder='ที่อยู่ร้าน / สาขา'
+                  />
+                  <textarea
+                    value={editorDraft.buyerAddress}
+                    onChange={(event) => updateEditorDraft('buyerAddress', event.target.value)}
+                    className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-slate-50/80 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
+                    placeholder='ที่อยู่ลูกค้า'
+                  />
+                </div>
+                <div className='rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
                   <div className='mb-2 flex items-center justify-between'>
                     <p className='text-sm font-semibold text-slate-900'>รายการสินค้า/บริการ</p>
                     <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={addEditorLine}>
@@ -782,11 +930,11 @@ export default function BillingPage() {
                   </div>
                   <div className='space-y-2'>
                     {editorDraft.lines.map((line, index) => (
-                      <div key={String(index)} className='grid grid-cols-[1fr_70px_90px_auto] gap-2'>
+                      <div key={String(index)} className='rounded-xl border border-slate-200 bg-white/90 p-2 sm:grid sm:grid-cols-[1fr_64px_84px_auto] sm:items-center sm:gap-2 sm:border-0 sm:bg-transparent sm:p-0'>
                         <Input value={line.description} onChange={(event) => updateEditorLine(index, { description: event.target.value })} placeholder={'รายการ #' + (index + 1)} />
                         <Input type='number' min={0} step='1' value={String(line.qty)} onChange={(event) => updateEditorLine(index, { qty: parseNumberInput(event.target.value) })} placeholder='Qty' />
                         <Input type='number' min={0} step='0.01' value={String(line.unitPrice)} onChange={(event) => updateEditorLine(index, { unitPrice: parseNumberInput(event.target.value) })} placeholder='ราคา' />
-                        <Button type='button' size='sm' variant='secondary' className='h-12 w-10 px-0' onClick={() => removeEditorLine(index)}>
+                        <Button type='button' size='sm' variant='secondary' className='h-10 w-10 px-0 sm:h-11' onClick={() => removeEditorLine(index)}>
                           <Trash2 className='h-4 w-4' />
                         </Button>
                       </div>
@@ -794,24 +942,30 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                <Input type='number' min={0} step='0.01' value={String(editorDraft.discountPercent)} onChange={(event) => updateEditorDraft('discountPercent', parseNumberInput(event.target.value))} placeholder='ส่วนลด %' />
-                <Input type='number' min={0} step='0.01' value={String(editorDraft.vatPercent)} onChange={(event) => updateEditorDraft('vatPercent', parseNumberInput(event.target.value))} placeholder='VAT %' />
-                <Input value={editorDraft.currency} onChange={(event) => updateEditorDraft('currency', event.target.value)} placeholder='Currency' />
-                <Input value={editorDraft.paymentMethod} onChange={(event) => updateEditorDraft('paymentMethod', event.target.value)} placeholder='วิธีชำระเงิน' />
-                <textarea
-                  value={editorDraft.noteMessage}
-                  onChange={(event) => updateEditorDraft('noteMessage', event.target.value)}
-                  className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
-                  placeholder='หมายเหตุ'
-                />
-                <Input type='email' value={editorDraft.emailTo} onChange={(event) => updateEditorDraft('emailTo', event.target.value)} placeholder='อีเมลลูกค้า / ผู้รับเอกสาร' />
-                <textarea
-                  value={editorDraft.emailMessage}
-                  onChange={(event) => updateEditorDraft('emailMessage', event.target.value)}
-                  className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
-                  placeholder='ข้อความในอีเมลที่ต้องการส่งถึงลูกค้า'
-                />
-
+                <div className='space-y-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+                  <p className='text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500'>สรุปยอดและการส่งเอกสาร</p>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Input type='number' min={0} step='0.01' value={String(editorDraft.discountPercent)} onChange={(event) => updateEditorDraft('discountPercent', parseNumberInput(event.target.value))} placeholder='ส่วนลด %' />
+                    <Input type='number' min={0} step='0.01' value={String(editorDraft.vatPercent)} onChange={(event) => updateEditorDraft('vatPercent', parseNumberInput(event.target.value))} placeholder='VAT %' />
+                  </div>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Input value={editorDraft.currency} onChange={(event) => updateEditorDraft('currency', event.target.value)} placeholder='Currency' />
+                    <Input value={editorDraft.paymentMethod} onChange={(event) => updateEditorDraft('paymentMethod', event.target.value)} placeholder='วิธีชำระเงิน' />
+                  </div>
+                  <textarea
+                    value={editorDraft.noteMessage}
+                    onChange={(event) => updateEditorDraft('noteMessage', event.target.value)}
+                    className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-slate-50/80 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
+                    placeholder='หมายเหตุ'
+                  />
+                  <Input type='email' value={editorDraft.emailTo} onChange={(event) => updateEditorDraft('emailTo', event.target.value)} placeholder='อีเมลลูกค้า / ผู้รับเอกสาร' />
+                  <textarea
+                    value={editorDraft.emailMessage}
+                    onChange={(event) => updateEditorDraft('emailMessage', event.target.value)}
+                    className='min-h-16 w-full rounded-2xl border border-[var(--border-soft)] bg-slate-50/80 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[var(--logo-blue)] focus:ring-4 focus:ring-[var(--ring)]'
+                    placeholder='ข้อความในอีเมลที่ต้องการส่งถึงลูกค้า'
+                  />
+                </div>
                 <Card className='space-y-1 rounded-2xl border-slate-200 bg-white p-3'>
                   <p className='text-sm font-semibold text-slate-900'>สรุปยอด</p>
                   <div className='text-sm text-slate-700'>
@@ -824,14 +978,14 @@ export default function BillingPage() {
               </div>
             </div>
 
-            <div className='absolute inset-x-0 bottom-0 border-t border-slate-200 bg-white px-4 py-3'>
+            <div className='absolute inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-sm'>
               <div className='mx-auto flex w-full max-w-[460px] gap-2'>
+                <Button type='button' variant='secondary' className='flex-1' onClick={() => setEditorOpen(false)}>
+                  ยกเลิก
+                </Button>
                 <Button type='button' className='flex-1 gap-2' onClick={saveDocument} disabled={pendingAction === 'save'}>
                   <FileText className='h-4 w-4' />
                   {pendingAction === 'save' ? 'กำลังบันทึก...' : 'บันทึกเอกสาร'}
-                </Button>
-                <Button type='button' variant='secondary' className='flex-1' onClick={() => setEditorOpen(false)}>
-                  ยกเลิก
                 </Button>
               </div>
             </div>

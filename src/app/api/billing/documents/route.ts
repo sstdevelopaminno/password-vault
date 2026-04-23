@@ -210,3 +210,31 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ document: toClient(inserted.data as BillingDocumentRow) });
 }
+
+export async function DELETE() {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const admin = createAdminClient();
+  const ownerIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: auth.user.id,
+    authEmail: auth.user.email,
+  });
+
+  const deleted = await admin
+    .from('billing_documents')
+    .delete()
+    .in('user_id', ownerIds)
+    .select('id');
+
+  if (deleted.error) {
+    return NextResponse.json({ error: deleted.error.message }, { status: 400 });
+  }
+
+  const deletedCount = Array.isArray(deleted.data) ? deleted.data.length : 0;
+  return NextResponse.json({ deletedCount });
+}
