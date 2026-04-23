@@ -41,6 +41,7 @@ const publicApiPaths = new Set([
   "/api/notes/reminders/process",
   "/api/billing/email-queue/process",
   "/api/notifications/push/process",
+  "/api/notifications/push/enqueue-system-update",
   "/api/maintenance/cleanup-operational-data",
 ]);
 

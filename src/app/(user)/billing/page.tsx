@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   AlertCircle,
   ChevronLeft,
@@ -8,14 +8,18 @@ import {
   Clock3,
   Eye,
   FileText,
+  ImageUp,
   Inbox,
+  Loader2,
   Mail,
   PenSquare,
   Plus,
   Printer,
   ReceiptText,
   RefreshCw,
+  Search,
   Send,
+  Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
@@ -100,9 +104,17 @@ type BillingEmailQueueRecord = {
   createdAt: string;
 };
 
+type NotesImportRecord = {
+  id: string;
+  title: string;
+  content: string;
+  updatedAt: string;
+};
+
 type ActiveTab = 'queue' | 'documents';
 type PendingAction = null | 'save' | 'queue' | 'send' | 'delete' | 'delete_all';
 type BillingQueueStatus = BillingEmailQueueRecord['status'];
+type OcrLanguageCode = 'tha+eng' | 'tha' | 'eng';
 const DOCUMENTS_PER_PAGE = 8;
 const EMAIL_QUEUE_PER_PAGE = 8;
 
@@ -147,6 +159,87 @@ function fromLocalDateTimeInputValue(raw: string) {
 function parseNumberInput(value: string) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseMoneyValue(value: string) {
+  const numeric = Number(value.replace(/[^0-9.,-]/g, '').replace(/,/g, ''));
+  if (!Number.isFinite(numeric) || numeric < 0) return null;
+  return numeric;
+}
+
+function parseQtyValue(value: string) {
+  const numeric = Number(value.replace(/[^0-9.-]/g, ''));
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric;
+}
+
+function toEditorLinesFromText(rawText: string, maxLines = 30): BillingLine[] {
+  const normalized = rawText.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+
+  const blockedHeadings = /^(total|subtotal|grand total|vat|tax|amount due|ยอดรวม|รวมสุทธิ|ภาษี|รวมทั้งสิ้น)/i;
+  const lines = normalized.split('\n');
+  const result: BillingLine[] = [];
+
+  for (const rawLine of lines) {
+    if (result.length >= maxLines) break;
+    const cleaned = rawLine.replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!cleaned) continue;
+    const stripped = cleaned.replace(/^(?:[-*]+|\u2022+|\d+[.)])\s*/, '').trim();
+    if (!stripped || blockedHeadings.test(stripped)) continue;
+
+    const qtyXPrice = stripped.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*[xX*]\s*([0-9][0-9,]*(?:\.\d{1,2})?)$/);
+    if (qtyXPrice) {
+      const description = normalizeText(qtyXPrice[1], 240);
+      const qty = parseQtyValue(qtyXPrice[2]);
+      const unitPrice = parseMoneyValue(qtyXPrice[3]);
+      if (description && qty && unitPrice !== null) {
+        result.push({ description, qty, unitPrice });
+        continue;
+      }
+    }
+
+    const pipeTokens = stripped.split('|').map((token) => token.trim()).filter(Boolean);
+    if (pipeTokens.length >= 3) {
+      const description = normalizeText(pipeTokens[0], 240);
+      const qty = parseQtyValue(pipeTokens[1]);
+      const unitPrice = parseMoneyValue(pipeTokens[2]);
+      if (description && qty && unitPrice !== null) {
+        result.push({ description, qty, unitPrice });
+        continue;
+      }
+    }
+
+    const tokens = stripped.split(' ').filter(Boolean);
+    if (tokens.length >= 3) {
+      const last = tokens[tokens.length - 1];
+      const secondLast = tokens[tokens.length - 2];
+      const qty = parseQtyValue(secondLast);
+      const unitPrice = parseMoneyValue(last);
+      const description = normalizeText(tokens.slice(0, -2).join(' '), 240);
+      if (description && qty && unitPrice !== null) {
+        result.push({ description, qty, unitPrice });
+        continue;
+      }
+    }
+
+    const trailingPrice = stripped.match(/^(.+?)\s+([0-9][0-9,]*(?:\.\d{1,2})?)$/);
+    if (trailingPrice) {
+      const description = normalizeText(trailingPrice[1], 240);
+      const unitPrice = parseMoneyValue(trailingPrice[2]);
+      if (description && unitPrice !== null) {
+        result.push({ description, qty: 1, unitPrice });
+        continue;
+      }
+    }
+
+    const fallbackDescription = normalizeText(stripped, 240);
+    if (fallbackDescription) {
+      result.push({ description: fallbackDescription, qty: 1, unitPrice: 0 });
+    }
+  }
+
+  return result;
 }
 
 function formatDateDisplay(value: string | null, locale: string) {
@@ -272,6 +365,18 @@ export default function BillingPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<BillingTemplate>('a4');
+
+  const [notesImportOpen, setNotesImportOpen] = useState(false);
+  const [notesImportQuery, setNotesImportQuery] = useState('');
+  const [notesImportLoading, setNotesImportLoading] = useState(false);
+  const [notesImportResults, setNotesImportResults] = useState<NotesImportRecord[]>([]);
+
+  const [lineOcrRunning, setLineOcrRunning] = useState(false);
+  const [lineOcrProgress, setLineOcrProgress] = useState(0);
+  const [lineOcrLanguage] = useState<OcrLanguageCode>('tha+eng');
+  const [lineOcrPreviewOpen, setLineOcrPreviewOpen] = useState(false);
+  const [lineOcrPreviewText, setLineOcrPreviewText] = useState('');
+  const lineOcrInputRef = useRef<HTMLInputElement | null>(null);
 
   const queueCountByDocument = useMemo(() => {
     const map = new Map<string, number>();
@@ -425,6 +530,206 @@ export default function BillingPage() {
         lines: prev.lines.filter((_, lineIndex) => lineIndex !== index),
       };
     });
+  }
+
+  function replaceEditorLines(nextLines: BillingLine[]) {
+    if (nextLines.length === 0) return;
+    setEditorDraft((prev) => ({
+      ...prev,
+      lines: nextLines.slice(0, 60),
+    }));
+  }
+
+  function appendEditorLines(nextLines: BillingLine[]) {
+    if (nextLines.length === 0) return;
+    setEditorDraft((prev) => {
+      const currentLines = prev.lines.filter((line) => {
+        return normalizeText(line.description, 240) || Number(line.qty) > 0 || Number(line.unitPrice) > 0;
+      });
+      const merged = [...currentLines, ...nextLines].slice(0, 60);
+      return {
+        ...prev,
+        lines: merged.length > 0 ? merged : [{ description: '', qty: 1, unitPrice: 0 }],
+      };
+    });
+  }
+
+  function appendToEditorNoteMessage(text: string) {
+    const safeText = normalizeText(text, 1200);
+    if (!safeText) return;
+    setEditorDraft((prev) => {
+      if (!prev.noteMessage.trim()) {
+        return { ...prev, noteMessage: safeText };
+      }
+      return { ...prev, noteMessage: prev.noteMessage.trim() + '\n\n' + safeText };
+    });
+  }
+
+  const loadNotesImport = useCallback(
+    async (query: string) => {
+      setNotesImportLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '30',
+        });
+        const normalizedQuery = query.trim();
+        if (normalizedQuery) {
+          params.set('q', normalizedQuery);
+        }
+
+        const response = await fetchWithSessionRetry('/api/notes?' + params.toString(), { cache: 'no-store' });
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          notes?: Array<{ id?: string; title?: string; content?: string; updatedAt?: string }>;
+        };
+        if (!response.ok) {
+          throw new Error(body.error || tr('โหลดโน้ตไม่สำเร็จ', 'Failed to load notes'));
+        }
+
+        const records = Array.isArray(body.notes)
+          ? body.notes
+              .map((note) => ({
+                id: String(note.id ?? ''),
+                title: String(note.title ?? '').trim(),
+                content: String(note.content ?? '').trim(),
+                updatedAt: String(note.updatedAt ?? ''),
+              }))
+              .filter((note) => note.id && (note.title || note.content))
+          : [];
+        setNotesImportResults(records);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : tr('โหลดโน้ตไม่สำเร็จ', 'Failed to load notes'), 'error');
+        setNotesImportResults([]);
+      } finally {
+        setNotesImportLoading(false);
+      }
+    },
+    [showToast, tr],
+  );
+
+  function openNotesImportModal() {
+    setNotesImportOpen(true);
+    if (notesImportResults.length === 0) {
+      void loadNotesImport(notesImportQuery);
+    }
+  }
+
+  function closeNotesImportModal() {
+    setNotesImportOpen(false);
+  }
+
+  useEffect(() => {
+    if (!notesImportOpen) return;
+    const timer = window.setTimeout(() => {
+      void loadNotesImport(notesImportQuery);
+    }, 260);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loadNotesImport, notesImportOpen, notesImportQuery]);
+
+  function importNoteAsLineItems(note: NotesImportRecord, mode: 'append' | 'replace') {
+    const sourceText = [note.title, note.content].filter(Boolean).join('\n');
+    const importedLines = toEditorLinesFromText(sourceText);
+    if (importedLines.length === 0) {
+      showToast(tr('ไม่พบรายการที่ใช้ได้ในโน้ตที่เลือก', 'No importable line items found in selected note'), 'error');
+      return;
+    }
+    if (mode === 'replace') {
+      replaceEditorLines(importedLines);
+    } else {
+      appendEditorLines(importedLines);
+    }
+    showToast(tr('ดึงข้อมูลจากโน้ตเรียบร้อย', 'Imported content from note'));
+    setNotesImportOpen(false);
+  }
+
+  function importNoteToMessage(note: NotesImportRecord) {
+    const composedText = [note.title, note.content].filter(Boolean).join('\n').trim();
+    if (!composedText) {
+      showToast(tr('โน้ตที่เลือกไม่มีข้อความ', 'Selected note is empty'), 'error');
+      return;
+    }
+    appendToEditorNoteMessage(composedText);
+    showToast(tr('เพิ่มข้อความจากโน้ตลงหมายเหตุแล้ว', 'Added note text to document note'));
+    setNotesImportOpen(false);
+  }
+
+  function triggerLineOcrPicker() {
+    lineOcrInputRef.current?.click();
+  }
+
+  function applyOcrPreviewToLineItems(mode: 'replace' | 'append' | 'append_note') {
+    const sourceText = lineOcrPreviewText.trim();
+    if (!sourceText) return;
+
+    if (mode === 'append_note') {
+      appendToEditorNoteMessage(sourceText);
+      setLineOcrPreviewOpen(false);
+      setLineOcrPreviewText('');
+      showToast(tr('เพิ่มข้อความที่สแกนลงหมายเหตุแล้ว', 'Added scanned text to note'));
+      return;
+    }
+
+    const importedLines = toEditorLinesFromText(sourceText);
+    if (importedLines.length === 0) {
+      showToast(tr('ไม่พบรายการจากข้อความที่สแกน', 'No importable line items found in scanned text'), 'error');
+      return;
+    }
+
+    if (mode === 'replace') {
+      replaceEditorLines(importedLines);
+    } else {
+      appendEditorLines(importedLines);
+    }
+    setLineOcrPreviewOpen(false);
+    setLineOcrPreviewText('');
+    showToast(tr('เพิ่มรายการจากข้อความที่สแกนแล้ว', 'Added scanned text to line items'));
+  }
+
+  async function handleLineOcrInput(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = '';
+    if (!file) return;
+
+    setLineOcrRunning(true);
+    setLineOcrProgress(0);
+    let worker: { recognize: (input: File) => Promise<{ data?: { text?: string } }>; terminate: () => Promise<void> } | null = null;
+    try {
+      const tesseract = await import('tesseract.js');
+      const createWorker = tesseract.createWorker as unknown as (
+        langs?: string | string[],
+        oem?: number,
+        options?: { logger?: (message: { status?: string; progress?: number }) => void },
+      ) => Promise<{ recognize: (input: File) => Promise<{ data?: { text?: string } }>; terminate: () => Promise<void> }>;
+
+      const selectedLanguage = lineOcrLanguage === 'tha' ? 'tha' : lineOcrLanguage === 'eng' ? 'eng' : 'tha+eng';
+      worker = await createWorker(selectedLanguage, 1, {
+        logger: (message) => {
+          if (message.status === 'recognizing text') {
+            setLineOcrProgress(Math.max(0, Math.min(1, Number(message.progress ?? 0))));
+          }
+        },
+      });
+      const result = await worker.recognize(file);
+      const extracted = String(result.data?.text ?? '').replace(/\r\n/g, '\n').trim();
+      if (!extracted) {
+        showToast(tr('ไม่พบข้อความในรูปภาพ', 'No text found in image'), 'error');
+        return;
+      }
+      setLineOcrPreviewText(extracted);
+      setLineOcrPreviewOpen(true);
+      showToast(tr('สแกนสำเร็จ กรุณาตรวจสอบก่อนเพิ่มข้อมูล', 'Scan complete. Review before insert.'));
+    } catch {
+      showToast(tr('สแกนรูปภาพไม่สำเร็จ กรุณาลองใหม่', 'Image scan failed. Please retry.'), 'error');
+    } finally {
+      if (worker) {
+        await worker.terminate().catch(() => {});
+      }
+      setLineOcrRunning(false);
+      setLineOcrProgress(0);
+    }
   }
 
   async function saveDocument() {
@@ -762,10 +1067,18 @@ export default function BillingPage() {
                       <span>{tr('คิวอีเมล', 'Email queue')} {queueCountByDocument.get(document.id) ?? 0} {tr('รายการ', 'items')}</span>
                     </div>
                   </button>
-                  <div className='mt-2 grid grid-cols-2 gap-2'>
+                  <div className='mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4'>
                     <Button type='button' size='sm' variant='secondary' className='h-8 gap-1 text-xs' onClick={() => openDetailModal(document)}>
                       <Eye className='h-3.5 w-3.5' />
                       {tr('เปิดรายละเอียด', 'Open details')}
+                    </Button>
+                    <Button type='button' size='sm' variant='secondary' className='h-8 gap-1 text-xs' onClick={() => openEditDocumentModal(document)}>
+                      <PenSquare className='h-3.5 w-3.5' />
+                      {tr('แก้ไข', 'Edit')}
+                    </Button>
+                    <Button type='button' size='sm' variant='secondary' className='h-8 gap-1 text-xs' onClick={() => openPreview(document.id, document.template)}>
+                      <FileText className='h-3.5 w-3.5' />
+                      {tr('วิวใบเสร็จ', 'Receipt view')}
                     </Button>
                     <Button type='button' size='sm' className='h-8 gap-1 text-xs' onClick={() => deleteDocument(document.id)} disabled={deletingInProgress}>
                       <Trash2 className='h-3.5 w-3.5' />
@@ -926,13 +1239,43 @@ export default function BillingPage() {
                   />
                 </div>
                 <div className='rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
-                  <div className='mb-2 flex items-center justify-between'>
+                  <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
                     <p className='text-sm font-semibold text-slate-900'>{tr('รายการสินค้า/บริการ', 'Items')}</p>
                     <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={addEditorLine}>
                       <Plus className='h-3.5 w-3.5' />
                       {tr('เพิ่มรายการ', 'Add item')}
                     </Button>
                   </div>
+                  <div className='mb-2 flex flex-wrap items-center gap-2'>
+                    <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={openNotesImportModal}>
+                      <Search className='h-3.5 w-3.5' />
+                      {tr('ดึงจากโน้ต', 'Import from notes')}
+                    </Button>
+                    <Button
+                      type='button'
+                      size='sm'
+                      variant='secondary'
+                      className='gap-1'
+                      onClick={triggerLineOcrPicker}
+                      disabled={lineOcrRunning || pendingAction === 'save'}
+                    >
+                      {lineOcrRunning ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <ImageUp className='h-3.5 w-3.5' />}
+                      {tr('สแกนข้อความ', 'Scan text')}
+                    </Button>
+                  </div>
+                  <input ref={lineOcrInputRef} type='file' accept='image/*' capture='environment' className='hidden' onChange={handleLineOcrInput} />
+                  {lineOcrRunning ? (
+                    <div className='mb-2 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2'>
+                      <p className='flex items-center gap-1 text-[11px] font-semibold text-sky-700'>
+                        <Sparkles className='h-3.5 w-3.5' />
+                        {tr('กำลังสแกนข้อความจากภาพ...', 'Scanning text from image...')}
+                      </p>
+                      <div className='mt-2 h-1.5 w-full rounded-full bg-sky-100'>
+                        <div className='h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 transition-all duration-300' style={{ width: Math.max(6, Math.round(lineOcrProgress * 100)) + '%' }} />
+                      </div>
+                    </div>
+                  ) : null}
+                  <p className='mb-2 text-[11px] leading-5 text-slate-500'>{tr('สามารถดึงข้อมูลจากเมนูโน้ต หรือใช้ OCR สแกนเอกสารเพื่อเติมรายการได้อัตโนมัติ', 'Import from notes or scan document text with OCR to auto-fill line items')}</p>
                   <div className='space-y-2'>
                     {editorDraft.lines.map((line, index) => (
                       <div key={String(index)} className='rounded-xl border border-slate-200 bg-white/90 p-2 sm:grid sm:grid-cols-[1fr_64px_84px_auto] sm:items-center sm:gap-2 sm:border-0 sm:bg-transparent sm:p-0'>
@@ -993,6 +1336,112 @@ export default function BillingPage() {
                   {pendingAction === 'save' ? tr('กำลังบันทึก...', 'Saving...') : tr('บันทึกเอกสาร', 'Save document')}
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {notesImportOpen ? (
+        <div className='fixed inset-0 z-[83] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-[2px]'>
+          <div className='w-full max-w-[720px] animate-slide-up rounded-[26px] border border-slate-200 bg-white p-4 shadow-2xl'>
+            <div className='flex items-start justify-between gap-3'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>{tr('ดึงจากโน้ต', 'Notes import')}</p>
+                <h3 className='mt-1 text-base font-semibold text-slate-900'>{tr('เลือกข้อความจากเมนูโน้ต', 'Select text from notes')}</h3>
+              </div>
+              <button type='button' onClick={closeNotesImportModal} className='rounded-full p-1 text-slate-500 transition hover:bg-slate-100'>
+                <X className='h-5 w-5' />
+              </button>
+            </div>
+
+            <div className='mt-3 flex flex-wrap gap-2'>
+              <Input
+                value={notesImportQuery}
+                onChange={(event) => setNotesImportQuery(event.target.value)}
+                placeholder={tr('ค้นหาโน้ตจากชื่อหรือเนื้อหา', 'Search notes by title or content')}
+                className='h-10 min-w-[220px] flex-1'
+              />
+              <Button type='button' variant='secondary' className='h-10 gap-2' onClick={() => void loadNotesImport(notesImportQuery)} disabled={notesImportLoading}>
+                <RefreshCw className={'h-4 w-4 ' + (notesImportLoading ? 'animate-spin' : '')} />
+                {tr('รีเฟรช', 'Refresh')}
+              </Button>
+            </div>
+
+            <div className='mt-3 max-h-[52vh] space-y-2 overflow-y-auto pr-1'>
+              {notesImportLoading ? (
+                <p className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600'>{tr('กำลังโหลดโน้ต...', 'Loading notes...')}</p>
+              ) : notesImportResults.length === 0 ? (
+                <p className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600'>{tr('ไม่พบโน้ตที่ตรงเงื่อนไข', 'No matching notes found')}</p>
+              ) : (
+                notesImportResults.map((note) => (
+                  <div key={note.id} className='rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3'>
+                    <p className='text-sm font-semibold text-slate-900'>{note.title || tr('โน้ตไม่มีชื่อ', 'Untitled note')}</p>
+                    <p className='mt-1 line-clamp-3 whitespace-pre-wrap break-words text-xs text-slate-600'>{note.content || '-'}</p>
+                    <p className='mt-1 text-[11px] text-slate-500'>{tr('อัปเดตล่าสุด', 'Updated')}: {formatDateTimeDisplay(note.updatedAt || null, locale)}</p>
+                    <div className='mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3'>
+                      <Button type='button' variant='secondary' className='h-9 text-xs' onClick={() => importNoteAsLineItems(note, 'replace')}>
+                        {tr('แทนที่รายการ', 'Replace items')}
+                      </Button>
+                      <Button type='button' variant='secondary' className='h-9 text-xs' onClick={() => importNoteAsLineItems(note, 'append')}>
+                        {tr('เพิ่มรายการ', 'Append items')}
+                      </Button>
+                      <Button type='button' className='h-9 text-xs' onClick={() => importNoteToMessage(note)}>
+                        {tr('เพิ่มเป็นหมายเหตุ', 'Add as note')}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {lineOcrPreviewOpen ? (
+        <div className='fixed inset-0 z-[84] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-[3px]'>
+          <div className='w-full max-w-[720px] animate-slide-up rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl'>
+            <div className='flex items-start justify-between gap-2'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.12em] text-slate-500'>{tr('พรีวิว OCR', 'OCR preview')}</p>
+                <h3 className='mt-1 text-base font-semibold text-slate-900'>{tr('ตรวจสอบข้อความที่สแกนก่อนเพิ่มลงเอกสาร', 'Review scanned text before inserting')}</h3>
+              </div>
+              <button
+                type='button'
+                onClick={() => {
+                  setLineOcrPreviewOpen(false);
+                  setLineOcrPreviewText('');
+                }}
+                className='rounded-full p-1 text-slate-500 transition hover:bg-slate-100'
+              >
+                <X className='h-5 w-5' />
+              </button>
+            </div>
+            <textarea
+              value={lineOcrPreviewText}
+              onChange={(event) => setLineOcrPreviewText(event.target.value)}
+              className='mt-3 min-h-[220px] max-h-[46dvh] w-full resize-y rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm leading-6 text-slate-800 outline-none focus:border-sky-300'
+            />
+            <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4'>
+              <Button
+                type='button'
+                variant='secondary'
+                className='w-full'
+                onClick={() => {
+                  setLineOcrPreviewOpen(false);
+                  setLineOcrPreviewText('');
+                }}
+              >
+                {tr('ปิด', 'Close')}
+              </Button>
+              <Button type='button' variant='secondary' className='w-full' onClick={() => applyOcrPreviewToLineItems('replace')}>
+                {tr('แทนที่รายการ', 'Replace items')}
+              </Button>
+              <Button type='button' variant='secondary' className='w-full' onClick={() => applyOcrPreviewToLineItems('append')}>
+                {tr('เพิ่มรายการ', 'Append items')}
+              </Button>
+              <Button type='button' className='w-full' onClick={() => applyOcrPreviewToLineItems('append_note')}>
+                {tr('เพิ่มเป็นหมายเหตุ', 'Add as note')}
+              </Button>
             </div>
           </div>
         </div>

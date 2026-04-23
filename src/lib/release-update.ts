@@ -18,6 +18,26 @@ type ReleaseEntry = {
 
 const RELEASE_HISTORY: ReleaseEntry[] = [
   {
+    version: "V16.6.26",
+    releasedOn: "2026-04-23",
+    titleTh: "กู้คืนฟีเจอร์เอกสารใบเสร็จ/แจ้งหนี้ และเพิ่มการนำเข้าจากโน้ต/OCR",
+    titleEn: "Restored Billing Document Features with Notes/OCR Import",
+    highlightsTh: [
+      "กู้คืนปุ่มสร้างเอกสารและฟอร์มใบเสร็จ/แจ้งหนี้ที่หายไปหลังอัปเดตเวอร์ชันก่อนหน้า",
+      "เพิ่มการดึงข้อความจากเมนูโน้ตเพื่อแปลงเป็นรายการสินค้า/บริการได้ทันที",
+      "เพิ่มการสแกนข้อความจากรูปภาพ (OCR) พร้อมพรีวิวก่อนนำเข้าเอกสาร",
+      "รองรับการเปิดดูรายละเอียด แก้ไข ลบ และพรีวิวเอกสารที่บันทึกไว้ครบทุกรายการ",
+      "ปล่อยรอบเว็บและ APK ให้เป็นเวอร์ชันเดียวกัน พร้อมคิวแจ้งเตือนอัปเดตผู้ใช้งาน",
+    ],
+    highlightsEn: [
+      "Restored missing create-document flow and billing form behavior from the prior release.",
+      "Added Notes-to-line-items import to convert note text into bill items quickly.",
+      "Added OCR image scan with preview before inserting into billing documents.",
+      "Kept saved-document actions complete: detail, edit, delete, and preview.",
+      "Released synchronized web/APK versioning with system update notification readiness.",
+    ],
+  },
+  {
     version: "V16.6.25",
     releasedOn: "2026-04-23",
     titleTh: "อัปเดต APK เวอร์ชันล่าสุด พร้อมเสริม i18n และเสถียรภาพระบบ",
