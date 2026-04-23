@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ function mapError(message: unknown, locale: "th" | "en") {
   const lower = text.toLowerCase();
 
   if (lower.includes("invalid login credentials")) {
-    return locale === "th" ? "เธเนเธญเธกเธนเธฅเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ" : "Invalid login credentials";
+    return locale === "th" ? "ข้อมูลเข้าสู่ระบบไม่ถูกต้อง" : "Invalid login credentials";
   }
   if (
     lower.includes("rate limit") ||
@@ -36,21 +36,21 @@ function mapError(message: unknown, locale: "th" | "en") {
     lower.includes("too many requests") ||
     lower.includes("over_email_send_rate_limit")
   ) {
-    return locale === "th" ? "OTP เธ–เธนเธเธเธณเธเธฑเธ”เธเธงเธฒเธกเธ–เธตเน เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน" : "OTP rate limited. Please wait.";
+    return locale === "th" ? "OTP ถูกจำกัดความถี่ กรุณารอสักครู่" : "OTP rate limited. Please wait.";
   }
   if (lower.includes("invalid otp") || lower.includes("token")) {
-    return locale === "th" ? "OTP เนเธกเนเธ–เธนเธเธ•เนเธญเธเธซเธฃเธทเธญเธซเธกเธ”เธญเธฒเธขเธธ" : "Invalid or expired OTP";
+    return locale === "th" ? "OTP ไม่ถูกต้องหรือหมดอายุ" : "Invalid or expired OTP";
   }
   if (lower.includes("account not found")) {
-    return locale === "th" ? "เนเธกเนเธเธเธเธฑเธเธเธตเธญเธตเน€เธกเธฅเธเธตเน" : "Account not found";
+    return locale === "th" ? "ไม่พบบัญชีอีเมลนี้" : "Account not found";
   }
   if (lower.includes("account is not approved yet")) {
-    return locale === "th" ? "เธเธฑเธเธเธตเธขเธฑเธเนเธกเนเน€เธเธดเธ”เนเธเนเธเธฒเธ" : "Account is not approved yet";
+    return locale === "th" ? "บัญชียังไม่เปิดใช้งาน" : "Account is not approved yet";
   }
   if (lower.includes("pin")) {
-    return locale === "th" ? "PIN เนเธกเนเธ–เธนเธเธ•เนเธญเธ" : "Invalid PIN";
+    return locale === "th" ? "PIN ไม่ถูกต้อง" : "Invalid PIN";
   }
-  return text || (locale === "th" ? "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”" : "Something went wrong");
+  return text || (locale === "th" ? "เกิดข้อผิดพลาด" : "Something went wrong");
 }
 
 export default function ForgotPasswordPage() {
@@ -80,21 +80,21 @@ export default function ForgotPasswordPage() {
   }, [resendIn]);
 
   const text = {
-    title: locale === "th" ? "เธฅเธทเธกเธฃเธซเธฑเธชเธเนเธฒเธ" : "Forgot password",
-    chooseMethod: locale === "th" ? "เน€เธฅเธทเธญเธเธงเธดเธเธตเธขเธทเธเธขเธฑเธเธ•เธฑเธงเธ•เธ" : "Choose verification method",
-    byEmail: locale === "th" ? "เนเธชเนเธญเธตเน€เธกเธฅเธเธฑเธเธเธธเธเธฑเธเธเธญเธเธเธธเธ“" : "Use current email",
-    byPin: locale === "th" ? "เธขเธทเธเธขเธฑเธ PIN" : "Verify PIN",
-    searchEmail: locale === "th" ? "เธเนเธเธซเธฒเธญเธตเน€เธกเธฅ" : "Find email",
-    emailPlaceholder: locale === "th" ? "เธญเธตเน€เธกเธฅเธเธฑเธเธเธธเธเธฑเธ" : "Current email",
-    foundLabel: locale === "th" ? "เธเธเธเธฑเธเธเธตเธญเธตเน€เธกเธฅ" : "Found account email",
-    sendOtp: locale === "th" ? "เธขเธทเธเธขเธฑเธเนเธฅเธฐเธชเนเธ OTP" : "Confirm and send OTP",
-    otpTitle: locale === "th" ? "เธเธฃเธญเธเธฃเธซเธฑเธช OTP เธ—เธตเนเธชเนเธเนเธเธขเธฑเธเธญเธตเน€เธกเธฅ" : "Enter OTP sent to your email",
-    verifyOtp: locale === "th" ? "เธขเธทเธเธขเธฑเธ OTP" : "Verify OTP",
-    newPassword: locale === "th" ? "เธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเน" : "New password",
-    saveAndLogin: locale === "th" ? "เธเธฑเธเธ—เธถเธเนเธฅเธฐเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเธญเธฑเธ•เนเธเธกเธฑเธ•เธด" : "Save and auto login",
-    pinPlaceholder: locale === "th" ? "PIN 6 เธซเธฅเธฑเธ" : "6-digit PIN",
-    back: locale === "th" ? "เธขเนเธญเธเธเธฅเธฑเธ" : "Back",
-    resendIn: locale === "th" ? "เธชเนเธเนเธซเธกเนเนเธ" : "Resend in",
+    title: locale === "th" ? "ลืมรหัสผ่าน" : "Forgot password",
+    chooseMethod: locale === "th" ? "เลือกวิธียืนยันตัวตน" : "Choose verification method",
+    byEmail: locale === "th" ? "ใส่อีเมลปัจจุบันของคุณ" : "Use current email",
+    byPin: locale === "th" ? "ยืนยัน PIN" : "Verify PIN",
+    searchEmail: locale === "th" ? "ค้นหาอีเมล" : "Find email",
+    emailPlaceholder: locale === "th" ? "อีเมลปัจจุบัน" : "Current email",
+    foundLabel: locale === "th" ? "พบบัญชีอีเมล" : "Found account email",
+    sendOtp: locale === "th" ? "ยืนยันและส่ง OTP" : "Confirm and send OTP",
+    otpTitle: locale === "th" ? "กรอกรหัส OTP ที่ส่งไปยังอีเมล" : "Enter OTP sent to your email",
+    verifyOtp: locale === "th" ? "ยืนยัน OTP" : "Verify OTP",
+    newPassword: locale === "th" ? "รหัสผ่านใหม่" : "New password",
+    saveAndLogin: locale === "th" ? "บันทึกและเข้าสู่ระบบอัตโนมัติ" : "Save and auto login",
+    pinPlaceholder: locale === "th" ? "PIN 6 หลัก" : "6-digit PIN",
+    back: locale === "th" ? "ย้อนกลับ" : "Back",
+    resendIn: locale === "th" ? "ส่งใหม่ใน" : "Resend in",
   };
 
   async function findEmail() {
@@ -114,7 +114,7 @@ export default function ForgotPasswordPage() {
 
     const found = String(body?.email ?? "");
     setFoundEmail(found);
-    showToast(locale === "th" ? "เธเธเธญเธตเน€เธกเธฅเนเธฅเนเธง เธเธฃเธธเธ“เธฒเธขเธทเธเธขเธฑเธเน€เธเธทเนเธญเธฃเธฑเธ OTP" : "Email found. Confirm to receive OTP.", "success");
+    showToast(locale === "th" ? "พบอีเมลแล้ว กรุณายืนยันเพื่อรับ OTP" : "Email found. Confirm to receive OTP.", "success");
   }
 
   async function confirmAndSendOtp() {
@@ -153,12 +153,12 @@ export default function ForgotPasswordPage() {
     setOtp("");
     setEmailStep("otp");
     setResendIn(60);
-    showToast(locale === "th" ? "เธชเนเธ OTP เนเธเธขเธฑเธเธญเธตเน€เธกเธฅเนเธฅเนเธง" : "OTP sent to your email", "success");
+    showToast(locale === "th" ? "ส่ง OTP ไปยังอีเมลแล้ว" : "OTP sent to your email", "success");
   }
 
   async function verifyOtpThenNext() {
     if (otp.length !== 6) {
-      showToast(locale === "th" ? "เธเธฃเธญเธ OTP 6 เธซเธฅเธฑเธ" : "Enter 6-digit OTP", "error");
+      showToast(locale === "th" ? "กรอก OTP 6 หลัก" : "Enter 6-digit OTP", "error");
       return;
     }
 
@@ -177,13 +177,13 @@ export default function ForgotPasswordPage() {
     }
 
     setEmailStep("password");
-    showToast(locale === "th" ? "เธขเธทเธเธขเธฑเธ OTP เธชเธณเน€เธฃเนเธ" : "OTP verified", "success");
+    showToast(locale === "th" ? "ยืนยัน OTP สำเร็จ" : "OTP verified", "success");
   }
 
   async function finalizeByOtp(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword.length < 8) {
-      showToast(locale === "th" ? "เธฃเธซเธฑเธชเธเนเธฒเธเธ•เนเธญเธเธญเธขเนเธฒเธเธเนเธญเธข 8 เธ•เธฑเธงเธญเธฑเธเธฉเธฃ" : "Password must be at least 8 characters", "error");
+      showToast(locale === "th" ? "รหัสผ่านต้องอย่างน้อย 8 ตัวอักษร" : "Password must be at least 8 characters", "error");
       return;
     }
 
@@ -201,7 +201,7 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    showToast(locale === "th" ? "เธฃเธตเน€เธเนเธ•เธฃเธซเธฑเธชเธเนเธฒเธเธชเธณเน€เธฃเนเธ เนเธฅเธฐเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธฅเนเธง" : "Password reset complete. Logged in.", "success");
+    showToast(locale === "th" ? "รีเซ็ตรหัสผ่านสำเร็จ และเข้าสู่ระบบแล้ว" : "Password reset complete. Logged in.", "success");
     router.push("/home");
   }
 
@@ -209,12 +209,12 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
 
     if (pin.length !== 6) {
-      showToast(locale === "th" ? "เธเธฃเธญเธ PIN 6 เธซเธฅเธฑเธ" : "Enter 6-digit PIN", "error");
+      showToast(locale === "th" ? "กรอก PIN 6 หลัก" : "Enter 6-digit PIN", "error");
       return;
     }
 
     if (pinNewPassword.length < 8) {
-      showToast(locale === "th" ? "เธฃเธซเธฑเธชเธเนเธฒเธเธ•เนเธญเธเธญเธขเนเธฒเธเธเนเธญเธข 8 เธ•เธฑเธงเธญเธฑเธเธฉเธฃ" : "Password must be at least 8 characters", "error");
+      showToast(locale === "th" ? "รหัสผ่านต้องอย่างน้อย 8 ตัวอักษร" : "Password must be at least 8 characters", "error");
       return;
     }
 
@@ -232,7 +232,7 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    showToast(locale === "th" ? "เน€เธเธฅเธตเนเธขเธเธฃเธซเธฑเธชเธเนเธฒเธเธชเธณเน€เธฃเนเธ เนเธฅเธฐเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเนเธฅเนเธง" : "Password changed. Logged in.", "success");
+    showToast(locale === "th" ? "เปลี่ยนรหัสผ่านสำเร็จ และเข้าสู่ระบบแล้ว" : "Password changed. Logged in.", "success");
     router.push("/home");
   }
 
@@ -240,11 +240,11 @@ export default function ForgotPasswordPage() {
     <MobileShell>
       <main className="flex flex-1 items-center px-5 py-8">
         <Card className="w-full space-y-4">
-          <h1 className="text-app-h2 font-semibold">{text.title}</h1>
+          <h1 className="text-xl font-semibold">{text.title}</h1>
 
           {!method && (
             <div className="space-y-3">
-              <p className="text-app-body text-slate-600">{text.chooseMethod}</p>
+              <p className="text-sm text-slate-600">{text.chooseMethod}</p>
               <Button className="w-full" onClick={() => setMethod("email")}>{text.byEmail}</Button>
               <Button className="w-full" variant="secondary" onClick={() => setMethod("pin")}>{text.byPin}</Button>
             </div>
@@ -260,8 +260,8 @@ export default function ForgotPasswordPage() {
                   </Button>
                   {foundEmail ? (
                     <div className="space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                      <p className="text-app-caption text-blue-700">{text.foundLabel}</p>
-                      <p className="text-app-body font-semibold text-blue-900">{foundEmail}</p>
+                      <p className="text-xs text-blue-700">{text.foundLabel}</p>
+                      <p className="text-sm font-semibold text-blue-900">{foundEmail}</p>
                       <Button className="w-full" onClick={() => void confirmAndSendOtp()} disabled={loading || resendIn > 0}>
                         {resendIn > 0 ? `${text.resendIn} ${resendIn}s` : text.sendOtp}
                       </Button>
@@ -272,8 +272,8 @@ export default function ForgotPasswordPage() {
 
               {emailStep === "otp" && (
                 <>
-                  <p className="text-app-body text-slate-700">{text.otpTitle}</p>
-                  <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={locale === "th" ? "เธเธฃเธญเธ OTP" : "Enter OTP"} />
+                  <p className="text-sm text-slate-700">{text.otpTitle}</p>
+                  <OtpInput value={otp} onChange={setOtp} length={6} ariaLabel={locale === "th" ? "กรอก OTP" : "Enter OTP"} />
                   <div className="grid grid-cols-2 gap-2">
                     <Button variant="secondary" onClick={() => setEmailStep("search")} disabled={loading}>{text.back}</Button>
                     <Button onClick={() => void verifyOtpThenNext()} disabled={loading}>{text.verifyOtp}</Button>
@@ -307,5 +307,4 @@ export default function ForgotPasswordPage() {
     </MobileShell>
   );
 }
-
 

@@ -282,7 +282,7 @@ export default function VaultDetailPage() {
 
   const renderCopyLabel = useCallback(
     (row: RowKey) => (
-      <span className={`inline-flex items-center gap-1.5 text-app-caption ${copiedRow === row ? 'text-emerald-700' : ''}`}>
+      <span className={`inline-flex items-center gap-1.5 text-xs ${copiedRow === row ? 'text-emerald-700' : ''}`}>
         {copiedRow === row ? <CheckCircle2 className='h-3.5 w-3.5' /> : <Copy className='h-3.5 w-3.5' />}
         {copiedRow === row ? text.copiedDone : t('vaultDetail.copy')}
       </span>
@@ -293,11 +293,11 @@ export default function VaultDetailPage() {
   return (
     <section className='space-y-4 pb-20'>
       <Card className='space-y-4 animate-slide-up'>
-        <h1 className='text-app-h3 font-semibold'>{item?.title ?? t('vaultDetail.fallbackTitle')}</h1>
+        <h1 className='text-lg font-semibold'>{item?.title ?? t('vaultDetail.fallbackTitle')}</h1>
 
         <div className='space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3'>
           <div className='flex items-center justify-between gap-2'>
-            <p className='inline-flex items-center gap-2 text-app-body text-slate-700'>
+            <p className='inline-flex items-center gap-2 text-sm text-slate-700'>
               <Type className='h-4 w-4 text-slate-500' />
               {t('addItem.fieldTitle')}: {item?.title ?? '-'}
             </p>
@@ -322,7 +322,7 @@ export default function VaultDetailPage() {
           </div>
 
           <div className='flex items-center justify-between gap-2'>
-            <p className='inline-flex items-center gap-2 text-app-body text-slate-700'>
+            <p className='inline-flex items-center gap-2 text-sm text-slate-700'>
               <UserRound className='h-4 w-4 text-slate-500' />
               {t('vaultDetail.usernameLabel')}: {item?.username ?? '-'}
             </p>
@@ -347,7 +347,7 @@ export default function VaultDetailPage() {
           </div>
 
           <div className='flex items-center justify-between gap-2'>
-            <p className='inline-flex items-center gap-2 text-app-body text-slate-700'>
+            <p className='inline-flex items-center gap-2 text-sm text-slate-700'>
               <KeyRound className='h-4 w-4 text-slate-500' />
               {t('vaultDetail.passwordLabel')}: <span className='font-semibold'>{revealedSecret ?? item?.secretMasked ?? t('vaultDetail.masked')}</span>
             </p>
@@ -371,7 +371,7 @@ export default function VaultDetailPage() {
 
           {item?.url ? (
             <div className='flex items-center justify-between gap-2'>
-              <p className='inline-flex items-center gap-2 text-app-body text-slate-700'>
+              <p className='inline-flex items-center gap-2 text-sm text-slate-700'>
                 <LinkIcon className='h-4 w-4 text-slate-500' />
                 URL: {item.url}
               </p>
@@ -435,7 +435,7 @@ export default function VaultDetailPage() {
           </Button>
         </div>
 
-        {status ? <p className='text-app-caption text-slate-600'>{status}</p> : null}
+        {status ? <p className='text-xs text-slate-600'>{status}</p> : null}
       </Card>
 
       {pendingAction ? (
@@ -452,8 +452,8 @@ export default function VaultDetailPage() {
         <div className='fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]'>
           <Card className='w-full max-w-sm space-y-4 rounded-3xl border border-slate-200 p-5 shadow-2xl'>
             <div className='space-y-1'>
-              <h3 className='text-app-body font-semibold text-slate-900'>{t('vaultDetail.notFound')}</h3>
-              <p className='text-app-body text-slate-500'>{t('vaultDetail.loadFailed')}</p>
+              <h3 className='text-base font-semibold text-slate-900'>{t('vaultDetail.notFound')}</h3>
+              <p className='text-sm text-slate-500'>{t('vaultDetail.loadFailed')}</p>
             </div>
             <Button className='w-full bg-gradient-to-r from-blue-600 to-indigo-500 text-white' onClick={() => setNotFoundPopupOpen(false)}>
               {t('addItem.closeAria')}
@@ -464,5 +464,4 @@ export default function VaultDetailPage() {
     </section>
   );
 }
-
 

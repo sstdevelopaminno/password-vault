@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
@@ -172,7 +172,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           >
             <div
               className={cn(
-                "rounded-2xl border px-4 py-3 text-app-body text-white shadow-[0_14px_34px_rgba(10,20,40,0.22)] backdrop-blur",
+                "rounded-2xl border px-4 py-3 text-sm text-white shadow-[0_14px_34px_rgba(10,20,40,0.22)] backdrop-blur",
                 toast.type === "success"
                   ? "border-emerald-200/45 bg-emerald-500/92"
                   : "border-rose-200/45 bg-rose-500/92",
@@ -197,4 +197,3 @@ export function useToast() {
   }
   return ctx;
 }
-

@@ -112,7 +112,7 @@ export function ShareToTeamModal({ open, itemId, itemTitle, onClose, onShared }:
  <div className='fixed inset-0 z-[75] bg-slate-950/45 p-3 backdrop-blur-[2px]'>
  <div className='mx-auto mt-8 w-full max-w-[480px] animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
  <div className='mb-3 flex items-center justify-between'>
- <h2 className='inline-flex items-center gap-2 text-app-body font-semibold'>
+ <h2 className='inline-flex items-center gap-2 text-base font-semibold'>
  <MessageCirclePlus className='h-5 w-5 text-blue-600' />
  {locale === 'th' ? 'แชร์รายการเข้าห้องทีม' : 'Share to Team Room'}
  </h2>
@@ -122,13 +122,13 @@ export function ShareToTeamModal({ open, itemId, itemTitle, onClose, onShared }:
  </div>
 
  <Card className='space-y-3'>
- <div className='rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-app-body text-blue-900'>
+ <div className='rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900'>
  <p className='font-medium'>{itemTitle}</p>
- <p className='text-app-caption text-blue-700'>{locale === 'th' ? 'เลือกรหัสทีมปลายทางเพื่อแชร์ข้อมูลนี้' : 'Select a destination team room'}</p>
+ <p className='text-xs text-blue-700'>{locale === 'th' ? 'เลือกรหัสทีมปลายทางเพื่อแชร์ข้อมูลนี้' : 'Select a destination team room'}</p>
  </div>
 
  {loadingRooms ? (
- <div className='flex items-center justify-center py-4 text-app-body text-slate-500'>
+ <div className='flex items-center justify-center py-4 text-sm text-slate-500'>
  <Spinner />
  <span className='ml-2'>{locale === 'th' ? 'กำลังโหลดห้องทีม...' : 'Loading rooms...'}</span>
  </div>
@@ -136,7 +136,7 @@ export function ShareToTeamModal({ open, itemId, itemTitle, onClose, onShared }:
 
  {!loadingRooms && rooms.length === 0 ? (
  <div className='space-y-3'>
- <p className='text-app-body text-slate-600'>{locale === 'th' ? 'ยังไม่มีห้องทีม กรุณาสร้างห้องก่อน' : 'No team rooms yet. Create one first.'}</p>
+ <p className='text-sm text-slate-600'>{locale === 'th' ? 'ยังไม่มีห้องทีม กรุณาสร้างห้องก่อน' : 'No team rooms yet. Create one first.'}</p>
  <Button
  type='button'
  onClick={() => {
@@ -165,19 +165,19 @@ export function ShareToTeamModal({ open, itemId, itemTitle, onClose, onShared }:
  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300')
  }
  >
- <p className='text-app-body font-semibold'>{room.name}</p>
- {room.description ? <p className='text-app-caption text-slate-500'>{room.description}</p> : null}
+ <p className='text-sm font-semibold'>{room.name}</p>
+ {room.description ? <p className='text-xs text-slate-500'>{room.description}</p> : null}
  </button>
  ))}
  </div>
 
  <div className='space-y-2'>
- <p className='text-app-caption font-medium text-slate-500'>{locale === 'th' ? 'ข้อความในห้องแชท (ไม่บังคับ)' : 'Chat note (optional)'}</p>
+ <p className='text-xs font-medium text-slate-500'>{locale === 'th' ? 'ข้อความในห้องแชท (ไม่บังคับ)' : 'Chat note (optional)'}</p>
  <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={locale === 'th' ? 'พิมพ์ข้อความประกอบการแชร์' : 'Write a short note'} />
  </div>
 
  <div className='flex items-center justify-between gap-2'>
- <p className='truncate text-app-caption text-slate-500'>{selectedRoom ? selectedRoom.name : ''}</p>
+ <p className='truncate text-xs text-slate-500'>{selectedRoom ? selectedRoom.name : ''}</p>
  <Button type='button' onClick={() => void submitShare()} disabled={!selectedRoomId || sharing}>
  {sharing ? (
  <span className='inline-flex items-center gap-2'>
@@ -198,5 +198,4 @@ export function ShareToTeamModal({ open, itemId, itemTitle, onClose, onShared }:
  </div>
  );
 }
-
 

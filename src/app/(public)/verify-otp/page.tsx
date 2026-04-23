@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,15 +23,15 @@ function mapVerifyError(message: unknown, locale: string) {
   const lower = text.toLowerCase();
 
   if (lower.includes("token") || lower.includes("invalid otp")) {
-    return locale === "th" ? "OTP เนเธกเนเธ–เธนเธเธ•เนเธญเธเธซเธฃเธทเธญเธซเธกเธ”เธญเธฒเธขเธธ" : "Invalid or expired OTP";
+    return locale === "th" ? "OTP ไม่ถูกต้องหรือหมดอายุ" : "Invalid or expired OTP";
   }
   if (lower.includes("rate")) {
-    return locale === "th" ? "OTP เธ–เธนเธเธเธณเธเธฑเธ”เธเธงเธฒเธกเธ–เธตเน เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน" : "OTP rate limited. Please wait.";
+    return locale === "th" ? "OTP ถูกจำกัดความถี่ กรุณารอสักครู่" : "OTP rate limited. Please wait.";
   }
   if (text) {
     return text;
   }
-  return locale === "th" ? "เธขเธทเธเธขเธฑเธ OTP เนเธกเนเธชเธณเน€เธฃเนเธ" : "OTP verification failed";
+  return locale === "th" ? "ยืนยัน OTP ไม่สำเร็จ" : "OTP verification failed";
 }
 
 function VerifyOtpContent() {
@@ -72,7 +72,7 @@ function VerifyOtpContent() {
         if (res.ok) {
           autoSubmittedOtpRef.current = "";
           showToast(
-            isThai ? "เธขเธทเธเธขเธฑเธ OTP เธชเธณเน€เธฃเนเธ เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง" : "OTP verified. Signed in successfully.",
+            isThai ? "ยืนยัน OTP สำเร็จ เข้าสู่ระบบเรียบร้อยแล้ว" : "OTP verified. Signed in successfully.",
             "success",
           );
           router.push("/home");
@@ -113,7 +113,7 @@ function VerifyOtpContent() {
         setResendIn(retryAfter);
       }
 
-      showToast(isThai ? "เธชเนเธ OTP เนเธซเธกเนเนเธฅเนเธง เธเธฃเธธเธ“เธฒเธ•เธฃเธงเธเธชเธญเธเธญเธตเน€เธกเธฅ" : "OTP resent. Please check your inbox.", "success");
+      showToast(isThai ? "ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล" : "OTP resent. Please check your inbox.", "success");
     } finally {
       setResendLoading(false);
     }
@@ -134,7 +134,7 @@ function VerifyOtpContent() {
     <MobileShell>
       <main className="flex flex-1 items-center px-5 py-8">
         <Card className="w-full space-y-4 animate-slide-up">
-          <h1 className="text-app-h2 font-semibold">{t("verifyOtp.title")}</h1>
+          <h1 className="text-xl font-semibold">{t("verifyOtp.title")}</h1>
 
           <form className="space-y-4" onSubmit={submitOtp}>
             <Input
@@ -156,14 +156,14 @@ function VerifyOtpContent() {
               >
                 {resendLoading
                   ? isThai
-                    ? "เธเธณเธฅเธฑเธเธชเนเธ OTP..."
+                    ? "กำลังส่ง OTP..."
                     : "Sending OTP..."
                   : resendIn !== 0
                     ? isThai
-                      ? `เธเธญเนเธซเธกเนเนเธ ${resendIn} เธงเธดเธเธฒเธ—เธต`
+                      ? `ขอใหม่ใน ${resendIn} วินาที`
                       : `Resend in ${resendIn}s`
                     : isThai
-                      ? "เธชเนเธ OTP เนเธซเธกเน"
+                      ? "ส่ง OTP ใหม่"
                       : "Resend OTP"}
               </Button>
 
@@ -192,7 +192,7 @@ export default function VerifyOtpPage() {
         <MobileShell>
           <main className="flex flex-1 items-center px-5 py-8">
             <Card className="w-full space-y-4 animate-slide-up">
-              <h1 className="text-app-h2 font-semibold">Verify OTP</h1>
+              <h1 className="text-xl font-semibold">Verify OTP</h1>
               <div className="flex items-center justify-center py-4">
                 <Spinner />
               </div>
@@ -205,4 +205,3 @@ export default function VerifyOtpPage() {
     </Suspense>
   );
 }
-

@@ -341,28 +341,28 @@ export default function AdminQrLoginPage() {
         >
           <ChevronLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-app-h2 font-semibold text-slate-900">
+        <h1 className="text-xl font-semibold text-slate-900">
           {locale === "th" ? "สแกน QR สำหรับ Admin Login" : "Scan QR for Admin Login"}
         </h1>
       </div>
 
       {accessState === "loading" ? (
         <Card className="space-y-2">
-          <p className="text-app-body text-slate-600">{locale === "th" ? "กำลังตรวจสิทธิ์..." : "Checking permission..."}</p>
+          <p className="text-sm text-slate-600">{locale === "th" ? "กำลังตรวจสิทธิ์..." : "Checking permission..."}</p>
         </Card>
       ) : null}
 
       {!adminFeaturesEnabled ? (
         <Card className="space-y-2 border border-amber-200 bg-amber-50/70">
-          <p className="text-app-body font-semibold text-amber-800">
+          <p className="text-sm font-semibold text-amber-800">
             {locale === "th" ? "ปิดการใช้งานเมนูแอดมินชั่วคราว" : "Admin features are temporarily disabled."}
           </p>
-          <p className="text-app-caption text-amber-700">
+          <p className="text-xs text-amber-700">
             {locale === "th"
               ? "หน้านี้ถูกปิดด้วย feature flag เพื่อความปลอดภัยของระบบ"
               : "This screen is disabled by feature flag for system safety."}
           </p>
-          <Link href="/settings" className="inline-flex h-9 items-center rounded-xl border border-amber-300 bg-white px-3 text-app-caption font-semibold text-amber-800">
+          <Link href="/settings" className="inline-flex h-9 items-center rounded-xl border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-800">
             {locale === "th" ? "กลับไปตั้งค่า" : "Back to settings"}
           </Link>
         </Card>
@@ -370,12 +370,12 @@ export default function AdminQrLoginPage() {
 
       {adminFeaturesEnabled && accessState === "forbidden" ? (
         <Card className="space-y-2 border border-rose-200 bg-rose-50/70">
-          <p className="text-app-body font-semibold text-rose-700">
+          <p className="text-sm font-semibold text-rose-700">
             {locale === "th"
               ? "บัญชีนี้ไม่มีสิทธิ์ยืนยัน QR ล็อกอินของฝั่งแอดมิน"
               : "This account does not have permission to approve admin QR login."}
           </p>
-          <p className="text-app-caption text-rose-600">{locale === "th" ? "ต้องเป็น admin หรือ super_admin เท่านั้น" : "Only admin or super_admin are allowed."}</p>
+          <p className="text-xs text-rose-600">{locale === "th" ? "ต้องเป็น admin หรือ super_admin เท่านั้น" : "Only admin or super_admin are allowed."}</p>
         </Card>
       ) : null}
 
@@ -385,8 +385,8 @@ export default function AdminQrLoginPage() {
             <div className="flex items-start gap-2">
               <ShieldCheck className="mt-0.5 h-4 w-4 text-blue-700" />
               <div>
-                <p className="text-app-body font-semibold text-blue-800">{locale === "th" ? "พร้อมยืนยัน Admin QR Login" : "Ready to approve Admin QR Login"}</p>
-                <p className="text-app-caption text-blue-700">
+                <p className="text-sm font-semibold text-blue-800">{locale === "th" ? "พร้อมยืนยัน Admin QR Login" : "Ready to approve Admin QR Login"}</p>
+                <p className="text-xs text-blue-700">
                   {locale === "th"
                     ? `สิทธิ์ปัจจุบัน: ${role} | ยืนยันได้เฉพาะ QR จากระบบแอดมินที่จับคู่ไว้`
                     : `Current role: ${role} | You can only approve trusted admin QR challenge.`}
@@ -410,8 +410,8 @@ export default function AdminQrLoginPage() {
               </Button>
             </div>
 
-            {scanMessage ? <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-app-caption text-emerald-700">{scanMessage}</p> : null}
-            {scanError ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-app-caption text-rose-700">{scanError}</p> : null}
+            {scanMessage ? <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{scanMessage}</p> : null}
+            {scanError ? <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{scanError}</p> : null}
             {cameraPermissionDenied ? (
               <Button type="button" variant="secondary" onClick={() => void openCameraSettingsNow()}>
                 {locale === "th" ? "เปิดการตั้งค่าเพื่ออนุญาตกล้อง" : "Open settings for camera permission"}
@@ -421,12 +421,12 @@ export default function AdminQrLoginPage() {
 
           <Card className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-app-body font-semibold text-slate-800">{locale === "th" ? "สถานะการยืนยันอัตโนมัติ" : "Auto-approval status"}</p>
-              {challenge ? <span className="text-app-caption text-slate-500">TTL: {expiresInSeconds}s</span> : null}
+              <p className="text-sm font-semibold text-slate-800">{locale === "th" ? "สถานะการยืนยันอัตโนมัติ" : "Auto-approval status"}</p>
+              {challenge ? <span className="text-xs text-slate-500">TTL: {expiresInSeconds}s</span> : null}
             </div>
 
             {challenge ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-app-caption text-slate-600">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
                 <p>
                   <strong>Ref:</strong> {challenge.challengeId}
                 </p>
@@ -438,10 +438,10 @@ export default function AdminQrLoginPage() {
                 </p>
               </div>
             ) : (
-              <p className="text-app-caption text-slate-500">{locale === "th" ? "ยังไม่มีข้อมูล QR กรุณากดสแกน QR ก่อน" : "No QR payload yet. Please scan QR first."}</p>
+              <p className="text-xs text-slate-500">{locale === "th" ? "ยังไม่มีข้อมูล QR กรุณากดสแกน QR ก่อน" : "No QR payload yet. Please scan QR first."}</p>
             )}
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-app-caption text-slate-600">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
               {isApproving ? (
                 <span className="inline-flex items-center gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -459,7 +459,6 @@ export default function AdminQrLoginPage() {
     </section>
   );
 }
-
 
 
 

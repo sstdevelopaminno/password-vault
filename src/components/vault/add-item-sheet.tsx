@@ -161,7 +161,7 @@ export function AddVaultItemSheet({
  style={{ bottom: sheetBottom }}
  >
  <div className='mb-3 flex items-center justify-between'>
- <h2 className='text-app-body font-semibold text-slate-900'>{t('addItem.title')}</h2>
+ <h2 className='text-base font-semibold text-slate-900'>{t('addItem.title')}</h2>
  <button
  onClick={() => setOpen(false)}
  className='rounded-full p-1 text-slate-500 hover:bg-white/20'
@@ -197,5 +197,4 @@ export function AddVaultItemSheet({
  </>
  );
 }
-
 

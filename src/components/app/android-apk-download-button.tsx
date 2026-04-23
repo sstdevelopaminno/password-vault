@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import { Download, Smartphone } from "lucide-react";
@@ -26,7 +26,7 @@ export function AndroidApkDownloadButton({ className = "" }: AndroidApkDownloadB
 
   const buttonLabel =
     locale === "th"
-      ? `เธ”เธฒเธงเธเนเนเธซเธฅเธ”เนเธฅเธฐเธ•เธดเธ”เธ•เธฑเนเธ APK Android v${DEFAULT_ANDROID_APK_RELEASE.versionName}`
+      ? `ดาวน์โหลดและติดตั้ง APK Android v${DEFAULT_ANDROID_APK_RELEASE.versionName}`
       : `Download Android APK v${DEFAULT_ANDROID_APK_RELEASE.versionName}`;
 
   return (
@@ -34,12 +34,12 @@ export function AndroidApkDownloadButton({ className = "" }: AndroidApkDownloadB
       <Button
         type="button"
         variant="secondary"
-        className="h-10 rounded-xl border border-sky-200 bg-white/85 px-3 text-app-caption font-semibold text-slate-700 shadow-[0_8px_20px_rgba(30,64,175,0.12)] hover:bg-sky-50"
+        className="h-10 rounded-xl border border-sky-200 bg-white/85 px-3 text-[12px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(30,64,175,0.12)] hover:bg-sky-50"
         onClick={function handleDownloadClick() {
           if (!DEFAULT_ANDROID_APK_RELEASE.downloadUrl) {
             toast.showToast(
               locale === "th"
-                ? "เธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธเธเนเธฒเธฅเธดเธเธเนเธ”เธฒเธงเธเนเนเธซเธฅเธ” APK"
+                ? "ยังไม่ได้ตั้งค่าลิงก์ดาวน์โหลด APK"
                 : "APK download URL is not configured yet.",
               "error",
             );
@@ -56,24 +56,23 @@ export function AndroidApkDownloadButton({ className = "" }: AndroidApkDownloadB
         </span>
       </Button>
 
-      <p className="text-app-micro text-slate-500">
+      <p className="text-[11px] text-slate-500">
         {locale === "th"
-          ? `package: ${DEFAULT_ANDROID_APK_RELEASE.packageName} โ€ข เธฃเธญเธเธฃเธฑเธเธเธฒเธฃเธ•เธดเธ”เธ•เธฑเนเธเธ—เธฑเธเนเธญเธเน€เธ”เธดเธก`
-          : `package: ${DEFAULT_ANDROID_APK_RELEASE.packageName} โ€ข supports in-place upgrade`}
+          ? `package: ${DEFAULT_ANDROID_APK_RELEASE.packageName} • รองรับการติดตั้งทับแอปเดิม`
+          : `package: ${DEFAULT_ANDROID_APK_RELEASE.packageName} • supports in-place upgrade`}
       </p>
-      <p className="text-app-micro text-slate-500">
+      <p className="text-[11px] text-slate-500">
         {locale === "th"
-          ? `เธฃเธญเธเธฃเธฑเธ Android 7.0+ (API 24) โ€ข เนเธเธฐเธเธณ Android ${recommendedAndroidMajor}+ เน€เธเธทเนเธญเธเธงเธฒเธกเน€เธชเธ–เธตเธขเธฃเธชเธนเธ`
-          : `Supports Android 7.0+ (API 24) โ€ข Android ${recommendedAndroidMajor}+ recommended for high stability`}
+          ? `รองรับ Android 7.0+ (API 24) • แนะนำ Android ${recommendedAndroidMajor}+ เพื่อความเสถียรสูง`
+          : `Supports Android 7.0+ (API 24) • Android ${recommendedAndroidMajor}+ recommended for high stability`}
       </p>
       {typeof capabilities.androidMajorVersion === "number" && capabilities.androidMajorVersion < recommendedAndroidMajor ? (
-        <p className="text-app-micro text-amber-700">
+        <p className="text-[11px] text-amber-700">
           {locale === "th"
-            ? `เธญเธธเธเธเธฃเธ“เนเธเธตเนเน€เธเนเธ Android ${capabilities.androidMajorVersion} เธญเธฒเธเธกเธตเธเนเธญเธเธณเธเธฑเธ”เธเธฒเธเธชเนเธงเธ เนเธเธฐเธเธณเธญเธฑเธเน€เธ”เธ•เน€เธเนเธ Android ${recommendedAndroidMajor}+`
+            ? `อุปกรณ์นี้เป็น Android ${capabilities.androidMajorVersion} อาจมีข้อจำกัดบางส่วน แนะนำอัปเดตเป็น Android ${recommendedAndroidMajor}+`
             : `This device is Android ${capabilities.androidMajorVersion}; some limitations may apply. Android ${recommendedAndroidMajor}+ is recommended.`}
         </p>
       ) : null}
     </div>
   );
 }
-

@@ -162,16 +162,16 @@ export function UsersClient() {
  return (
 
 <section className='space-y-3 pb-20'>
- <h1 className='text-app-h2 font-semibold'>User Management</h1>
+ <h1 className='text-xl font-semibold'>User Management</h1>
 
  {users.map((user) => (
  <Card key={user.id} className='space-y-3'>
  <div>
- <p className='text-app-body font-medium'>{user.full_name}</p>
- <p className='text-app-caption text-slate-500'>{user.email}</p>
+ <p className='text-sm font-medium'>{user.full_name}</p>
+ <p className='text-xs text-slate-500'>{user.email}</p>
  </div>
 
- <div className='grid grid-cols-2 gap-2 text-app-body'>
+ <div className='grid grid-cols-2 gap-2 text-sm'>
  <select className='h-10 rounded-xl border border-slate-200 px-3' value={user.role} onChange={(e) => void updateUser(user.id, { role: e.target.value as User['role'] })}>
  <option value='pending'>pending</option>
  <option value='user'>user</option>
@@ -214,14 +214,14 @@ export function UsersClient() {
 
  {selectedUser ? (
  <Card className='space-y-2'>
- <p className='text-app-body font-semibold'>Vault items for user</p>
+ <p className='text-sm font-semibold'>Vault items for user</p>
  {userVault.map((item) => (
- <div key={item.id} className='rounded-xl border border-slate-200 p-2 text-app-body'>
+ <div key={item.id} className='rounded-xl border border-slate-200 p-2 text-sm'>
  <p className='font-medium'>{item.title}</p>
- <p className='text-app-caption text-slate-500'>{item.category ?? 'General'}</p>
+ <p className='text-xs text-slate-500'>{item.category ?? 'General'}</p>
  </div>
  ))}
- {userVault.length === 0 ? <p className='text-app-caption text-slate-500'>No items.</p> : null}
+ {userVault.length === 0 ? <p className='text-xs text-slate-500'>No items.</p> : null}
  {vaultHasMore ? (
  <Button
  type='button'
@@ -244,5 +244,4 @@ export function UsersClient() {
 </section>
  );
 }
-
 

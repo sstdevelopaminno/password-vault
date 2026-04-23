@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
@@ -29,15 +29,15 @@ type ActionTile = {
 const actionTiles: ActionTile[] = [
   {
     href: '/private-contacts',
-    title: 'เน€เธเธญเธฃเนเนเธ—เธฃเธฅเธฑเธ',
-    subtitle: 'เน€เธเนเธเธฃเธฒเธขเธเธทเนเธญเธชเนเธงเธเธ•เธฑเธง เนเธขเธเธเธฒเธเธชเธกเธธเธ”เนเธ—เธฃเธจเธฑเธเธ—เนเนเธเน€เธเธฃเธทเนเธญเธ',
+    title: 'เบอร์โทรลับ',
+    subtitle: 'เก็บรายชื่อส่วนตัว แยกจากสมุดโทรศัพท์ในเครื่อง',
     icon: Phone,
     requiresPin: true,
   },
   {
     href: '/billing',
-    title: 'เธญเธญเธเนเธเน€เธชเธฃเนเธ/เนเธเนเธเธซเธเธตเน',
-    subtitle: 'เธชเธฃเนเธฒเธเธเธดเธฅ A4 เนเธฅเธฐ 80mm เธเธฃเนเธญเธกเธ•เธฑเนเธเน€เธงเธฅเธฒเธชเนเธเธญเธตเน€เธกเธฅ',
+    title: 'ออกใบเสร็จ/แจ้งหนี้',
+    subtitle: 'สร้างบิล A4 และ 80mm พร้อมตั้งเวลาส่งอีเมล',
     icon: ReceiptText,
   },
 ];
@@ -87,9 +87,9 @@ export default function HomePage() {
             priority
           />
           <div className='min-w-0'>
-            <h1 className='text-app-h1 font-semibold leading-none tracking-[-0.02em] text-slate-900'>Vault</h1>
-            <p className='mt-1 text-app-body text-slate-600'>{appVersion}</p>
-            <p className='text-app-body text-slate-600'>Core Workspace</p>
+            <h1 className='text-[32px] font-semibold leading-none tracking-[-0.02em] text-slate-900'>Vault</h1>
+            <p className='mt-1 text-[14px] text-slate-600'>{appVersion}</p>
+            <p className='text-[14px] text-slate-600'>Core Workspace</p>
           </div>
         </div>
 
@@ -104,20 +104,20 @@ export default function HomePage() {
       </div>
 
       <div className='flex flex-wrap items-center gap-2'>
-        <span className='neon-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-app-caption font-semibold'>
+        <span className='neon-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold'>
           <ShieldCheck className='h-3.5 w-3.5' />
-          เธชเธดเธ—เธเธดเน: {userRole}
+          สิทธิ์: {userRole}
         </span>
-        <span className='neon-chip neon-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-app-caption font-semibold'>
+        <span className='neon-chip neon-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold'>
           <Activity className='h-3.5 w-3.5' />
-          เธชเธ–เธฒเธเธฐ: {userStatus}
+          สถานะ: {userStatus}
         </span>
       </div>
 
       <div className='flex items-center justify-between pt-1'>
-        <h3 className='text-app-h2 font-semibold text-slate-900'>เน€เธกเธเธนเธซเธฅเธฑเธ</h3>
-        <Link href='/settings' className='inline-flex items-center gap-1 text-app-body font-medium text-slate-600'>
-          เธ”เธนเธ—เธฑเนเธเธซเธกเธ”
+        <h3 className='text-[20px] font-semibold text-slate-900'>เมนูหลัก</h3>
+        <Link href='/settings' className='inline-flex items-center gap-1 text-sm font-medium text-slate-600'>
+          ดูทั้งหมด
           <ChevronRight className='h-4 w-4' />
         </Link>
       </div>
@@ -134,10 +134,10 @@ export default function HomePage() {
                 <ChevronRight className='h-4 w-4 shrink-0 text-slate-600 transition group-hover:text-slate-900' />
               </div>
               <div className='min-w-0'>
-                <p className='text-app-body font-semibold leading-tight text-slate-900 sm:text-app-body'>
+                <p className='text-[14px] font-semibold leading-tight text-slate-900 sm:text-[15px]'>
                   {tile.title}
                 </p>
-                <p className='mt-0.5 line-clamp-2 text-app-micro leading-4 text-slate-600'>
+                <p className='mt-0.5 line-clamp-2 text-[11px] leading-4 text-slate-600'>
                   {tile.subtitle}
                 </p>
               </div>
@@ -172,7 +172,7 @@ export default function HomePage() {
       {pendingProtectedHref ? (
         <PinModal
           action='unlock_app'
-          actionLabel='เน€เธเธดเธ”เน€เธกเธเธนเน€เธเธญเธฃเนเนเธ—เธฃเธฅเธฑเธ'
+          actionLabel='เปิดเมนูเบอร์โทรลับ'
           onVerified={() => {
             const nextHref = pendingProtectedHref;
             setPendingProtectedHref(null);
@@ -184,5 +184,3 @@ export default function HomePage() {
     </section>
   );
 }
-
-

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { useMemo } from 'react';
@@ -57,7 +57,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                 <Link
                   href={item.href}
                   className={
-                    'group flex min-h-[62px] w-full select-none touch-manipulation flex-col items-center justify-center gap-1 rounded-[18px] border px-1.5 py-1 text-app-micro font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
+                    'group flex min-h-[62px] w-full select-none touch-manipulation flex-col items-center justify-center gap-1 rounded-[18px] border px-1.5 py-1 text-[11px] font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
                     (active
                       ? 'border-[rgba(159,182,255,0.34)] bg-[linear-gradient(135deg,rgba(67,109,210,0.52),rgba(106,79,203,0.48))] text-[#eaf4ff] shadow-[0_0_24px_rgba(78,88,255,0.18),inset_0_0_24px_rgba(255,255,255,0.08)]'
                       : 'border-transparent text-[#b8c8e8] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#eff5ff]')
@@ -65,7 +65,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                   aria-current={active ? 'page' : undefined}
                 >
                   <Icon className={'h-[19px] w-[19px] ' + (active ? 'text-[#9ce8ff]' : 'text-[#a9badc] group-hover:text-[#eef5ff]')} />
-                  <span className='line-clamp-2 min-h-[21px] px-0.5 text-center text-app-micro leading-tight'>{item.label}</span>
+                  <span className='line-clamp-2 min-h-[21px] px-0.5 text-center text-[11px] leading-tight'>{item.label}</span>
                 </Link>
               </li>
             );
@@ -75,4 +75,3 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
     </nav>
   );
 }
-

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
@@ -60,15 +60,15 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
   }, []);
 
   const slots = useMemo(() => Array.from({ length: 6 }, (_, i) => pin[i] ?? ""), [pin]);
-  const confirmPrefix = locale === "th" ? "เธขเธทเธเธขเธฑเธ PIN 6 เธซเธฅเธฑเธเน€เธเธทเนเธญ" : "Confirm 6-digit PIN to";
-  const pinInputAria = locale === "th" ? "เธเธฃเธญเธ PIN" : "PIN input";
-  const verifyText = locale === "th" ? "เธขเธทเธเธขเธฑเธ PIN" : "Verify PIN";
-  const verifyingText = locale === "th" ? "เธเธณเธฅเธฑเธเธขเธทเธเธขเธฑเธ..." : "Verifying...";
-  const verifyFailed = locale === "th" ? "เธขเธทเธเธขเธฑเธ PIN เนเธกเนเธชเธณเน€เธฃเนเธ" : "PIN verification failed";
-  const networkFailed = locale === "th" ? "เน€เธเธทเนเธญเธกเธ•เนเธญเนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเน" : "Network error. Please try again.";
-  const timeoutFailed = locale === "th" ? "เธซเธกเธ”เน€เธงเธฅเธฒเธเธฒเธฃเธขเธทเธเธขเธฑเธ PIN เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเน" : "PIN verification timed out. Please retry.";
-  const slowProcessing = locale === "th" ? "เธฃเธฐเธเธเธเธณเธฅเธฑเธเธเธฃเธฐเธกเธงเธฅเธเธฅ เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน..." : "System is processing. Please wait...";
-  const closeText = locale === "th" ? "เธเธดเธ”" : "Close";
+  const confirmPrefix = locale === "th" ? "ยืนยัน PIN 6 หลักเพื่อ" : "Confirm 6-digit PIN to";
+  const pinInputAria = locale === "th" ? "กรอก PIN" : "PIN input";
+  const verifyText = locale === "th" ? "ยืนยัน PIN" : "Verify PIN";
+  const verifyingText = locale === "th" ? "กำลังยืนยัน..." : "Verifying...";
+  const verifyFailed = locale === "th" ? "ยืนยัน PIN ไม่สำเร็จ" : "PIN verification failed";
+  const networkFailed = locale === "th" ? "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่" : "Network error. Please try again.";
+  const timeoutFailed = locale === "th" ? "หมดเวลาการยืนยัน PIN กรุณาลองใหม่" : "PIN verification timed out. Please retry.";
+  const slowProcessing = locale === "th" ? "ระบบกำลังประมวลผล กรุณารอสักครู่..." : "System is processing. Please wait...";
+  const closeText = locale === "th" ? "ปิด" : "Close";
 
   const verify = useCallback(async () => {
     const currentPin = pin.replace(/\D/g, "").slice(0, 6);
@@ -197,7 +197,7 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
       <div className="w-full max-w-[480px] animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <Card className="space-y-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-2xl">
           <div className="flex items-center justify-between">
-            <h3 className="text-app-body font-semibold">
+            <h3 className="text-sm font-semibold">
               {confirmPrefix} {actionLabel}
             </h3>
             <button
@@ -233,7 +233,7 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
               {slots.map((digit, idx) => (
                 <span
                   key={idx}
-                  className={`flex h-12 items-center justify-center rounded-2xl border text-app-h3 font-semibold ${
+                  className={`flex h-12 items-center justify-center rounded-2xl border text-lg font-semibold ${
                     digit ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-400"
                   }`}
                 >
@@ -243,8 +243,8 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
             </button>
           </div>
 
-          {error ? <p className="text-app-caption text-rose-600">{error}</p> : null}
-          {!error && showSlowHint ? <p className="text-app-caption text-slate-500">{slowProcessing}</p> : null}
+          {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+          {!error && showSlowHint ? <p className="text-xs text-slate-500">{slowProcessing}</p> : null}
 
           <div className="grid grid-cols-2 gap-2">
             <Button variant="secondary" onClick={onClose} disabled={loading}>
@@ -259,4 +259,3 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
     </div>
   );
 }
-

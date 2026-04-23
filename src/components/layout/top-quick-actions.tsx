@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Download, RefreshCw, Smartphone, X } from "lucide-react";
@@ -73,34 +73,34 @@ function shortMarker(value?: string) {
 }
 
 function getCapabilityValue(enabled: boolean, locale: string) {
-  if (enabled) return locale === "th" ? "เธเธฃเนเธญเธกเนเธเนเธเธฒเธ" : "Available";
-  return locale === "th" ? "เนเธกเนเธเธฃเนเธญเธก" : "Unavailable";
+  if (enabled) return locale === "th" ? "พร้อมใช้งาน" : "Available";
+  return locale === "th" ? "ไม่พร้อม" : "Unavailable";
 }
 
 function getInstallValue(capabilities: RuntimeCapabilities, hasInstallPrompt: boolean, locale: string) {
   if (hasInstallPrompt) {
-    return locale === "th" ? "เธเธฃเนเธญเธกเธ•เธดเธ”เธ•เธฑเนเธเธเธฒเธเธเธธเนเธก Install" : "Install prompt is available";
+    return locale === "th" ? "พร้อมติดตั้งจากปุ่ม Install" : "Install prompt is available";
   }
 
   if (capabilities.manualInstallRecommended) {
     if (capabilities.isAndroid) {
       return locale === "th"
-        ? "เธ•เธดเธ”เธ•เธฑเนเธเธเธฒเธเน€เธกเธเธน Chrome > Install app / Add to Home screen"
+        ? "ติดตั้งจากเมนู Chrome > Install app / Add to Home screen"
         : "Install from Chrome menu > Install app / Add to Home screen";
     }
     if (capabilities.isIos) {
       return locale === "th"
-        ? "เธ•เธดเธ”เธ•เธฑเนเธเธเธฒเธ Safari > Share > Add to Home Screen"
+        ? "ติดตั้งจาก Safari > Share > Add to Home Screen"
         : "Install from Safari > Share > Add to Home Screen";
     }
-    return locale === "th" ? "เธ•เธดเธ”เธ•เธฑเนเธเธเธฒเธเน€เธกเธเธนเน€เธเธฃเธฒเธงเนเน€เธเธญเธฃเน" : "Install from browser menu";
+    return locale === "th" ? "ติดตั้งจากเมนูเบราว์เซอร์" : "Install from browser menu";
   }
 
   if (capabilities.isCapacitorNative) {
-    return locale === "th" ? "เธเธณเธฅเธฑเธเธฃเธฑเธเน€เธเนเธเนเธญเธเธ—เธตเนเธ•เธดเธ”เธ•เธฑเนเธเนเธฅเนเธง (Capacitor)" : "Running as installed native app (Capacitor)";
+    return locale === "th" ? "กำลังรันเป็นแอปที่ติดตั้งแล้ว (Capacitor)" : "Running as installed native app (Capacitor)";
   }
 
-  return locale === "th" ? "เธเธณเธฅเธฑเธเธฃเธฑเธเธเธเนเธ—เนเธเน€เธเธฃเธฒเธงเนเน€เธเธญเธฃเน" : "Running in browser tab";
+  return locale === "th" ? "กำลังรันบนแท็บเบราว์เซอร์" : "Running in browser tab";
 }
 
 function getModeTone(mode: RuntimeCapabilities["mode"]) {
@@ -112,21 +112,21 @@ function getModeTone(mode: RuntimeCapabilities["mode"]) {
 
 function getAndroid14StatusValue(capabilities: RuntimeCapabilities, locale: string) {
   if (!capabilities.isAndroid) {
-    return locale === "th" ? "เนเธกเนเนเธเนเธญเธธเธเธเธฃเธ“เน Android" : "Not an Android device";
+    return locale === "th" ? "ไม่ใช่อุปกรณ์ Android" : "Not an Android device";
   }
   const major = capabilities.androidMajorVersion;
   if (!major) {
-    return locale === "th" ? "เนเธกเนเธ—เธฃเธฒเธเน€เธงเธญเธฃเนเธเธฑเธ Android" : "Android version unknown";
+    return locale === "th" ? "ไม่ทราบเวอร์ชัน Android" : "Android version unknown";
   }
   if (major >= 14) {
-    return locale === "th" ? `เธเนเธฒเธเน€เธเธ“เธ‘เน (Android ${major})` : `Pass (Android ${major})`;
+    return locale === "th" ? `ผ่านเกณฑ์ (Android ${major})` : `Pass (Android ${major})`;
   }
-  return locale === "th" ? `เธ•เนเธณเธเธงเนเธฒเน€เธเนเธฒเธซเธกเธฒเธข (Android ${major})` : `Below target (Android ${major})`;
+  return locale === "th" ? `ต่ำกว่าเป้าหมาย (Android ${major})` : `Below target (Android ${major})`;
 }
 
 function getIosPushStatusValue(capabilities: RuntimeCapabilities, locale: string) {
   if (!capabilities.isIos) {
-    return locale === "th" ? "เนเธกเนเนเธเนเธญเธธเธเธเธฃเธ“เน iOS" : "Not an iOS device";
+    return locale === "th" ? "ไม่ใช่อุปกรณ์ iOS" : "Not an iOS device";
   }
   const major = capabilities.iosMajorVersion;
   const minor = capabilities.iosMinorVersion;
@@ -134,15 +134,15 @@ function getIosPushStatusValue(capabilities: RuntimeCapabilities, locale: string
 
   if (!capabilities.iosHomeScreenPushSupported) {
     return locale === "th"
-      ? `เธ•เนเธญเธเนเธเน iOS 16.4 เธเธถเนเธเนเธ (เธเธฑเธเธเธธเธเธฑเธ ${versionLabel})`
+      ? `ต้องใช้ iOS 16.4 ขึ้นไป (ปัจจุบัน ${versionLabel})`
       : `Requires iOS 16.4+ (current ${versionLabel})`;
   }
   if (!capabilities.displayStandalone) {
     return locale === "th"
-      ? `เธฃเธญเธเธฃเธฑเธเธเธ iOS ${versionLabel} เธ•เธดเธ”เธ•เธฑเนเธเธฅเธ Home Screen เน€เธเธทเนเธญเน€เธเธดเธ”เนเธเนเธเธฒเธ`
+      ? `รองรับบน iOS ${versionLabel} ติดตั้งลง Home Screen เพื่อเปิดใช้งาน`
       : `Supported on iOS ${versionLabel}, install to Home Screen to enable`;
   }
-  return locale === "th" ? `เธเธฃเนเธญเธกเนเธเนเธเธฒเธ (iOS ${versionLabel})` : `Ready (iOS ${versionLabel})`;
+  return locale === "th" ? `พร้อมใช้งาน (iOS ${versionLabel})` : `Ready (iOS ${versionLabel})`;
 }
 
 async function clearUpdateData(nextVersion: VersionPayload) {
@@ -229,37 +229,37 @@ export function TopQuickActions({
   const text = useMemo(function () {
     if (locale === "th") {
       return {
-        install: "เธ•เธดเธ”เธ•เธฑเนเธเนเธญเธ",
-        update: "เธญเธฑเธเน€เธ”เธ•เนเธญเธ",
-        updating: "เธเธณเธฅเธฑเธเธญเธฑเธเน€เธ”เธ•...",
-        ready: "เธกเธตเธญเธฑเธเน€เธ”เธ•เนเธซเธกเนเธเธฃเนเธญเธกเธ•เธดเธ”เธ•เธฑเนเธ",
-        done: "เธญเธฑเธเน€เธ”เธ•เนเธฅเนเธง เธเธณเธฅเธฑเธเนเธซเธฅเธ”เนเธซเธกเน",
-        failed: "เธญเธฑเธเน€เธ”เธ•เนเธกเนเธชเธณเน€เธฃเนเธ",
-        viewRuntime: "เธ”เธนเธชเธ–เธฒเธเธฐเธฃเธฐเธเธ",
-        runtimeTitle: "เธชเธ–เธฒเธเธฐเธเธฒเธฃเธฃเธฑเธเธเธเน€เธเธฃเธทเนเธญเธเธเธตเน",
-        runtimeDescription: "เนเธชเธ”เธเนเธซเธกเธ”เธเธฒเธฃเธฃเธฑเธ เธเธงเธฒเธกเธชเธฒเธกเธฒเธฃเธ–เธเธญเธ runtime เนเธฅเธฐเธเนเธญเธกเธนเธฅ build/schema เธเธฑเธเธเธธเธเธฑเธ",
-        currentBuild: "เธเธดเธฅเธ”เนเธเธฑเธเธเธธเธเธฑเธ",
-        pendingBuild: "เธเธดเธฅเธ”เนเธ—เธตเนเธฃเธญเธญเธฑเธเน€เธ”เธ•",
-        schema: "เธชเธเธตเธกเธฒเธฃเธฑเธเนเธ—เธกเน",
-        updateScope: "เธเธญเธเน€เธเธ•เธเธฒเธฃเธฅเนเธฒเธเธเนเธญเธกเธนเธฅเธ•เธญเธเธญเธฑเธเน€เธ”เธ•",
-        updateScopeDetail: "เธฅเนเธฒเธเน€เธเธเธฒเธฐ runtime cache เน€เธเนเธฒเนเธฅเธฐ state เธเธฑเนเธงเธเธฃเธฒเธงเธ—เธตเนเน€เธเธตเนเธขเธงเธเธฑเธ runtime; เธเนเธฒเธ•เธฑเนเธเธเนเธฒเนเธเนเธเน€เธ•เธทเธญเธเนเธฅเธฐเธเนเธญเธกเธนเธฅ local เธ—เธตเนเธขเธฑเธเนเธเนเนเธ”เนเธเธฐเธ–เธนเธเน€เธเนเธเนเธงเน",
-        installMethod: "เธงเธดเธเธตเธ•เธดเธ”เธ•เธฑเนเธ",
+        install: "ติดตั้งแอป",
+        update: "อัปเดตแอป",
+        updating: "กำลังอัปเดต...",
+        ready: "มีอัปเดตใหม่พร้อมติดตั้ง",
+        done: "อัปเดตแล้ว กำลังโหลดใหม่",
+        failed: "อัปเดตไม่สำเร็จ",
+        viewRuntime: "ดูสถานะระบบ",
+        runtimeTitle: "สถานะการรันบนเครื่องนี้",
+        runtimeDescription: "แสดงโหมดการรัน ความสามารถของ runtime และข้อมูล build/schema ปัจจุบัน",
+        currentBuild: "บิลด์ปัจจุบัน",
+        pendingBuild: "บิลด์ที่รออัปเดต",
+        schema: "สคีมารันไทม์",
+        updateScope: "ขอบเขตการล้างข้อมูลตอนอัปเดต",
+        updateScopeDetail: "ล้างเฉพาะ runtime cache เก่าและ state ชั่วคราวที่เกี่ยวกับ runtime; ค่าตั้งค่าแจ้งเตือนและข้อมูล local ที่ยังใช้ได้จะถูกเก็บไว้",
+        installMethod: "วิธีติดตั้ง",
         serviceWorker: "Service Worker",
         notifications: "Notifications",
         push: "Push",
         badge: "Badge",
-        close: "เธเธดเธ”",
-        updateReadyLabel: "เธกเธตเธญเธฑเธเน€เธ”เธ•",
-        liveLabel: "เธเธณเธฅเธฑเธเนเธเนเธเธฒเธ",
-        runtimeReadyTitle: "เธ•เธฃเธงเธเธเธเน€เธงเธญเธฃเนเธเธฑเธเนเธซเธกเน",
-        runtimeReadyMessage: "เธกเธตเธเธดเธฅเธ”เนเนเธซเธกเนเธเธฃเนเธญเธกเนเธเนเธเธฒเธ เธเธ”เธญเธฑเธเน€เธ”เธ•เน€เธเธทเนเธญเนเธซเธฅเธ”เนเธเนเธ”เธฅเนเธฒเธชเธธเธ”เนเธ”เธขเนเธกเนเธฅเนเธฒเธ state เธ—เธตเนเธขเธฑเธเนเธเนเนเธ”เน",
-        runtimeReadyDetail: "เธฃเธฐเธเธเธเธฐเน€เธเธฅเธตเธขเธฃเนเน€เธเธเธฒเธฐ cache เน€เธเนเธฒเนเธฅเธฐ state เธเธฑเนเธงเธเธฃเธฒเธงเธ—เธตเนเธเธถเนเธเธเธฑเธ build/schema เน€เธ—เนเธฒเธเธฑเนเธ",
-        iosTitle: "เธ•เธดเธ”เธ•เธฑเนเธเธเธ iPhone เธซเธฃเธทเธญ iPad",
-        iosDetail: "เน€เธเธดเธ”เนเธญเธเธเธตเนเธ”เนเธงเธข Safari เนเธ•เธฐ Share เนเธฅเนเธงเน€เธฅเธทเธญเธ Add to Home Screen",
-        iosStep1: "1) เน€เธเธดเธ”เธซเธเนเธฒเธเธตเนเนเธ Safari",
-        iosStep2: "2) เนเธ•เธฐเธเธธเนเธก Share",
-        iosStep3: "3) เน€เธฅเธทเธญเธ Add to Home Screen",
-        iosStep4: "4) เนเธ•เธฐ Add เน€เธเธทเนเธญเน€เธชเธฃเนเธเธชเธดเนเธ",
+        close: "ปิด",
+        updateReadyLabel: "มีอัปเดต",
+        liveLabel: "กำลังใช้งาน",
+        runtimeReadyTitle: "ตรวจพบเวอร์ชันใหม่",
+        runtimeReadyMessage: "มีบิลด์ใหม่พร้อมใช้งาน กดอัปเดตเพื่อโหลดโค้ดล่าสุดโดยไม่ล้าง state ที่ยังใช้ได้",
+        runtimeReadyDetail: "ระบบจะเคลียร์เฉพาะ cache เก่าและ state ชั่วคราวที่ขึ้นกับ build/schema เท่านั้น",
+        iosTitle: "ติดตั้งบน iPhone หรือ iPad",
+        iosDetail: "เปิดแอปนี้ด้วย Safari แตะ Share แล้วเลือก Add to Home Screen",
+        iosStep1: "1) เปิดหน้านี้ใน Safari",
+        iosStep2: "2) แตะปุ่ม Share",
+        iosStep3: "3) เลือก Add to Home Screen",
+        iosStep4: "4) แตะ Add เพื่อเสร็จสิ้น",
       };
     }
 
@@ -303,15 +303,15 @@ export function TopQuickActions({
     const isThai = locale === "th";
     if (capabilities.isAndroid && !capabilities.displayStandalone && !capabilities.isCapacitorNative) {
       return {
-        title: isThai ? "เธ•เธดเธ”เธ•เธฑเนเธเธเธ Android" : "Install on Android",
+        title: isThai ? "ติดตั้งบน Android" : "Install on Android",
         detail: isThai
-          ? "เน€เธเธดเธ”เนเธญเธเธเธตเนเนเธ Chrome เนเธ•เธฐเน€เธกเธเธนเธชเธฒเธกเธเธธเธ” เนเธฅเนเธงเน€เธฅเธทเธญเธ Install app เธซเธฃเธทเธญ Add to Home screen"
+          ? "เปิดแอปนี้ใน Chrome แตะเมนูสามจุด แล้วเลือก Install app หรือ Add to Home screen"
           : "Open this app in Chrome, tap the three-dot menu, then choose Install app or Add to Home screen.",
         steps: [
-          isThai ? "1) เน€เธเธดเธ”เธซเธเนเธฒเธเธตเนเนเธ Chrome" : "1) Open this page in Chrome",
-          isThai ? "2) เนเธ•เธฐเน€เธกเธเธนเธชเธฒเธกเธเธธเธ”" : "2) Tap the three-dot menu",
-          isThai ? "3) เน€เธฅเธทเธญเธ Install app เธซเธฃเธทเธญ Add to Home screen" : "3) Select Install app or Add to Home screen",
-          isThai ? "4) เนเธ•เธฐ Install/Add เน€เธเธทเนเธญเน€เธชเธฃเนเธเธชเธดเนเธ" : "4) Tap Install/Add to finish",
+          isThai ? "1) เปิดหน้านี้ใน Chrome" : "1) Open this page in Chrome",
+          isThai ? "2) แตะเมนูสามจุด" : "2) Tap the three-dot menu",
+          isThai ? "3) เลือก Install app หรือ Add to Home screen" : "3) Select Install app or Add to Home screen",
+          isThai ? "4) แตะ Install/Add เพื่อเสร็จสิ้น" : "4) Tap Install/Add to finish",
         ],
       };
     }
@@ -325,14 +325,14 @@ export function TopQuickActions({
     }
 
     return {
-      title: isThai ? "เธ•เธดเธ”เธ•เธฑเนเธเนเธญเธ" : "Install app",
+      title: isThai ? "ติดตั้งแอป" : "Install app",
       detail: isThai
-        ? "เธญเธธเธเธเธฃเธ“เนเธเธตเนเธชเธฒเธกเธฒเธฃเธ–เธ•เธดเธ”เธ•เธฑเนเธเนเธญเธเธเนเธฒเธเน€เธกเธเธนเธ•เธดเธ”เธ•เธฑเนเธเธเธญเธเน€เธเธฃเธฒเธงเนเน€เธเธญเธฃเนเนเธ”เน"
+        ? "อุปกรณ์นี้สามารถติดตั้งแอปผ่านเมนูติดตั้งของเบราว์เซอร์ได้"
         : "This device can install the app from the browser install menu.",
       steps: [
-        isThai ? "1) เน€เธเธดเธ”เน€เธกเธเธนเน€เธเธฃเธฒเธงเนเน€เธเธญเธฃเน" : "1) Open your browser menu",
-        isThai ? "2) เน€เธฅเธทเธญเธ Install app / Add to Home screen" : "2) Choose Install app / Add to Home screen",
-        isThai ? "3) เธขเธทเธเธขเธฑเธเธเธฒเธฃเธ•เธดเธ”เธ•เธฑเนเธ" : "3) Confirm installation",
+        isThai ? "1) เปิดเมนูเบราว์เซอร์" : "1) Open your browser menu",
+        isThai ? "2) เลือก Install app / Add to Home screen" : "2) Choose Install app / Add to Home screen",
+        isThai ? "3) ยืนยันการติดตั้ง" : "3) Confirm installation",
       ],
     };
   }, [capabilities.displayStandalone, capabilities.isAndroid, capabilities.isCapacitorNative, capabilities.isIos, locale, text.iosDetail, text.iosStep1, text.iosStep2, text.iosStep3, text.iosStep4, text.iosTitle]);
@@ -350,10 +350,10 @@ export function TopQuickActions({
     : "flex flex-wrap items-center justify-end gap-2";
   const runtimeButtonClass = isSettingsMenu
     ? "group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-slate-200 bg-white px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-blue-200 hover:shadow-[0_12px_26px_rgba(37,99,235,0.12)]"
-    : "inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-app-caption font-semibold shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition active:scale-[0.98] " + getModeTone(capabilities.mode);
+    : "inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-[12px] font-semibold shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition active:scale-[0.98] " + getModeTone(capabilities.mode);
   const runtimeStatusBadgeClass = isSettingsMenu
-    ? "rounded-full bg-slate-100 px-2.5 py-0.5 text-app-micro font-semibold text-slate-600"
-    : "rounded-full bg-white/80 px-2 py-0.5 text-app-micro font-semibold text-slate-600";
+    ? "rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600"
+    : "rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-slate-600";
 
   useEffect(function () {
     if (typeof window === "undefined") return;
@@ -371,10 +371,10 @@ export function TopQuickActions({
 
     notify({
       kind: "system",
-      title: locale === "th" ? "เนเธเธฐเธเธณเธ•เธดเธ”เธ•เธฑเนเธเนเธญเธเธเธเน€เธเธฃเธทเนเธญเธเธเธตเน" : "Install app on this device",
+      title: locale === "th" ? "แนะนำติดตั้งแอปบนเครื่องนี้" : "Install app on this device",
       message:
         locale === "th"
-          ? "เธ•เธญเธเธเธตเนเธขเธฑเธเนเธเนเธเธฒเธเธเนเธฒเธเน€เธเธฃเธฒเธงเนเน€เธเธญเธฃเนเธญเธขเธนเน เนเธเธฐเธเธณเธ•เธดเธ”เธ•เธฑเนเธเนเธญเธเน€เธเธทเนเธญเธเธงเธฒเธกเน€เธชเธ–เธตเธขเธฃเธเธญเธเธเธฒเธฃเนเธเนเธเน€เธ•เธทเธญเธเนเธฅเธฐเธฃเธฐเธเธเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธข (เธฃเธฐเธเธเธเธฐเนเธเนเธเนเธกเนเน€เธเธดเธเธงเธฑเธเธฅเธฐ 2 เธเธฃเธฑเนเธ)"
+          ? "ตอนนี้ยังใช้งานผ่านเบราว์เซอร์อยู่ แนะนำติดตั้งแอปเพื่อความเสถียรของการแจ้งเตือนและระบบความปลอดภัย (ระบบจะแจ้งไม่เกินวันละ 2 ครั้ง)"
           : "You are currently running in a browser. Install the app for better notification and security stability (max 2 reminders per day).",
       details: installHelp.detail,
       persistent: true,
@@ -624,7 +624,7 @@ export function TopQuickActions({
       if (!updateReady) {
         pendingVersionRef.current = null;
         setHasUpdate(false);
-        toast.showToast(locale === "th" ? "เธเธธเธ“เธเธณเธฅเธฑเธเนเธเนเน€เธงเธญเธฃเนเธเธฑเธเธฅเนเธฒเธชเธธเธ”เนเธฅเนเธง" : "Already on the latest version");
+        toast.showToast(locale === "th" ? "คุณกำลังใช้เวอร์ชันล่าสุดแล้ว" : "Already on the latest version");
         return;
       }
 
@@ -697,11 +697,11 @@ export function TopQuickActions({
       value: getCapabilityValue(capabilities.badgingSupported, locale),
     },
     {
-      label: locale === "th" ? "เธเธงเธฒเธกเธเธฃเนเธญเธก Android 14+" : "Android 14+ readiness",
+      label: locale === "th" ? "ความพร้อม Android 14+" : "Android 14+ readiness",
       value: getAndroid14StatusValue(capabilities, locale),
     },
     {
-      label: locale === "th" ? "Push เธเธ iOS Home Screen (16.4+)" : "iOS Home Screen Push (16.4+)",
+      label: locale === "th" ? "Push บน iOS Home Screen (16.4+)" : "iOS Home Screen Push (16.4+)",
       value: getIosPushStatusValue(capabilities, locale),
     },
   ];
@@ -722,10 +722,10 @@ export function TopQuickActions({
                     <Smartphone className="h-4 w-4" />
                   </span>
                   <span className="flex flex-col">
-                    <span className="text-app-body font-semibold leading-6 text-slate-800">
+                    <span className="text-base font-semibold leading-6 text-slate-800">
                       {runtimeModeLabel}
                     </span>
-                    <span className="text-app-caption leading-5 text-slate-500">{text.viewRuntime}</span>
+                    <span className="text-xs leading-5 text-slate-500">{text.viewRuntime}</span>
                   </span>
                 </span>
                 <span className="inline-flex items-center gap-2">
@@ -769,7 +769,7 @@ export function TopQuickActions({
               }
               setShowInstallHelpCard(true);
             }}
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-sky-200/70 bg-white px-3 text-app-caption font-semibold text-slate-700 shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition hover:bg-sky-50 active:scale-[0.98]"
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-sky-200/70 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition hover:bg-sky-50 active:scale-[0.98]"
           >
             <Download className="h-3.5 w-3.5" />
             <span>{text.install}</span>
@@ -781,7 +781,7 @@ export function TopQuickActions({
             type="button"
             onClick={() => void runUpdate()}
             disabled={updating}
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-violet-200/70 bg-white px-3 text-app-caption font-semibold text-slate-700 shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition hover:bg-violet-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-violet-200/70 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-[0_6px_20px_rgba(90,114,168,0.12)] transition hover:bg-violet-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
           >
             <RefreshCw className={"h-3.5 w-3.5" + (updating ? " animate-spin" : "")} />
             <span>{updating ? text.updating : text.update}</span>
@@ -800,8 +800,8 @@ export function TopQuickActions({
           <div className="relative z-10 w-[min(92vw,460px)] rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-app-body font-semibold text-slate-900">{text.runtimeTitle}</p>
-                <p className="mt-1 text-app-caption leading-5 text-slate-600">{text.runtimeDescription}</p>
+                <p className="text-base font-semibold text-slate-900">{text.runtimeTitle}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{text.runtimeDescription}</p>
               </div>
               <button
                 type="button"
@@ -813,22 +813,22 @@ export function TopQuickActions({
               </button>
             </div>
 
-            <div className="mt-4 grid gap-2 text-app-caption text-slate-700">
+            <div className="mt-4 grid gap-2 text-[13px] text-slate-700">
               <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
                 <span>{text.currentBuild}</span>
-                <span className="font-mono text-app-caption text-slate-900">{shortMarker(versionInfo.marker)}</span>
+                <span className="font-mono text-xs text-slate-900">{shortMarker(versionInfo.marker)}</span>
               </div>
 
               {hasUpdate ? (
                 <div className="flex items-center justify-between rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2">
                   <span>{text.pendingBuild}</span>
-                  <span className="font-mono text-app-caption text-violet-900">{shortMarker(pendingVersionRef.current?.marker)}</span>
+                  <span className="font-mono text-xs text-violet-900">{shortMarker(pendingVersionRef.current?.marker)}</span>
                 </div>
               ) : null}
 
               <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
                 <span>{text.schema}</span>
-                <span className="font-mono text-app-caption text-slate-900">{versionInfo.schemaVersion ?? RUNTIME_SCHEMA_VERSION}</span>
+                <span className="font-mono text-xs text-slate-900">{versionInfo.schemaVersion ?? RUNTIME_SCHEMA_VERSION}</span>
               </div>
             </div>
 
@@ -837,7 +837,7 @@ export function TopQuickActions({
                 return (
                   <div
                     key={row.label}
-                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2 text-app-caption text-slate-700"
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-700"
                   >
                     <span>{row.label}</span>
                     <span className="text-right font-medium text-slate-900">{row.value}</span>
@@ -847,8 +847,8 @@ export function TopQuickActions({
             </div>
 
             <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3">
-              <p className="text-app-body font-semibold text-amber-900">{text.updateScope}</p>
-              <p className="mt-1 text-app-caption leading-5 text-amber-900/80">{text.updateScopeDetail}</p>
+              <p className="text-sm font-semibold text-amber-900">{text.updateScope}</p>
+              <p className="mt-1 text-xs leading-5 text-amber-900/80">{text.updateScopeDetail}</p>
             </div>
           </div>
         </div>
@@ -865,8 +865,8 @@ export function TopQuickActions({
           <div className="relative z-10 w-[min(92vw,420px)] rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-app-body font-semibold text-slate-900">{installHelp.title}</p>
-                <p className="mt-1 text-app-caption leading-5 text-slate-600">{installHelp.detail}</p>
+                <p className="text-base font-semibold text-slate-900">{installHelp.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{installHelp.detail}</p>
               </div>
               <button
                 type="button"
@@ -878,7 +878,7 @@ export function TopQuickActions({
               </button>
             </div>
 
-            <ol className="mt-4 space-y-2 text-app-caption text-slate-700">
+            <ol className="mt-4 space-y-2 text-[13px] text-slate-700">
               {installHelp.steps.map(function (step) {
                 return <li key={step} className="rounded-lg bg-slate-50 px-3 py-2">{step}</li>;
               })}
@@ -889,6 +889,4 @@ export function TopQuickActions({
     </>
   );
 }
-
-
 
