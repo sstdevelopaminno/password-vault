@@ -203,14 +203,14 @@ html[data-theme="light"] .app-shell::before {
 }
 
 .vault-user-theme {
-  --user-surface-main: rgba(26, 39, 87, 0.88);
-  --user-surface-soft: rgba(31, 47, 104, 0.72);
-  --user-surface-quiet: rgba(36, 54, 118, 0.56);
-  --user-border: rgba(158, 182, 255, 0.28);
+  --user-surface-main: rgba(24, 38, 88, 0.94);
+  --user-surface-soft: rgba(29, 46, 104, 0.86);
+  --user-surface-quiet: rgba(34, 54, 118, 0.74);
+  --user-border: rgba(158, 182, 255, 0.36);
   --user-text-strong: #f4f8ff;
-  --user-text-main: #e3ecff;
-  --user-text-soft: #bfd0f1;
-  --user-text-muted: #9eb5de;
+  --user-text-main: #e8f0ff;
+  --user-text-soft: #cddcf8;
+  --user-text-muted: #b0c3e7;
 }
 
 html[data-theme="light"] .vault-user-theme {
@@ -289,7 +289,7 @@ html[data-theme="light"] .vault-user-theme .text-slate-400 {
 }
 
 .vault-user-theme .bg-white\/80 {
-  background-color: rgba(30, 45, 98, 0.8);
+  background-color: rgba(30, 45, 98, 0.9);
 }
 
 .vault-user-theme .bg-slate-50 {
@@ -301,11 +301,11 @@ html[data-theme="light"] .vault-user-theme .text-slate-400 {
 }
 
 .vault-user-theme .bg-slate-50\/80 {
-  background-color: rgba(31, 47, 104, 0.78);
+  background-color: rgba(31, 47, 104, 0.88);
 }
 
 .vault-user-theme .bg-slate-50\/70 {
-  background-color: rgba(31, 47, 104, 0.68);
+  background-color: rgba(31, 47, 104, 0.8);
 }
 
 .vault-user-theme .bg-slate-100 {
@@ -401,7 +401,7 @@ html[data-theme="light"] .vault-user-theme .text-slate-400 {
 }
 
 .vault-user-theme .text-slate-400 {
-  color: #7f95bf;
+  color: #b5c7eb;
 }
 
 .vault-user-theme .text-blue-900 {

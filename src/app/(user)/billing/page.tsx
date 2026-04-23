@@ -291,15 +291,28 @@ function getQueueStatusLabel(status: BillingQueueStatus, locale: string) {
 function formatQueueError(raw: string, locale: string) {
   const text = String(raw ?? '').trim();
   if (!text) return '';
+
+  const mapError = (message: string) => {
+    const lower = message.toLowerCase();
+    if (lower.includes('api key is invalid')) {
+      return locale === 'th'
+        ? 'ส่งอีเมลไม่สำเร็จ: API key ของบริการอีเมลไม่ถูกต้อง'
+        : 'Email delivery failed: email provider API key is invalid.';
+    }
+    return message;
+  };
+
   if (text.startsWith('{') && text.endsWith('}')) {
     try {
       const parsed = JSON.parse(text) as { message?: string; error?: string };
       const message = String(parsed.message ?? parsed.error ?? '').trim();
-      if (message) return message;
+      if (message) return mapError(message);
     } catch {
       // fallback below
     }
   }
+
+  if (text) return mapError(text);
   return locale === 'th' ? 'ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' : 'Email delivery failed. Please try again.';
 }
 
@@ -1202,7 +1215,7 @@ export default function BillingPage() {
                     {item.lastError ? (
                       <p className='mt-1 inline-flex items-center gap-1 text-app-caption text-rose-700'>
                         <AlertCircle className='h-3.5 w-3.5' />
-                        {item.lastError}
+                        {formatQueueError(item.lastError, locale)}
                       </p>
                     ) : null}
                   </div>

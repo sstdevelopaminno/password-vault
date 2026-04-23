@@ -87,9 +87,9 @@ export default function HomePage() {
             priority
           />
           <div className='min-w-0'>
-            <h1 className='text-app-h1 font-semibold leading-none tracking-[-0.02em] text-slate-100'>Vault</h1>
-            <p className='mt-1 text-app-body text-slate-300'>{appVersion}</p>
-            <p className='text-app-body text-slate-300'>Core Workspace</p>
+            <h1 className='text-app-h1 font-semibold leading-none text-slate-100'>Vault</h1>
+            <p className='mt-1 text-app-body text-slate-200'>{appVersion}</p>
+            <p className='text-app-body text-slate-200'>Core Workspace</p>
           </div>
         </div>
 
@@ -116,7 +116,7 @@ export default function HomePage() {
 
       <div className='flex items-center justify-between pt-1'>
         <h3 className='text-app-h2 font-semibold text-slate-100'>เมนูหลัก</h3>
-        <Link href='/settings' className='inline-flex items-center gap-1 text-app-body font-medium text-slate-300'>
+        <Link href='/settings' className='inline-flex items-center gap-1 text-app-body font-medium text-slate-200'>
           ดูทั้งหมด
           <ChevronRight className='h-4 w-4' />
         </Link>
@@ -134,12 +134,8 @@ export default function HomePage() {
                 <ChevronRight className='h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-slate-100' />
               </div>
               <div className='min-w-0'>
-                <p className='text-app-body font-semibold leading-tight text-slate-100'>
-                  {tile.title}
-                </p>
-                <p className='mt-0.5 line-clamp-2 text-app-micro leading-4 text-slate-300'>
-                  {tile.subtitle}
-                </p>
+                <p className='text-app-body font-semibold leading-tight text-slate-100'>{tile.title}</p>
+                <p className='mt-0.5 line-clamp-2 text-app-micro leading-4 text-slate-200'>{tile.subtitle}</p>
               </div>
             </>
           );

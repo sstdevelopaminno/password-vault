@@ -52,9 +52,22 @@ function getBillingResendApiKey() {
     getEnv('BILLING_EMAIL_RESEND_API_KEY') ||
     getEnv('NOTE_REMINDER_RESEND_API_KEY') ||
     getEnv('RESEND_API_KEY') ||
-    getEnv('OTP_RESEND_API_KEY') ||
-    getEnv('OTP_EMAIL_PROVIDER_KEY')
+    getEnv('OTP_RESEND_API_KEY')
   );
+}
+
+function isResendKeyFormat(value: string) {
+  return /^re_[a-z0-9]+$/i.test(value.trim());
+}
+
+function mapEmailProviderError(errorBody: string) {
+  const text = String(errorBody || '').trim();
+  if (!text) return 'Unable to send billing email';
+  const lower = text.toLowerCase();
+  if (lower.includes('api key is invalid')) {
+    return 'Billing email API key is invalid. Please set BILLING_EMAIL_RESEND_API_KEY with a valid Resend key.';
+  }
+  return text;
 }
 
 function getBillingFromAddress() {
@@ -89,6 +102,13 @@ export async function sendBillingDocumentEmail(input: BillingEmailInput): Promis
   const apiKey = getBillingResendApiKey();
   if (!apiKey) {
     return { ok: false, skipped: true, error: 'Billing email API key is missing' };
+  }
+  if (!isResendKeyFormat(apiKey)) {
+    return {
+      ok: false,
+      skipped: true,
+      error: 'Billing email API key format is invalid. Expected Resend key format (re_...).',
+    };
   }
 
   const subjectPrefix = getEnv('BILLING_EMAIL_SUBJECT_PREFIX') || 'เอกสารจากระบบ';
@@ -174,7 +194,7 @@ export async function sendBillingDocumentEmail(input: BillingEmailInput): Promis
 
   if (!response.ok) {
     const errorBody = (await response.text().catch(() => '')) || `Resend API error: ${response.status}`;
-    return { ok: false, error: errorBody };
+    return { ok: false, error: mapEmailProviderError(errorBody) };
   }
 
   return { ok: true };

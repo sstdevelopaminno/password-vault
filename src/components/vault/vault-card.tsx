@@ -102,7 +102,7 @@ export function VaultCard({
   }
 
   return (
-    <div className='relative overflow-hidden rounded-[28px]'>
+    <div className='relative isolate overflow-hidden rounded-[28px]'>
       <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[28px] bg-[linear-gradient(180deg,#1a2f72,#16285f)] p-1.5'>
         <button
           type='button'
@@ -148,7 +148,7 @@ export function VaultCard({
 
             <div className='min-w-0 flex-1'>
               <p className='line-clamp-1 text-app-h3 font-semibold text-slate-100'>{title}</p>
-              <p className='mt-0.5 truncate text-app-body text-slate-300'>{username}</p>
+              <p className='mt-0.5 truncate text-app-body text-slate-200'>{username}</p>
             </div>
 
             <div className='shrink-0'>
@@ -158,7 +158,7 @@ export function VaultCard({
             </div>
           </div>
 
-          <div className='flex items-center justify-between gap-2 text-app-caption text-slate-300'>
+          <div className='flex items-center justify-between gap-2 text-app-caption text-slate-200'>
             <span className='inline-flex items-center gap-1.5 truncate'>
               <KeyRound className='h-4 w-4 shrink-0 text-slate-300' />
               {t('vault.protectedByPin')}

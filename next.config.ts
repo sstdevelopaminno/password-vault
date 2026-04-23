@@ -5,7 +5,7 @@ const versionOverride = String(process.env.APP_VERSION_OVERRIDE ?? "").trim();
 const compactVersion = packageVersion.replace(/\.0$/, "");
 const releaseVersion = versionOverride || `V${compactVersion}`;
 const securityHeaders = [
-  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {

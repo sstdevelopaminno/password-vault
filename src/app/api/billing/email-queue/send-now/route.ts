@@ -271,7 +271,11 @@ export async function POST(req: Request) {
   }
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error || 'Unable to send billing email', job: toClientJob(inserted.data as BillingEmailJobRow) }, { status: 400 });
+    const isConfigIssue = result.skipped === true;
+    return NextResponse.json(
+      { error: result.error || 'Unable to send billing email', job: toClientJob(inserted.data as BillingEmailJobRow) },
+      { status: isConfigIssue ? 503 : 400 },
+    );
   }
 
   return NextResponse.json({ ok: true, job: toClientJob(inserted.data as BillingEmailJobRow) });
