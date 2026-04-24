@@ -57,6 +57,8 @@ const actionTiles: ActionTile[] = [
 
 const ANDROID_PROMO_IMAGE_URL =
   'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/256922.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzI1NjkyMi5wbmciLCJpYXQiOjE3NzcwMDM3NzcsImV4cCI6MTgwODUzOTc3N30.0ngVxtTqFUbis4DF8j7FJ2d4wfpoXXzcPAxVvzhmBb4';
+const HOME_BANNER_IMAGE_URL =
+  'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/256922.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzI1NjkyMi5wbmciLCJpYXQiOjE3NzcwMDM3NzcsImV4cCI6MTgwODUzOTc3N30.0ngVxtTqFUbis4DF8j7FJ2d4wfpoXXzcPAxVvzhmBb4';
 
 export default function HomePage() {
   const { locale } = useI18n();
@@ -213,14 +215,10 @@ export default function HomePage() {
           const Icon = tile.icon;
           const tileBody = (
             <>
-              <div className='mb-1.5 flex items-center gap-1.5'>
-                <div className='neon-icon-wrap inline-flex h-[46px] w-[46px] items-center justify-center rounded-[14px] text-slate-100'>
-                  <Icon className='h-[18px] w-[18px]' />
-                </div>
+              <div className='neon-icon-wrap inline-flex h-[46px] w-[46px] items-center justify-center rounded-[14px] text-slate-100'>
+                <Icon className='h-[18px] w-[18px]' />
               </div>
-              <div className='min-w-0'>
-                <p className='text-app-body font-semibold leading-tight text-slate-100'>{isThai ? tile.titleTh : tile.titleEn}</p>
-              </div>
+              <p className='text-app-body font-semibold leading-tight text-slate-100'>{isThai ? tile.titleTh : tile.titleEn}</p>
             </>
           );
 
@@ -230,7 +228,7 @@ export default function HomePage() {
                 key={tile.href}
                 type='button'
                 onClick={() => setPendingProtectedHref(tile.href)}
-                className='neon-panel group flex min-h-[104px] w-full flex-col rounded-[20px] p-3 text-left'
+                className='neon-panel group flex min-h-[104px] w-full flex-col items-center justify-center gap-2 rounded-[20px] p-3 text-center'
               >
                 {tileBody}
               </button>
@@ -241,12 +239,23 @@ export default function HomePage() {
             <Link
               key={tile.href}
               href={tile.href}
-              className='neon-panel group flex min-h-[104px] flex-col rounded-[20px] p-3'
+              className='neon-panel group flex min-h-[104px] flex-col items-center justify-center gap-2 rounded-[20px] p-3 text-center'
             >
               {tileBody}
             </Link>
           );
         })}
+      </div>
+
+      <div className='overflow-hidden rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface-1)] shadow-[var(--glow-soft)]'>
+        <Image
+          src={HOME_BANNER_IMAGE_URL}
+          alt={tr('แบนเนอร์ Vault', 'Vault banner')}
+          width={1600}
+          height={900}
+          className='h-auto w-full object-cover'
+          priority={false}
+        />
       </div>
 
       {showAndroidInstallCta ? (

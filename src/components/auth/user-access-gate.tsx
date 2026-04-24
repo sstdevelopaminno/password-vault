@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { ScreenLockGuard } from "@/components/auth/screen-lock-guard";
 
 const POLL_MS = 5000;
 const MAX_UNAUTHORIZED_RETRIES = 12;
+const ACCESS_GATE_ICON_URL =
+  "https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/44589.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzQ0NTg5LnBuZyIsImlhdCI6MTc3NzAwOTI5NSwiZXhwIjoxODA4NTQ1Mjk1fQ.XVRXoCESYjtwLdgV3EFdDH1iDF9NSTCqxN-2yXeE4Bo";
 
 type GateMode = "loading" | "otp" | "pending" | "pin_setup" | "active" | "error";
 
@@ -347,6 +350,9 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-[rgba(2,7,25,0.86)] p-4 backdrop-blur-[2px]">
       <div className="mx-auto mt-8 w-full max-w-[520px]">
         <Card className="relative space-y-4 rounded-[30px] border border-[rgba(123,144,217,0.32)] bg-[linear-gradient(180deg,rgba(8,16,40,0.94),rgba(5,11,30,0.98))] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">
+          <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-[rgba(128,178,255,0.46)] bg-[rgba(20,36,84,0.92)] shadow-[0_0_18px_rgba(70,166,255,0.32)]">
+            <Image src={ACCESS_GATE_ICON_URL} alt="Access icon" width={30} height={30} className="h-[30px] w-[30px] object-contain" />
+          </div>
           <h2 className={'relative text-xl font-semibold ' + (mode === "otp" ? "text-[#f6fbff]" : "neon-title")}>{title}</h2>
           <p className="relative text-sm leading-6 text-[#99aed7]">{subtitle}</p>
 

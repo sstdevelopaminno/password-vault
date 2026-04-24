@@ -69,7 +69,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                   {homeItem ? (
                     <span
                       className={
-                        'inline-flex h-[19px] w-[19px] items-center justify-center rounded-[6px] ' +
+                        'inline-flex h-[23px] w-[23px] items-center justify-center rounded-[7px] ' +
                         (active
                           ? 'bg-[radial-gradient(circle,rgba(73,222,255,0.3),rgba(66,110,255,0.15))] shadow-[0_0_14px_rgba(70,199,255,0.36)]'
                           : 'bg-[rgba(255,255,255,0.03)]')
@@ -78,14 +78,14 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                       <Image
                         src='/icons/vault-logo.png'
                         alt='Home'
-                        width={16}
-                        height={16}
-                        className={'h-4 w-4 rounded-[4px] object-cover ' + (active ? '' : 'opacity-85 group-hover:opacity-100')}
+                        width={20}
+                        height={20}
+                        className={'h-5 w-5 rounded-[5px] object-cover ' + (active ? '' : 'opacity-85 group-hover:opacity-100')}
                         priority={false}
                       />
                     </span>
                   ) : (
-                    <Icon className={'h-[19px] w-[19px] ' + (active ? 'text-[#9ce8ff]' : 'text-[#a9badc] group-hover:text-[#eef5ff]')} />
+                    <Icon className={'h-[22px] w-[22px] ' + (active ? 'text-[#9ce8ff]' : 'text-[#a9badc] group-hover:text-[#eef5ff]')} />
                   )}
                   <span className='line-clamp-2 min-h-[21px] px-0.5 text-center text-[11px] leading-tight'>{item.label}</span>
                 </Link>
