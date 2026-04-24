@@ -56,10 +56,6 @@ export function ScreenLockGuard({ children, hasPin }: ScreenLockGuardProps) {
   }, [locked, scheduleLock]);
 
   useEffect(() => {
-    setSettings(readSettings());
-  }, []);
-
-  useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key === SCREEN_LOCK_SETTINGS_KEY) {
         setSettings(readSettings());
@@ -79,12 +75,17 @@ export function ScreenLockGuard({ children, hasPin }: ScreenLockGuardProps) {
   useEffect(() => {
     if (!hasPin || !settings.enabled) {
       clearTimer();
-      setLocked(false);
+      if (locked) {
+        const unlockId = window.setTimeout(() => {
+          setLocked(false);
+        }, 0);
+        return () => window.clearTimeout(unlockId);
+      }
       return;
     }
     scheduleLock();
     return () => clearTimer();
-  }, [clearTimer, hasPin, scheduleLock, settings.enabled]);
+  }, [clearTimer, hasPin, locked, scheduleLock, settings.enabled]);
 
   useEffect(() => {
     const events: Array<keyof WindowEventMap> = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];

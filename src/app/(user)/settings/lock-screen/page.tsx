@@ -24,13 +24,24 @@ function formatTimeoutLabel(valueSec: number, locale: "th" | "en") {
   return locale === "th" ? `${minute} นาที` : `${minute}m`;
 }
 
+function readScreenLockSettingsFromStorage(): ScreenLockSettings {
+  if (typeof window === "undefined") return DEFAULT_SCREEN_LOCK_SETTINGS;
+  try {
+    const raw = window.localStorage.getItem(SCREEN_LOCK_SETTINGS_KEY);
+    if (!raw) return DEFAULT_SCREEN_LOCK_SETTINGS;
+    return normalizeScreenLockSettings(JSON.parse(raw));
+  } catch {
+    return DEFAULT_SCREEN_LOCK_SETTINGS;
+  }
+}
+
 export default function LockScreenSettingsPage() {
   const { locale } = useI18n();
   const { showToast } = useToast();
   const isThai = locale === "th";
 
   const [hasPin, setHasPin] = useState(false);
-  const [settings, setSettings] = useState<ScreenLockSettings>(DEFAULT_SCREEN_LOCK_SETTINGS);
+  const [settings, setSettings] = useState<ScreenLockSettings>(() => readScreenLockSettingsFromStorage());
   const timeoutOptions = useMemo(() => [...SCREEN_LOCK_TIMEOUT_OPTIONS_SEC], []);
 
   useEffect(() => {
@@ -38,19 +49,6 @@ export default function LockScreenSettingsPage() {
       .then((res) => res.json().catch(() => ({})))
       .then((body) => setHasPin(Boolean(body?.hasPin)))
       .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(SCREEN_LOCK_SETTINGS_KEY);
-      if (!raw) {
-        setSettings(DEFAULT_SCREEN_LOCK_SETTINGS);
-        return;
-      }
-      setSettings(normalizeScreenLockSettings(JSON.parse(raw)));
-    } catch {
-      setSettings(DEFAULT_SCREEN_LOCK_SETTINGS);
-    }
   }, []);
 
   const persist = (next: ScreenLockSettings) => {

@@ -11,6 +11,7 @@ import { useI18n } from '@/i18n/provider';
 import { fetchWithSessionRetry } from '@/lib/api-client';
 import { getOfflineCache, setOfflineCache } from '@/lib/offline-store';
 import { flushOfflineQueue, queueOfflineRequest } from '@/lib/offline-sync';
+import { disposeOcrWorker, recognizeImageWithOcr } from '@/lib/ocr-worker';
 import { useOutageState } from '@/lib/outage-detector';
 import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
 
@@ -514,6 +515,9 @@ useEffect(() => {
 
  useEffect(() => {
  return () => {
+ void disposeOcrWorker('tha+eng');
+ void disposeOcrWorker('tha');
+ void disposeOcrWorker('eng');
  notesRequestRef.current?.abort();
  calendarRequestRef.current?.abort();
  if (nativeReminderSyncTimerRef.current) {
@@ -815,26 +819,15 @@ useEffect(() => {
 
  setOcrRunning(true);
  setOcrProgress(0);
- let worker: { recognize: (input: File) => Promise<{ data?: { text?: string } }>; terminate: () => Promise<void> } | null = null;
  try {
- const tesseract = await import('tesseract.js');
- const createWorker = tesseract.createWorker as unknown as (
- langs?: string | string[],
- oem?: number,
- options?: { logger?: (message: { status?: string; progress?: number }) => void },
- ) => Promise<{ recognize: (input: File) => Promise<{ data?: { text?: string } }>; terminate: () => Promise<void> }>;
-
  const selectedLanguage = ocrLanguage === 'tha' ? 'tha' : ocrLanguage === 'eng' ? 'eng' : 'tha+eng';
- worker = await createWorker(selectedLanguage, 1, {
- logger: (message) => {
- if (message.status === 'recognizing text') {
- setOcrProgress(Math.max(0, Math.min(1, Number(message.progress ?? 0))));
- }
+ const extracted = await recognizeImageWithOcr({
+ file: file,
+ language: selectedLanguage,
+ onProgress: (progress) => {
+ setOcrProgress(progress);
  },
  });
- const result = await worker.recognize(file);
-
- const extracted = String(result.data?.text ?? '').replace(/\r\n/g, '\n').trim();
  if (!extracted) {
  showToast(isTh ? 'ไม่พบข้อความจากภาพ' : 'No text found in image', 'error');
  return;
@@ -848,9 +841,6 @@ useEffect(() => {
  'error',
  );
  } finally {
- if (worker) {
- await worker.terminate().catch(() => {});
- }
  setOcrRunning(false);
  setOcrProgress(0);
  }

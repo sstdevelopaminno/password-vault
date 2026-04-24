@@ -16,6 +16,22 @@ type NoteRow = {
  updated_at: string;
 };
 
+type NotesViewMode = 'full' | 'calendar';
+
+type NoteCalendarRow = {
+ id: string;
+ title: string;
+ reminder_at: string | null;
+ meeting_at: string | null;
+ updated_at: string;
+};
+
+function parseViewMode(raw: string | null): NotesViewMode {
+ const mode = String(raw ?? '').trim().toLowerCase();
+ if (mode === 'calendar') return 'calendar';
+ return 'full';
+}
+
 function parseLimit(raw: string | null, fallback = 20, max = 60) {
  const value = Number(raw ?? fallback);
  if (!Number.isFinite(value)) return fallback;
@@ -61,6 +77,16 @@ function toClient(row: NoteRow) {
  };
 }
 
+function toCalendarClient(row: NoteCalendarRow) {
+ return {
+ id: row.id,
+ title: row.title,
+ reminderAt: row.reminder_at,
+ meetingAt: row.meeting_at,
+ updatedAt: row.updated_at,
+ };
+}
+
 export async function GET(req: Request) {
  const supabase = await createClient();
  const { data: auth } = await supabase.auth.getUser();
@@ -69,7 +95,8 @@ export async function GET(req: Request) {
  }
 
  const { searchParams } = new URL(req.url);
- const limit = parseLimit(searchParams.get('limit'));
+ const view = parseViewMode(searchParams.get('view'));
+ const limit = parseLimit(searchParams.get('limit'), view === 'calendar' ? 140 : 20, view === 'calendar' ? 200 : 60);
  const page = parsePage(searchParams.get('page'));
  const q = normalizeQuery(searchParams.get('q'));
  const from = (page - 1) * limit;
@@ -81,7 +108,16 @@ export async function GET(req: Request) {
  authUserId: auth.user.id,
  authEmail: auth.user.email,
  });
- let query = admin
+ let query =
+ view === 'calendar'
+ ? admin
+ .from('notes')
+ .select('id,title,reminder_at,meeting_at,updated_at', { count: 'planned' })
+ .in('user_id', ownerIds)
+ .order('updated_at', { ascending: false })
+ .order('id', { ascending: false })
+ .range(from, to)
+ : admin
  .from('notes')
  .select('id,title,content,reminder_at,meeting_at,created_at,updated_at', { count: 'planned' })
  .in('user_id', ownerIds)
@@ -91,11 +127,15 @@ export async function GET(req: Request) {
 
  if (q) {
  const tokens = tokenizeQuery(q);
+ const buildOr = (token: string) =>
+ view === 'calendar'
+ ? ('title.ilike.%' + token + '%')
+ : ('title.ilike.%' + token + '%,content.ilike.%' + token + '%');
  if (tokens.length === 0) {
- query = query.or('title.ilike.%' + escapeLike(q) + '%,content.ilike.%' + escapeLike(q) + '%');
+ query = query.or(buildOr(escapeLike(q)));
  } else {
  for (const token of tokens) {
- query = query.or('title.ilike.%' + token + '%,content.ilike.%' + token + '%');
+ query = query.or(buildOr(token));
  }
  }
  }
@@ -105,12 +145,14 @@ export async function GET(req: Request) {
  return NextResponse.json({ error: error.message }, { status: 400 });
  }
 
- const rows = (data ?? []) as NoteRow[];
+ const rows = (data ?? []) as unknown as Array<NoteRow | NoteCalendarRow>;
  const total = Number(count ?? 0);
  const totalPages = Math.max(1, Math.ceil(total / limit));
 
  return NextResponse.json({
- notes: rows.map(toClient),
+ notes: view === 'calendar'
+ ? rows.map((row) => toCalendarClient(row as NoteCalendarRow))
+ : rows.map((row) => toClient(row as NoteRow)),
  pagination: {
  page,
  limit,

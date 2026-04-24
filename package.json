@@ -1,6 +1,6 @@
 {
   "name": "password-vault",
-  "version": "16.6.27",
+  "version": "16.6.28",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "node -e \"try{require('fs').rmSync('.next/types',{recursive:true,force:true})}catch(e){}\" && next typegen && tsc --noEmit",
     "check:i18n": "node scripts/check-i18n.mjs",
+    "bench:notes-api": "node scripts/benchmark-notes-api.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:otp-env": "node scripts/check-otp-env.mjs",
     "cap:sync": "cap sync",

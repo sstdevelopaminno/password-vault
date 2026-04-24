@@ -30,6 +30,7 @@ import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
 import { fetchWithSessionRetry } from '@/lib/api-client';
 import { computeBillingTotals, formatCurrency, normalizeText, type BillingDocKind, type BillingLine, type BillingTemplate } from '@/lib/billing';
+import { disposeOcrWorker, recognizeImageWithOcr } from '@/lib/ocr-worker';
 
 type BillDraft = {
   docKind: BillingDocKind;
@@ -495,6 +496,14 @@ export default function BillingPage() {
   }, [loadBillingData]);
 
   useEffect(() => {
+    return () => {
+      void disposeOcrWorker('tha+eng');
+      void disposeOcrWorker('tha');
+      void disposeOcrWorker('eng');
+    };
+  }, []);
+
+  useEffect(() => {
     setDocumentsPage((prev) => Math.min(prev, totalDocumentPages));
   }, [totalDocumentPages]);
 
@@ -776,25 +785,15 @@ export default function BillingPage() {
 
     setLineOcrRunning(true);
     setLineOcrProgress(0);
-    let worker: { recognize: (input: File) => Promise<{ data?: { text?: string } }>; terminate: () => Promise<void> } | null = null;
     try {
-      const tesseract = await import('tesseract.js');
-      const createWorker = tesseract.createWorker as unknown as (
-        langs?: string | string[],
-        oem?: number,
-        options?: { logger?: (message: { status?: string; progress?: number }) => void },
-      ) => Promise<{ recognize: (input: File) => Promise<{ data?: { text?: string } }>; terminate: () => Promise<void> }>;
-
       const selectedLanguage = lineOcrLanguage === 'tha' ? 'tha' : lineOcrLanguage === 'eng' ? 'eng' : 'tha+eng';
-      worker = await createWorker(selectedLanguage, 1, {
-        logger: (message) => {
-          if (message.status === 'recognizing text') {
-            setLineOcrProgress(Math.max(0, Math.min(1, Number(message.progress ?? 0))));
-          }
+      const extracted = await recognizeImageWithOcr({
+        file: file,
+        language: selectedLanguage,
+        onProgress: (progress) => {
+          setLineOcrProgress(progress);
         },
       });
-      const result = await worker.recognize(file);
-      const extracted = String(result.data?.text ?? '').replace(/\r\n/g, '\n').trim();
       if (!extracted) {
         showToast(tr('ไม่พบข้อความในรูปภาพ', 'No text found in image'), 'error');
         return;
@@ -805,9 +804,6 @@ export default function BillingPage() {
     } catch {
       showToast(tr('สแกนรูปภาพไม่สำเร็จ กรุณาลองใหม่', 'Image scan failed. Please retry.'), 'error');
     } finally {
-      if (worker) {
-        await worker.terminate().catch(() => {});
-      }
       setLineOcrRunning(false);
       setLineOcrProgress(0);
     }
