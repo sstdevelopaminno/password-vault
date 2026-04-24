@@ -9,6 +9,7 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
+import { ScreenLockGuard } from "@/components/auth/screen-lock-guard";
 
 const POLL_MS = 5000;
 const MAX_UNAUTHORIZED_RETRIES = 12;
@@ -78,6 +79,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   const [pinNew, setPinNew] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
+  const [hasPin, setHasPin] = useState(false);
 
   const unauthorizedRef = useRef(0);
   const modeRef = useRef<GateMode>(mode);
@@ -132,6 +134,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
         }
 
         setEmail(String(body.email ?? ""));
+        setHasPin(Boolean(body.hasPin));
         if (Boolean(body.needsOtpVerification)) {
           setMode("otp");
           return;
@@ -288,7 +291,9 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
     void verifyOtpNow();
   }, [lastAutoOtp, loading, mode, otp, verifyOtpNow]);
 
-  if (mode === "active") return <>{props.children}</>;
+  if (mode === "active") {
+    return <ScreenLockGuard hasPin={hasPin}>{props.children}</ScreenLockGuard>;
+  }
 
   const resendDisabled = resendLoading || resendIn !== 0;
   const title =

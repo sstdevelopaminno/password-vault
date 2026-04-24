@@ -21,7 +21,6 @@ type ProfileResponse = {
 type ActionTile = {
   href: string;
   title: string;
-  subtitle: string;
   icon: typeof Phone;
   requiresPin?: boolean;
 };
@@ -30,14 +29,12 @@ const actionTiles: ActionTile[] = [
   {
     href: '/private-contacts',
     title: 'เบอร์โทรลับ',
-    subtitle: 'เก็บรายชื่อส่วนตัว แยกจากสมุดโทรศัพท์ในเครื่อง',
     icon: Phone,
     requiresPin: true,
   },
   {
     href: '/billing',
     title: 'ออกใบเสร็จ/แจ้งหนี้',
-    subtitle: 'สร้างบิล A4 และ 80mm พร้อมตั้งเวลาส่งอีเมล',
     icon: ReceiptText,
   },
 ];
@@ -127,15 +124,13 @@ export default function HomePage() {
           const Icon = tile.icon;
           const tileBody = (
             <>
-              <div className='mb-1.5 flex items-center justify-between gap-1.5'>
+              <div className='mb-1.5 flex items-center gap-1.5'>
                 <div className='neon-icon-wrap inline-flex h-[46px] w-[46px] items-center justify-center rounded-[14px] text-slate-100'>
                   <Icon className='h-[18px] w-[18px]' />
                 </div>
-                <ChevronRight className='h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-slate-100' />
               </div>
               <div className='min-w-0'>
                 <p className='text-app-body font-semibold leading-tight text-slate-100'>{tile.title}</p>
-                <p className='mt-0.5 line-clamp-2 text-app-micro leading-4 text-slate-200'>{tile.subtitle}</p>
               </div>
             </>
           );
@@ -146,7 +141,7 @@ export default function HomePage() {
                 key={tile.href}
                 type='button'
                 onClick={() => setPendingProtectedHref(tile.href)}
-                className='neon-panel group flex min-h-[120px] w-full flex-col rounded-[20px] p-2.5 text-left'
+                className='neon-panel group flex min-h-[104px] w-full flex-col rounded-[20px] p-3 text-left'
               >
                 {tileBody}
               </button>
@@ -157,7 +152,7 @@ export default function HomePage() {
             <Link
               key={tile.href}
               href={tile.href}
-              className='neon-panel group flex min-h-[120px] flex-col rounded-[20px] p-2.5'
+              className='neon-panel group flex min-h-[104px] flex-col rounded-[20px] p-3'
             >
               {tileBody}
             </Link>

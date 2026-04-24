@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X } from 'lucide-react';
+import { KeyRound, Plus, ShieldCheck, UserRound, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
@@ -47,8 +46,6 @@ export function AddVaultItemSheet({
  username: '',
  secret: '',
  category: t('vault.categoryGeneral'),
- url: '',
- notes: '',
  });
 
  const fabBottom = useMemo(() => 'calc(env(safe-area-inset-bottom) + ' + String(fabOffsetPx) + 'px)', [fabOffsetPx]);
@@ -82,7 +79,7 @@ export function AddVaultItemSheet({
  });
  setLoading(false);
  setOpen(false);
- setForm({ title: '', username: '', secret: '', category: t('vault.categoryGeneral'), url: '', notes: '' });
+ setForm({ title: '', username: '', secret: '', category: t('vault.categoryGeneral') });
  showToast(locale === 'th' ? 'บันทึกแบบออฟไลน์แล้ว ระบบจะซิงก์อัตโนมัติเมื่อออนไลน์' : 'Saved offline. It will sync automatically when online.', 'success');
  return;
  }
@@ -126,7 +123,7 @@ export function AddVaultItemSheet({
 
  setLoading(false);
  setOpen(false);
- setForm({ title: '', username: '', secret: '', category: t('vault.categoryGeneral'), url: '', notes: '' });
+ setForm({ title: '', username: '', secret: '', category: t('vault.categoryGeneral') });
  showToast(t('addItem.saveSuccess'), 'success');
  } catch (error) {
  setLoading(false);
@@ -157,30 +154,77 @@ export function AddVaultItemSheet({
  {open ? (
  <div className='fixed inset-0 z-[70] bg-slate-950/45 backdrop-blur-[2px]'>
  <div
- className='absolute inset-x-0 mx-auto w-[calc(100%-12px)] max-h-[calc(100dvh-120px)] max-w-[480px] overflow-y-auto animate-slide-up rounded-[30px] border border-[var(--border-soft)] bg-[var(--card)] p-4 shadow-[var(--glow-soft)]'
+ className='absolute inset-x-0 mx-auto w-[calc(100%-12px)] max-h-[calc(100dvh-120px)] max-w-[480px] overflow-y-auto animate-slide-up rounded-[30px] border border-[var(--border-strong)] bg-[linear-gradient(180deg,rgba(11,23,58,0.98),rgba(8,18,50,0.99))] p-4 shadow-[0_24px_56px_rgba(3,9,27,0.65)]'
  style={{ bottom: sheetBottom }}
  >
- <div className='mb-3 flex items-center justify-between'>
- <h2 className='text-base font-semibold text-slate-900'>{t('addItem.title')}</h2>
+ <div className='mb-4 flex items-start justify-between gap-3'>
+ <div className='space-y-1'>
+ <h2 className='text-app-h2 font-semibold text-slate-100'>{t('addItem.title')}</h2>
+ <p className='text-app-caption text-slate-300'>
+ {locale === 'th' ? 'กรอกข้อมูลที่จำเป็นเพื่อบันทึกเข้าคลังรหัสอย่างปลอดภัย' : 'Fill in required fields to save this secret securely.'}
+ </p>
+ </div>
  <button
  onClick={() => setOpen(false)}
- className='rounded-full p-1 text-slate-500 hover:bg-white/20'
+ className='rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-1.5 text-slate-300 transition hover:text-white'
  aria-label={t('addItem.closeAria')}
  >
  <X className='h-5 w-5' />
  </button>
  </div>
 
- <Card>
- <form className='space-y-3' onSubmit={submit}>
- <Input placeholder={t('addItem.fieldTitle')} value={form.title} onChange={(e) => setForm((v) => ({ ...v, title: e.target.value }))} required />
- <Input placeholder={t('addItem.fieldUsername')} value={form.username} onChange={(e) => setForm((v) => ({ ...v, username: e.target.value }))} required />
- <Input type='password' placeholder={t('addItem.fieldSecret')} value={form.secret} onChange={(e) => setForm((v) => ({ ...v, secret: e.target.value }))} required />
- <Input placeholder={t('addItem.fieldCategory')} value={form.category} onChange={(e) => setForm((v) => ({ ...v, category: e.target.value }))} />
- <Input placeholder={t('addItem.fieldUrl')} value={form.url} onChange={(e) => setForm((v) => ({ ...v, url: e.target.value }))} />
- <Input placeholder={t('addItem.fieldNotes')} value={form.notes} onChange={(e) => setForm((v) => ({ ...v, notes: e.target.value }))} />
+ <form className='space-y-4 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-3.5' onSubmit={submit}>
+ <label className='block space-y-1.5'>
+ <span className='inline-flex items-center gap-1.5 text-app-micro font-semibold text-slate-300'>
+ <ShieldCheck className='h-3.5 w-3.5 text-cyan-300' />
+ {t('addItem.fieldTitle')}
+ </span>
+ <Input
+ placeholder={t('addItem.fieldTitle')}
+ value={form.title}
+ onChange={(e) => setForm((v) => ({ ...v, title: e.target.value }))}
+ required
+ />
+ </label>
+ <label className='block space-y-1.5'>
+ <span className='inline-flex items-center gap-1.5 text-app-micro font-semibold text-slate-300'>
+ <UserRound className='h-3.5 w-3.5 text-cyan-300' />
+ {t('addItem.fieldUsername')}
+ </span>
+ <Input
+ placeholder={t('addItem.fieldUsername')}
+ value={form.username}
+ onChange={(e) => setForm((v) => ({ ...v, username: e.target.value }))}
+ required
+ />
+ </label>
+ <label className='block space-y-1.5'>
+ <span className='inline-flex items-center gap-1.5 text-app-micro font-semibold text-slate-300'>
+ <KeyRound className='h-3.5 w-3.5 text-cyan-300' />
+ {t('addItem.fieldSecret')}
+ </span>
+ <Input
+ type='password'
+ placeholder={t('addItem.fieldSecret')}
+ value={form.secret}
+ onChange={(e) => setForm((v) => ({ ...v, secret: e.target.value }))}
+ required
+ />
+ </label>
+ <label className='block space-y-1.5'>
+ <span className='text-app-micro font-semibold text-slate-300'>{t('addItem.fieldCategory')}</span>
+ <Input
+ placeholder={t('addItem.fieldCategory')}
+ value={form.category}
+ onChange={(e) => setForm((v) => ({ ...v, category: e.target.value }))}
+ />
+ </label>
 
- <Button className='w-full' disabled={loading}>
+ <div className='grid grid-cols-2 gap-2 pt-1'>
+ <Button type='button' variant='secondary' className='h-11' onClick={() => setOpen(false)} disabled={loading}>
+ {locale === 'th' ? 'ยกเลิก' : 'Cancel'}
+ </Button>
+ <Button className='h-11 w-full' disabled={loading}>
  {loading ? (
  <span className='inline-flex items-center gap-2'>
  <Spinner /> {t('addItem.saving')}
@@ -189,8 +233,8 @@ export function AddVaultItemSheet({
  t('addItem.save')
  )}
  </Button>
+ </div>
  </form>
- </Card>
  </div>
  </div>
  ) : null}
