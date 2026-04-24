@@ -281,6 +281,19 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   }, [loadProfile, mode]);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    if (mode !== "active") {
+      body.classList.add("gate-overlay-open");
+    } else {
+      body.classList.remove("gate-overlay-open");
+    }
+    return () => {
+      body.classList.remove("gate-overlay-open");
+    };
+  }, [mode]);
+
+  useEffect(() => {
     if (mode !== "otp" || loading) return;
     if (otp.length !== 6) {
       if (lastAutoOtp !== "") setLastAutoOtp("");

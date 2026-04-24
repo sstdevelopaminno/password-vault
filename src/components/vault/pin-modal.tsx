@@ -59,6 +59,24 @@ export function PinModal({ action, actionLabel, targetItemId, onVerified, onPinC
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    const currentCount = Number.parseInt(body.dataset.pinModalCount ?? "0", 10) || 0;
+    body.dataset.pinModalCount = String(currentCount + 1);
+    body.classList.add("pin-modal-open");
+
+    return () => {
+      const nextCount = Math.max((Number.parseInt(body.dataset.pinModalCount ?? "1", 10) || 1) - 1, 0);
+      if (nextCount <= 0) {
+        delete body.dataset.pinModalCount;
+        body.classList.remove("pin-modal-open");
+      } else {
+        body.dataset.pinModalCount = String(nextCount);
+      }
+    };
+  }, []);
+
   const slots = useMemo(() => Array.from({ length: 6 }, (_, i) => pin[i] ?? ""), [pin]);
   const confirmPrefix = locale === "th" ? "ยืนยัน PIN 6 หลักเพื่อ" : "Confirm 6-digit PIN to";
   const pinInputAria = locale === "th" ? "กรอก PIN" : "PIN input";

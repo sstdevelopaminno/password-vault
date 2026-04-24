@@ -13,8 +13,8 @@ export const messages = {
     nav: {
       home: "หน้าแรก",
       notes: "โน้ต",
-      privateVault: "รหัสส่วนตัว",
-      teamVault: "รหัสทีม",
+      privateVault: "ส่วนตัว",
+      teamVault: "แบบทีม",
       privateContacts: "เบอร์โทรลับ",
       billing: "ใบเสร็จ/แจ้งหนี้",
       settings: "ตั้งค่า",
@@ -250,8 +250,8 @@ export const messages = {
     nav: {
       home: "Home",
       notes: "Notes",
-      privateVault: "Private Vault",
-      teamVault: "Team Vault",
+      privateVault: "Private",
+      teamVault: "Team",
       privateContacts: "Private Contacts",
       billing: "Receipts & Invoices",
       settings: "Settings",

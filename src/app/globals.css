@@ -591,6 +591,11 @@ a {
   animation: heads-up-in 220ms ease-out;
 }
 
+body.pin-modal-open .bottom-nav-root,
+body.gate-overlay-open .bottom-nav-root {
+  display: none !important;
+}
+
 @keyframes overlay-in {
   from {
     opacity: 0;

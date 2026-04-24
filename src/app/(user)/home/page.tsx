@@ -8,9 +8,14 @@ import { Activity, Bell, ChevronRight, Download, Phone, ReceiptText, ShieldCheck
 import { Button } from '@/components/ui/button';
 import { PinModal } from '@/components/vault/pin-modal';
 import { APP_VERSION } from '@/lib/app-version';
-import { DEFAULT_ANDROID_APK_RELEASE } from '@/lib/android-apk-release';
+import {
+  compareReleaseByCodeOrVersion,
+  getDefaultAndroidReleasePayload,
+  type AndroidApkRelease,
+} from '@/lib/android-apk-release';
 import { BRAND_LOGO_URL } from '@/lib/brand-logo';
 import { useI18n } from '@/i18n/provider';
+import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
 
 type VersionResponse = {
   appVersion?: string;
@@ -19,6 +24,11 @@ type VersionResponse = {
 type ProfileResponse = {
   role?: string;
   status?: string;
+};
+
+type AndroidReleaseApiPayload = {
+  ok?: boolean;
+  release?: AndroidApkRelease;
 };
 
 type ActionTile = {
@@ -50,12 +60,15 @@ const ANDROID_PROMO_IMAGE_URL =
 
 export default function HomePage() {
   const { locale } = useI18n();
+  const runtime = detectRuntimeCapabilities();
   const router = useRouter();
   const [appVersion, setAppVersion] = useState(APP_VERSION);
   const [userRole, setUserRole] = useState('user');
   const [userStatus, setUserStatus] = useState('active');
   const [pendingProtectedHref, setPendingProtectedHref] = useState<string | null>(null);
   const [showAndroidGuide, setShowAndroidGuide] = useState(false);
+  const [showAndroidInstallCta, setShowAndroidInstallCta] = useState(false);
+  const [androidDownloadUrl, setAndroidDownloadUrl] = useState(getDefaultAndroidReleasePayload().release.downloadUrl);
   const isThai = locale === 'th';
   const tr = (th: string, en: string) => (isThai ? th : en);
 
@@ -83,6 +96,69 @@ export default function HomePage() {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function decideAndroidInstallVisibility() {
+      const isAndroidRuntime = runtime.isAndroid && !runtime.isIos;
+      if (!isAndroidRuntime) {
+        if (!active) return;
+        setShowAndroidInstallCta(false);
+        return;
+      }
+
+      const fallback = getDefaultAndroidReleasePayload().release;
+      let release = fallback;
+      try {
+        const response = await fetch('/api/android-release', { cache: 'no-store' });
+        const body = (await response.json().catch(() => ({}))) as AndroidReleaseApiPayload;
+        if (response.ok && body.release?.versionName) {
+          release = body.release;
+        }
+      } catch {
+        // use fallback release
+      }
+
+      if (!active) return;
+      setAndroidDownloadUrl(release.downloadUrl || fallback.downloadUrl);
+
+      if (!runtime.isCapacitorNative) {
+        setShowAndroidInstallCta(true);
+        return;
+      }
+
+      let installedVersionName = APP_VERSION.replace(/^V/i, '');
+      let installedVersionCode: number | null = null;
+
+      try {
+        const { App } = await import('@capacitor/app');
+        const info = await App.getInfo();
+        installedVersionName = String(info.version ?? installedVersionName).trim() || installedVersionName;
+        const parsedCode = Number(String(info.build ?? '').trim());
+        installedVersionCode = Number.isFinite(parsedCode) && parsedCode > 0 ? Math.floor(parsedCode) : null;
+      } catch {
+        // keep fallback installed version
+      }
+
+      if (!active) return;
+
+      const compareResult = compareReleaseByCodeOrVersion({
+        installedVersionName,
+        installedVersionCode,
+        releaseVersionName: release.versionName,
+        releaseVersionCode: release.versionCode,
+      });
+
+      setShowAndroidInstallCta(compareResult < 0);
+    }
+
+    void decideAndroidInstallVisibility();
+
+    return () => {
+      active = false;
+    };
+  }, [runtime.isAndroid, runtime.isCapacitorNative, runtime.isIos]);
 
   return (
     <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.65rem)] sm:pt-2'>
@@ -173,71 +249,39 @@ export default function HomePage() {
         })}
       </div>
 
-      <article className='neon-panel mt-3 space-y-3 rounded-[20px] p-4'>
-        <div className='space-y-1.5'>
-          <h4 className='text-app-h3 font-semibold text-slate-100'>{tr('ดาวน์โหลดแอป Android', 'Download Android App')}</h4>
-          <p className='text-app-body leading-relaxed text-slate-200'>
-            {tr(
-              'ระบบนี้รองรับการใช้งานบน Android แบบติดตั้งลงเครื่อง (Native APK) เพื่อให้ทำงานได้เร็ว เสถียร และรองรับฟีเจอร์ฝั่งอุปกรณ์ได้ครบกว่าเว็บ',
-              'This system supports full on-device Android installation (Native APK) for better speed, stability, and richer device features.',
-            )}
-          </p>
-          <p className='text-app-caption leading-relaxed text-slate-300'>
-            {tr(
-              'ประโยชน์หลัก: เปิดใช้งานได้เร็วขึ้น, แจ้งเตือนมีประสิทธิภาพขึ้น, และใช้งานเมนูสำคัญได้ต่อเนื่องมากขึ้น โดย iOS ยังไม่รองรับในรอบนี้ (วางแผนพัฒนาต่อไป)',
-              'Key benefits: faster launch, stronger notification behavior, and more consistent critical features. iOS support is planned in a future phase.',
-            )}
-          </p>
-        </div>
-
-        <div className='flex flex-wrap items-center gap-2 pt-1'>
+      {showAndroidInstallCta ? (
+        <div className='neon-soft-panel mt-2 flex items-center justify-between gap-2 rounded-[18px] p-2.5'>
           <Button
             type='button'
             variant='default'
-            className='h-10 rounded-xl px-3 text-app-caption'
+            className='h-10 min-w-0 flex-1 rounded-xl px-3 text-app-caption'
             onClick={() => {
-              if (!DEFAULT_ANDROID_APK_RELEASE.downloadUrl) return;
-              window.location.assign(DEFAULT_ANDROID_APK_RELEASE.downloadUrl);
+              if (!androidDownloadUrl) return;
+              window.location.assign(androidDownloadUrl);
             }}
           >
             <span className='inline-flex items-center gap-2'>
               <Smartphone className='h-4 w-4' />
               <Download className='h-4 w-4' />
-              {tr('ดาวน์โหลดและติดตั้ง Android', 'Download & Install Android')}
+              {tr('ติดตั้งแอป Android', 'Install Android App')}
             </span>
           </Button>
-
           <Button
             type='button'
             variant='secondary'
             className='h-10 rounded-xl px-3 text-app-caption'
             onClick={() => setShowAndroidGuide(true)}
           >
-            {tr('ดูขั้นตอนติดตั้ง', 'Installation Steps')}
+            {tr('รายละเอียด', 'Details')}
           </Button>
         </div>
-
-        <button
-          type='button'
-          onClick={() => setShowAndroidGuide(true)}
-          className='group block w-full overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-1)] text-left shadow-[var(--glow-soft)]'
-          aria-label={tr('เปิดคำแนะนำติดตั้งแอป Android', 'Open Android install guide')}
-        >
-          <Image
-            src={ANDROID_PROMO_IMAGE_URL}
-            alt={tr('ภาพแนะนำการติดตั้งแอป Android', 'Android app installation promo image')}
-            width={1280}
-            height={720}
-            className='h-auto w-full object-cover transition duration-200 group-hover:scale-[1.01]'
-          />
-        </button>
-      </article>
+      ) : null}
 
       {showAndroidGuide ? (
-        <div className='fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/72 p-3 sm:items-center'>
+        <div className='fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/72 p-3'>
           <div className='w-full max-w-md rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface-1)] p-4 shadow-[0_28px_72px_rgba(5,12,35,0.6)] backdrop-blur'>
             <div className='mb-2 flex items-start justify-between gap-2'>
-              <h5 className='text-app-h3 font-semibold text-slate-100'>{tr('ขั้นตอนติดตั้ง Android', 'Android Installation Guide')}</h5>
+              <h5 className='text-app-h3 font-semibold text-slate-100'>{tr('ติดตั้งแอป Android', 'Android Installation Guide')}</h5>
               <button
                 type='button'
                 onClick={() => setShowAndroidGuide(false)}
@@ -248,20 +292,34 @@ export default function HomePage() {
               </button>
             </div>
 
-            <ol className='space-y-1.5 pl-5 text-app-body text-slate-200'>
-              <li>{tr('กดปุ่ม "ดาวน์โหลดและติดตั้ง Android"', 'Tap "Download & Install Android".')}</li>
-              <li>{tr('รอไฟล์ APK ดาวน์โหลดจนเสร็จ', 'Wait for the APK download to complete.')}</li>
-              <li>{tr('เมื่อมีหน้าต่างติดตั้งเด้งขึ้น ให้กด "ติดตั้ง"', 'When the installer opens, tap "Install".')}</li>
-              <li>{tr('หากระบบถามสิทธิ์ Unknown Apps ให้อนุญาตชั่วคราว แล้วกลับมาติดตั้งต่อ', 'If prompted for Unknown Apps permission, allow it temporarily and continue installation.')}</li>
-              <li>{tr('ติดตั้งเสร็จแล้วกด "เปิด" เพื่อเข้าใช้งานแอป', 'After installation, tap "Open" to start using the app.')}</li>
+            <p className='text-app-caption leading-relaxed text-slate-200'>
+              {tr(
+                'รองรับ Android Native APK เพื่อความเร็วและเสถียรภาพที่สูงกว่าเว็บ ใช้งานแจ้งเตือนและฟีเจอร์ฝั่งอุปกรณ์ได้ครบกว่าเดิม',
+                'Use the native Android APK for better speed, stability, and complete device-feature support.',
+              )}
+            </p>
+
+            <ol className='mt-3 space-y-1.5 pl-5 text-app-body text-slate-200'>
+              <li>{tr('กดปุ่ม "ติดตั้งแอป Android"', 'Tap "Install Android App".')}</li>
+              <li>{tr('รอไฟล์ APK ดาวน์โหลดจนเสร็จ', 'Wait for the APK to finish downloading.')}</li>
+              <li>{tr('ระบบจะเปิดหน้าติดตั้ง ให้กด "ติดตั้ง"', 'The installer opens; tap "Install".')}</li>
+              <li>{tr('ถ้ามีแจ้งเตือน Unknown Apps ให้อนุญาต แล้วกลับมาติดตั้งต่อ', 'If Unknown Apps permission is requested, allow it and continue.')}</li>
+              <li>{tr('ติดตั้งเสร็จแล้วกด "เปิด" เพื่อใช้งาน', 'After installation, tap "Open".')}</li>
             </ol>
 
             <p className='mt-3 text-app-caption text-slate-300'>
-              {tr(
-                'หมายเหตุ: ปัจจุบันรองรับ Android เป็นหลัก ส่วน iOS จะรองรับในเฟสถัดไป',
-                'Note: Android is fully supported now. iOS support will come in the next phase.',
-              )}
+              {tr('iOS ยังไม่รองรับในรอบนี้ (อยู่ในแผนพัฒนาถัดไป)', 'iOS is not supported in this round (planned next phase).')}
             </p>
+
+            <div className='mt-3 overflow-hidden rounded-2xl border border-[var(--border-soft)]'>
+              <Image
+                src={ANDROID_PROMO_IMAGE_URL}
+                alt={tr('ภาพตัวอย่างแอป Android', 'Android app preview')}
+                width={1280}
+                height={720}
+                className='h-auto w-full object-cover'
+              />
+            </div>
           </div>
         </div>
       ) : null}
