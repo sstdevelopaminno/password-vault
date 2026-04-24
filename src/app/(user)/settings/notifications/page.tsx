@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Bell, ChevronLeft } from "lucide-react";
 import { useHeadsUpNotifications } from "@/components/notifications/heads-up-provider";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ export default function NotificationSettingsPage() {
   } = useHeadsUpNotifications();
 
   const isThai = locale === "th";
+  const [pushTestLoading, setPushTestLoading] = useState(false);
 
   const permissionLabel =
     browserPermission === "unsupported"
@@ -127,6 +129,34 @@ export default function NotificationSettingsPage() {
             : "Please allow notifications in system settings.",
         "error",
       );
+    }
+  }
+
+  async function handleServerPushTest() {
+    if (pushTestLoading) return;
+    setPushTestLoading(true);
+    try {
+      const response = await fetch("/api/notifications/push/self-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: isThai ? "ทดสอบ Push จากเซิร์ฟเวอร์" : "Server push test",
+          message: isThai
+            ? "หากระบบพร้อม คุณจะเห็นแจ้งเตือนทั้งในแอปและนอกแอป"
+            : "If setup is correct, you will receive in-app and background notifications.",
+          href: "/settings/notifications",
+        }),
+      });
+      const body = await response.json().catch(() => ({} as { error?: string }));
+      if (!response.ok) {
+        showToast(String(body?.error || (isThai ? "ทดสอบ Push ไม่สำเร็จ" : "Push test failed")), "error");
+        return;
+      }
+      showToast(isThai ? "ส่งทดสอบ Push แล้ว" : "Push test sent.", "success");
+    } catch {
+      showToast(isThai ? "เครือข่ายมีปัญหา กรุณาลองใหม่" : "Network error. Please retry.", "error");
+    } finally {
+      setPushTestLoading(false);
     }
   }
 
@@ -316,6 +346,17 @@ export default function NotificationSettingsPage() {
             {isThai ? "ทดสอบความปลอดภัย" : "Test security"}
           </Button>
         </div>
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full"
+          onClick={() => void handleServerPushTest()}
+          disabled={pushTestLoading}
+        >
+          {pushTestLoading
+            ? (isThai ? "กำลังส่งทดสอบ..." : "Sending test...")
+            : (isThai ? "ทดสอบ Push นอกแอป" : "Test background push")}
+        </Button>
       </Card>
     </section>
   );

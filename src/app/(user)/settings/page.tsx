@@ -735,7 +735,7 @@ export default function SettingsPage() {
 
         <button
           type='button'
-          onClick={() => router.push('/settings/lock-screen')}
+          onClick={() => router.push('/settings/notifications')}
           className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
         >
           <span className='inline-flex items-center gap-3'>
@@ -751,7 +751,7 @@ export default function SettingsPage() {
 
         <button
           type='button'
-          onClick={() => router.push('/settings/notifications')}
+          onClick={() => router.push('/settings/lock-screen')}
           className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
         >
           <span className='inline-flex items-center gap-3'>
