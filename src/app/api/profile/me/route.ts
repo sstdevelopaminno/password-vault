@@ -52,6 +52,7 @@ export async function GET() {
     userId: String(auth.user.id),
     fullName: String(profile.full_name ?? auth.user.user_metadata?.full_name ?? ""),
     email: String(profile.email ?? auth.user.email ?? ""),
+    hasPin: Boolean(profile.pin_hash),
     role,
     status,
     emailVerifiedAt,

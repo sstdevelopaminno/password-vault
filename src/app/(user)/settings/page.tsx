@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Languages,
   LifeBuoy,
+  KeyRound,
   Lock,
   LogOut,
   Mail,
@@ -28,12 +29,12 @@ import { useI18n } from '@/i18n/provider';
 import { isAdminFeaturesEnabledClient } from '@/lib/admin-feature-flags';
 import { useTheme, type ThemeMode } from '@/lib/theme';
 
-type SettingsSection = '' | 'name' | 'email' | 'password' | 'language' | 'theme' | 'logout';
+type SettingsSection = '' | 'name' | 'email' | 'password' | 'pin' | 'language' | 'theme' | 'logout';
 
 const SETTINGS_SECTION_QUERY = 'section';
 
 function parseSettingsSection(raw: string | null): SettingsSection {
-  if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'language' || raw === 'theme' || raw === 'logout') {
+  if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'pin' || raw === 'language' || raw === 'theme' || raw === 'logout') {
     return raw;
   }
   return '';
@@ -89,6 +90,11 @@ export default function SettingsPage() {
   const [showUseLatestOtp, setShowUseLatestOtp] = useState(false);
 
   const [newPassword, setNewPassword] = useState('');
+  const [hasExistingPin, setHasExistingPin] = useState(false);
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinSaving, setPinSaving] = useState(false);
 
   const loadProfile = useCallback(async () => {
     const response = await fetch('/api/profile/me', { method: 'GET' });
@@ -99,6 +105,7 @@ export default function SettingsPage() {
     setProfileEmail(String(body?.email ?? ''));
     setProfileRole(String(body?.role ?? 'pending'));
     setProfileStatus(String(body?.status ?? 'pending_approval'));
+    setHasExistingPin(Boolean(body?.hasPin));
   }, []);
 
   const apiCall = useCallback(
@@ -246,6 +253,52 @@ export default function SettingsPage() {
     setNewPassword('');
     goMenuRoot();
   }, [apiCall, goMenuRoot, locale, newPassword, passwordSaving, t, toast]);
+
+  const updatePin = useCallback(async () => {
+    if (pinSaving) return;
+
+    const nextPin = String(newPin ?? '').replace(/\D/g, '').slice(0, 6);
+    const nextConfirm = String(confirmPin ?? '').replace(/\D/g, '').slice(0, 6);
+    const current = String(currentPin ?? '').replace(/\D/g, '').slice(0, 6);
+
+    if (nextPin.length !== 6 || nextConfirm.length !== 6) {
+      toast.showToast(locale === 'th' ? 'กรุณากรอก PIN ใหม่และยืนยัน PIN ให้ครบ 6 หลัก' : 'Please enter new PIN and confirmation (6 digits).', 'error');
+      return;
+    }
+    if (nextPin !== nextConfirm) {
+      toast.showToast(locale === 'th' ? 'PIN ใหม่และยืนยัน PIN ไม่ตรงกัน' : 'PIN confirmation does not match.', 'error');
+      return;
+    }
+    if (hasExistingPin && current.length !== 6) {
+      toast.showToast(locale === 'th' ? 'กรุณากรอก PIN ปัจจุบัน 6 หลัก' : 'Current PIN is required (6 digits).', 'error');
+      return;
+    }
+
+    setPinSaving(true);
+    const response = await fetch('/api/pin/set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPin: hasExistingPin ? current : undefined,
+        newPin: nextPin,
+        confirmPin: nextConfirm,
+      }),
+    });
+    const body = await response.json().catch(() => ({} as { error?: string; firstTime?: boolean }));
+    setPinSaving(false);
+
+    if (!response.ok) {
+      toast.showToast(mapError(body?.error ?? (locale === 'th' ? 'อัปเดต PIN ไม่สำเร็จ' : 'Failed to update PIN'), t, locale), 'error');
+      return;
+    }
+
+    toast.showToast(locale === 'th' ? 'บันทึก PIN สำเร็จ' : 'PIN updated successfully', 'success');
+    setHasExistingPin(true);
+    setCurrentPin('');
+    setNewPin('');
+    setConfirmPin('');
+    goMenuRoot();
+  }, [confirmPin, currentPin, goMenuRoot, hasExistingPin, locale, newPin, pinSaving, t, toast]);
 
   const logout = useCallback(async () => {
     if (loading) return;
@@ -487,6 +540,50 @@ export default function SettingsPage() {
     </Card>
   );
 
+  const pinView = (
+    <Card className='space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
+      {hasExistingPin ? (
+        <Input
+          type='password'
+          inputMode='numeric'
+          maxLength={6}
+          value={currentPin}
+          placeholder={locale === 'th' ? 'PIN ปัจจุบัน 6 หลัก' : 'Current 6-digit PIN'}
+          onChange={(event) => setCurrentPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+        />
+      ) : null}
+      <Input
+        type='password'
+        inputMode='numeric'
+        maxLength={6}
+        value={newPin}
+        placeholder={locale === 'th' ? 'PIN ใหม่ 6 หลัก' : 'New 6-digit PIN'}
+        onChange={(event) => setNewPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+      />
+      <Input
+        type='password'
+        inputMode='numeric'
+        maxLength={6}
+        value={confirmPin}
+        placeholder={locale === 'th' ? 'ยืนยัน PIN 6 หลัก' : 'Confirm 6-digit PIN'}
+        onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+      />
+      <Button onClick={() => void updatePin()} disabled={pinSaving} className='h-10 rounded-xl'>
+        {pinSaving
+          ? locale === 'th'
+            ? 'กำลังบันทึก...'
+            : 'Saving...'
+          : locale === 'th'
+            ? hasExistingPin
+              ? 'เปลี่ยน PIN'
+              : 'ตั้งค่า PIN'
+            : hasExistingPin
+              ? 'Change PIN'
+              : 'Set PIN'}
+      </Button>
+    </Card>
+  );
+
   const languageView = (
     <Card className='space-y-4 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
       <p className='text-app-body text-slate-300'>
@@ -571,6 +668,10 @@ export default function SettingsPage() {
         ? t('settings.emailTitle')
         : active === 'password'
           ? t('settings.passwordTitle')
+          : active === 'pin'
+            ? locale === 'th'
+              ? 'PIN ความปลอดภัย'
+              : 'PIN Security'
           : active === 'language'
             ? locale === 'th'
               ? 'เปลี่ยนภาษา'
@@ -590,6 +691,8 @@ export default function SettingsPage() {
         ? emailView
         : active === 'password'
           ? passwordView
+          : active === 'pin'
+            ? pinView
           : active === 'language'
             ? languageView
             : active === 'theme'
@@ -626,6 +729,7 @@ export default function SettingsPage() {
         {menuBtn('name', t('settings.nameTitle'), UserRound)}
         {menuBtn('email', t('settings.emailTitle'), Mail)}
         {menuBtn('password', t('settings.passwordTitle'), Lock)}
+        {menuBtn('pin', locale === 'th' ? 'PIN ความปลอดภัย' : 'PIN Security', KeyRound)}
         {menuBtn('language', locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language', Languages)}
         {menuBtn('theme', locale === 'th' ? 'ธีมแอป' : 'App theme', SunMoon)}
 
@@ -640,6 +744,22 @@ export default function SettingsPage() {
             </span>
             <span className='text-app-h3 font-semibold text-slate-100'>
               {locale === 'th' ? 'การแจ้งเตือน' : 'Notifications'}
+            </span>
+          </span>
+          <ChevronRight className='h-4 w-4 text-slate-300' />
+        </button>
+
+        <button
+          type='button'
+          onClick={() => router.push('/settings/notifications')}
+          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
+        >
+          <span className='inline-flex items-center gap-3'>
+            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2.5 text-sky-300 group-hover:text-cyan-200'>
+              <Lock className='h-4 w-4' />
+            </span>
+            <span className='text-app-h3 font-semibold text-slate-100'>
+              {locale === 'th' ? 'ล็อคหน้าจอ' : 'Lock screen'}
             </span>
           </span>
           <ChevronRight className='h-4 w-4 text-slate-300' />
