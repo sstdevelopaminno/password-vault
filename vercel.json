@@ -2,15 +2,15 @@
   "crons": [
     {
       "path": "/api/notes/reminders/process",
-      "schedule": "*/1 * * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/billing/email-queue/process",
-      "schedule": "*/5 * * * *"
+      "schedule": "15 2 * * *"
     },
     {
       "path": "/api/notifications/push/process",
-      "schedule": "*/1 * * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/maintenance/cleanup-operational-data",
