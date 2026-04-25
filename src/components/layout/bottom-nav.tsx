@@ -64,12 +64,12 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                 <Link
                   href={item.href}
                   className={
-                    'group flex w-full select-none touch-manipulation flex-col items-center justify-center border px-1.5 py-1 text-[11px] font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
+                    'group flex w-full select-none touch-manipulation flex-col items-center justify-center px-1.5 py-1 text-[11px] font-semibold transition-[transform,box-shadow,background,color] duration-200 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
                     (homeActive
-                      ? 'min-h-[72px] gap-1.5 rounded-[999px] border-[rgba(156,225,255,0.85)] bg-[linear-gradient(140deg,rgba(72,145,255,0.66),rgba(191,76,255,0.58))] text-[#f2f8ff] shadow-[0_0_0_1px_rgba(124,202,255,0.32),0_0_24px_rgba(69,150,255,0.42),0_0_34px_rgba(214,76,255,0.28),inset_0_0_0_1px_rgba(255,255,255,0.28)]'
+                      ? 'min-h-[64px] gap-1.5 rounded-[999px] bg-[linear-gradient(140deg,rgba(72,145,255,0.58),rgba(191,76,255,0.5))] text-[#f2f8ff] shadow-[0_0_18px_rgba(69,150,255,0.34),0_0_24px_rgba(214,76,255,0.2)]'
                       : active
-                        ? 'min-h-[62px] gap-1 rounded-[18px] border-[rgba(168,197,255,0.55)] bg-[linear-gradient(140deg,rgba(88,155,255,0.52),rgba(170,83,255,0.5))] text-[#eef6ff] shadow-[0_0_20px_rgba(80,145,255,0.35),0_0_30px_rgba(198,81,255,0.2),inset_0_0_0_1px_rgba(255,255,255,0.18)]'
-                        : 'min-h-[62px] gap-1 rounded-[18px] border-transparent text-[#b8c8e8] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#eff5ff]')
+                        ? 'min-h-[64px] gap-1 rounded-[18px] bg-[linear-gradient(140deg,rgba(88,155,255,0.48),rgba(170,83,255,0.42))] text-[#eef6ff] shadow-[0_0_16px_rgba(80,145,255,0.3),0_0_24px_rgba(198,81,255,0.18)]'
+                        : 'min-h-[64px] gap-1 rounded-[18px] text-[#b8c8e8] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#eff5ff]')
                   }
                   aria-current={active ? 'page' : undefined}
                 >
@@ -78,9 +78,9 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                       className={
                         'inline-flex items-center justify-center ' +
                         (homeActive
-                          ? 'h-[40px] w-[40px] rounded-[14px] bg-[radial-gradient(circle,rgba(99,232,255,0.4),rgba(84,118,255,0.2))] shadow-[0_0_16px_rgba(82,212,255,0.48)]'
+                          ? 'h-[34px] w-[34px] rounded-[12px] bg-[radial-gradient(circle,rgba(99,232,255,0.34),rgba(84,118,255,0.16))] shadow-[0_0_12px_rgba(82,212,255,0.32)]'
                           : active
-                            ? 'h-[24px] w-[24px] rounded-[7px] bg-[radial-gradient(circle,rgba(73,222,255,0.34),rgba(66,110,255,0.17))] shadow-[0_0_14px_rgba(70,199,255,0.36)]'
+                            ? 'h-[24px] w-[24px] rounded-[7px] bg-[radial-gradient(circle,rgba(73,222,255,0.3),rgba(66,110,255,0.14))] shadow-[0_0_10px_rgba(70,199,255,0.28)]'
                             : 'h-[24px] w-[24px] rounded-[7px] bg-[rgba(255,255,255,0.03)]')
                       }
                     >
@@ -91,7 +91,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                         height={32}
                         className={
                           'rounded-[8px] object-cover ' +
-                          (homeActive ? 'h-[32px] w-[32px]' : 'h-[22px] w-[22px]') +
+                          (homeActive ? 'h-[26px] w-[26px]' : 'h-[22px] w-[22px]') +
                           (active ? '' : ' opacity-90 group-hover:opacity-100')
                         }
                         priority={false}
@@ -103,7 +103,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                   <span
                     className={
                       'line-clamp-2 px-0.5 text-center leading-tight ' +
-                      (homeActive ? 'min-h-[24px] text-[13px] font-extrabold tracking-[0.01em]' : 'min-h-[21px] text-[11px]')
+                      (homeActive ? 'min-h-[21px] text-[12px] font-bold tracking-[0.005em]' : 'min-h-[21px] text-[11px]')
                     }
                   >
                     {item.label}
