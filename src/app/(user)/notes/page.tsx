@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { BellRing, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Copy, Edit3, FileText, ImageUp, Loader2, Plus, Search, Share2, Sparkles, Trash2, X } from 'lucide-react';
+import { BellRing, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Copy, Edit3, FileText, ImageUp, Languages, Loader2, Plus, Search, Share2, Sparkles, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -254,6 +254,7 @@ export default function NotesPage() {
  const [ocrRunning, setOcrRunning] = useState(false);
  const [ocrProgress, setOcrProgress] = useState(0);
  const [ocrLanguage, setOcrLanguage] = useState<OcrLanguageCode>('tha+eng');
+ const [ocrTranslateRunning, setOcrTranslateRunning] = useState(false);
  const [ocrPreviewOpen, setOcrPreviewOpen] = useState(false);
  const [ocrPreviewText, setOcrPreviewText] = useState('');
  const [dateTimePickerState, setDateTimePickerState] = useState<DateTimePickerState | null>(null);
@@ -846,6 +847,38 @@ useEffect(() => {
  }
  }
 
+ async function translateDraftContent() {
+ const sourceText = draftContent.trim();
+ if (!sourceText) {
+ showToast(isTh ? 'ยังไม่มีข้อความให้แปลงภาษา' : 'No content to translate', 'error');
+ return;
+ }
+
+ setOcrTranslateRunning(true);
+ try {
+ const res = await fetchWithSessionRetry(
+ '/api/notes/translate',
+ {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({ text: sourceText, mode: ocrLanguage }),
+ },
+ { attempts: 2, delayMs: 220 },
+ );
+ const body = (await res.json().catch(() => ({}))) as { error?: string; text?: string };
+ if (!res.ok || !body.text) {
+ showToast(body.error ?? (isTh ? 'แปลงภาษาไม่สำเร็จ' : 'Translation failed'), 'error');
+ return;
+ }
+ setDraftContent(body.text.trim());
+ showToast(isTh ? 'แปลงภาษาเรียบร้อยแล้ว' : 'Translation completed', 'success');
+ } catch {
+ showToast(isTh ? 'แปลงภาษาไม่สำเร็จ กรุณาลองใหม่' : 'Translation failed. Please retry.', 'error');
+ } finally {
+ setOcrTranslateRunning(false);
+ }
+ }
+
  function resetPendingPinTargets() {
  setPendingEditPinTarget(null);
  setPendingDeletePinTarget(null);
@@ -1160,7 +1193,7 @@ setDeleting(true);
 
  const weekLabels = isTh ? ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
  const ocrLanguageOptions: Array<{ code: OcrLanguageCode; label: string }> = [
- { code: 'tha+eng', label: isTh ? 'ไทย+อังกฤษ' : 'TH+EN' },
+ { code: 'tha+eng', label: isTh ? 'ไทย-อังกฤษ' : 'TH-EN' },
  { code: 'tha', label: isTh ? 'ไทย' : 'TH' },
  { code: 'eng', label: isTh ? 'อังกฤษ' : 'EN' },
  ];
@@ -1686,10 +1719,21 @@ setDeleting(true);
  size='sm'
  className='h-8 rounded-xl border border-slate-200 bg-white px-2.5 text-app-micro font-semibold text-slate-700'
  onClick={triggerImageOcrPicker}
- disabled={ocrRunning || saving}
+ disabled={ocrRunning || ocrTranslateRunning || saving}
  >
  {ocrRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <ImageUp className='mr-1 h-3.5 w-3.5' />}
  {isTh ? 'สแกนรูปดึงข้อความ' : 'Scan image to text'}
+ </Button>
+ <Button
+ type='button'
+ variant='secondary'
+ size='sm'
+ className='h-8 rounded-xl border border-slate-200 bg-white px-2.5 text-app-micro font-semibold text-slate-700'
+ onClick={() => void translateDraftContent()}
+ disabled={ocrRunning || ocrTranslateRunning || saving}
+ >
+ {ocrTranslateRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <Languages className='mr-1 h-3.5 w-3.5' />}
+ {isTh ? 'แปลงภาษา' : 'Translate'}
  </Button>
  </div>
  </div>
@@ -1705,7 +1749,15 @@ setDeleting(true);
  </div>
  </div>
  ) : null}
- <p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ และจะแสดงหน้าพรีวิวก่อนนำข้อความลงเนื้อหา' : 'Supports Thai/English OCR and shows a preview before inserting text.'}</p>
+ {ocrTranslateRunning ? (
+ <div className='rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2'>
+ <p className='flex items-center gap-1 text-app-micro font-semibold text-violet-700'>
+ <Languages className='h-3.5 w-3.5' />
+ {isTh ? 'กำลังแปลงภาษาในเนื้อหา...' : 'Translating content...'}
+ </p>
+ </div>
+ ) : null}
+ <p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ พร้อมพรีวิว และปุ่มแปลงภาษาในเนื้อหาโน้ต' : 'Supports Thai/English OCR with preview and in-note translation.'}</p>
  </div>
  <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-2.5'>
  <div className='mb-2 flex items-center justify-between gap-2'>
