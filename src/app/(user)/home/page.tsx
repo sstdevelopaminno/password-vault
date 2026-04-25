@@ -77,7 +77,7 @@ const actionTiles: ActionTile[] = [
 const ANDROID_PROMO_IMAGE_URL =
   'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/256922.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzI1NjkyMi5wbmciLCJpYXQiOjE3NzcwMDM3NzcsImV4cCI6MTgwODUzOTc3N30.0ngVxtTqFUbis4DF8j7FJ2d4wfpoXXzcPAxVvzhmBb4';
 const HOME_BANNER_IMAGE_URL =
-  'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/256922.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzI1NjkyMi5wbmciLCJpYXQiOjE3NzcwMDM3NzcsImV4cCI6MTgwODUzOTc3N30.0ngVxtTqFUbis4DF8j7FJ2d4wfpoXXzcPAxVvzhmBb4';
+  'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/5587799.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzU1ODc3OTkucG5nIiwiaWF0IjoxNzc3MDgzMTIyLCJleHAiOjE4MDg2MTkxMjJ9.63oigSLqpOeKil9QOLDxZn0hlaJqwWk6A-OdAF6ccvQ';
 
 export default function HomePage() {
   const { locale } = useI18n();

@@ -15,7 +15,7 @@ import { ScreenLockGuard } from "@/components/auth/screen-lock-guard";
 const POLL_MS = 5000;
 const MAX_UNAUTHORIZED_RETRIES = 12;
 const ACCESS_GATE_ICON_URL =
-  "https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/44589.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzQ0NTg5LnBuZyIsImlhdCI6MTc3NzAwOTI5NSwiZXhwIjoxODA4NTQ1Mjk1fQ.XVRXoCESYjtwLdgV3EFdDH1iDF9NSTCqxN-2yXeE4Bo";
+  "https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/44589.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzQ0NTg5LnBuZyIsImlhdCI6MTc3NzA4NDE5NCwiZXhwIjoxODA4NjIwMTk0fQ.yFiVeiHAK7xhqDTYL9J5louRDezNAMep2IzLNcCBRKw";
 
 type GateMode = "loading" | "otp" | "pending" | "pin_setup" | "active" | "error";
 
@@ -345,6 +345,23 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
           : isThai
             ? "กรุณารอสักครู่"
             : "Please wait";
+
+  if (mode === "loading" || mode === "pending") {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-transparent p-4">
+        <div className="animate-modal-pop-in">
+          <Image
+            src={ACCESS_GATE_ICON_URL}
+            alt="Access check image"
+            width={1280}
+            height={720}
+            className="h-auto w-[min(90vw,520px)] object-contain"
+            priority
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-[rgba(2,7,25,0.86)] p-4 backdrop-blur-[2px]">
