@@ -410,17 +410,6 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
                       : "Resend OTP"}
               </Button>
             </div>
-          ) : mode === "pending" ? (
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-[rgba(124,145,220,0.36)] bg-[rgba(11,20,50,0.75)] p-4 text-sm text-[#c9dcff]">{subtitle}</div>
-              <button
-                type="button"
-                className="h-11 w-full rounded-xl border border-[rgba(123,147,224,0.44)] bg-[linear-gradient(180deg,rgba(10,18,43,0.9),rgba(7,13,33,0.96))] text-sm font-semibold text-[#d7e7ff] transition hover:text-white"
-                onClick={() => void loadProfile(true)}
-              >
-                {isThai ? "ตรวจสอบอีกครั้ง" : "Check again"}
-              </button>
-            </div>
           ) : mode === "pin_setup" ? (
             <div className="space-y-3">
               <Input

@@ -100,6 +100,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [agreementOpen, setAgreementOpen] = useState(false);
+  const [agreementSubmitting, setAgreementSubmitting] = useState(false);
 
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
@@ -348,12 +349,20 @@ export default function RegisterPage() {
     setAgreementOpen(true);
   }
 
-  function acceptAgreement() {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(TERMS_ACK_STORAGE_KEY, TERMS_ACK_VERSION);
+  async function acceptAgreement() {
+    if (agreementSubmitting) return;
+    setAgreementSubmitting(true);
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(TERMS_ACK_STORAGE_KEY, TERMS_ACK_VERSION);
+      }
+
+      await fetch("/api/profile/me", { cache: "no-store" }).catch(() => null);
+      setAgreementOpen(false);
+      router.replace("/home");
+    } finally {
+      setAgreementSubmitting(false);
     }
-    setAgreementOpen(false);
-    router.replace("/home");
   }
 
   return (
@@ -490,19 +499,27 @@ export default function RegisterPage() {
       </main>
 
       {agreementOpen ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]">
-          <Card className="w-full max-w-[560px] space-y-3 rounded-3xl bg-white p-5">
-            <h2 className="text-lg font-semibold text-slate-900">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.25),transparent_48%),rgba(2,6,23,0.62)] p-4 backdrop-blur-md">
+          <Card className="w-full max-w-[620px] space-y-4 rounded-[28px] border border-[rgba(148,163,184,0.28)] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-5 shadow-[0_20px_80px_rgba(15,23,42,0.28)] sm:p-6">
+            <div className="rounded-2xl border border-[rgba(14,116,144,0.2)] bg-[linear-gradient(135deg,rgba(6,182,212,0.1),rgba(59,130,246,0.08))] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">
+                {isThai ? "ก่อนเริ่มใช้งาน" : "Before You Start"}
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-900">
+                {isThai ? "ยืนยันข้อตกลงการใช้งาน" : "Confirm Terms of Use"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {isThai
+                  ? "อ่านและยอมรับข้อตกลงด้านความปลอดภัยเพื่อเริ่มใช้งานบัญชีใหม่ของคุณ"
+                  : "Please review and accept the security terms to activate your new account."}
+              </p>
+            </div>
+
+            <h3 className="text-base font-semibold text-slate-900">
               {isThai ? "ข้อตกลงการใช้งานระบบ" : "Terms of Use"}
-            </h2>
+            </h3>
 
-            <p className="text-sm leading-6 text-slate-700">
-              {isThai
-                ? "ก่อนเข้าใช้งาน กรุณาอ่านและยอมรับข้อตกลงต่อไปนี้"
-                : "Before proceeding, please read and accept the terms below."}
-            </p>
-
-            <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+            <div className="space-y-2 rounded-2xl border border-slate-200/90 bg-[linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] p-4 text-sm leading-6 text-slate-700">
               <p>
                 {isThai
                   ? "1) ระบบมีฟังก์ชันหลักด้านความปลอดภัย เช่น OTP, PIN และการเข้ารหัสข้อมูล"
@@ -521,11 +538,23 @@ export default function RegisterPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Button variant="secondary" onClick={() => router.replace("/login")}>
+              <Button
+                variant="secondary"
+                disabled={agreementSubmitting}
+                onClick={() => router.replace("/login")}
+                className="h-11 rounded-xl border-slate-300 text-slate-700"
+              >
                 {isThai ? "ยังไม่ยอมรับ (กลับไปหน้าเข้าสู่ระบบ)" : "Decline (Back to Login)"}
               </Button>
-              <Button onClick={acceptAgreement}>
-                {isThai ? "ยอมรับข้อตกลงและเริ่มใช้งาน" : "Accept and Continue"}
+              <Button onClick={() => void acceptAgreement()} disabled={agreementSubmitting} className="h-11 rounded-xl">
+                {agreementSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner />
+                    {isThai ? "กำลังตรวจสอบและเปิดใช้งาน..." : "Verifying and activating..."}
+                  </span>
+                ) : (
+                  <span>{isThai ? "ตกลง และ เริ่มใช้งานทันที" : "Accept and Continue Now"}</span>
+                )}
               </Button>
             </div>
           </Card>
