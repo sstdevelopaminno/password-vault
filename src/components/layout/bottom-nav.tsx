@@ -66,7 +66,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                   className={
                     'group flex w-full select-none touch-manipulation flex-col items-center justify-center px-1.5 py-1 text-[11px] font-semibold transition-[transform,box-shadow,background,color] duration-200 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
                     (homeActive
-                      ? 'min-h-[64px] gap-1.5 rounded-[999px] bg-[linear-gradient(140deg,rgba(72,145,255,0.58),rgba(191,76,255,0.5))] text-[#f2f8ff] shadow-[0_0_18px_rgba(69,150,255,0.34),0_0_24px_rgba(214,76,255,0.2)]'
+                      ? 'min-h-[64px] gap-1 rounded-[18px] bg-[linear-gradient(140deg,rgba(88,155,255,0.48),rgba(170,83,255,0.42))] text-[#eef6ff] shadow-[0_0_16px_rgba(80,145,255,0.3),0_0_24px_rgba(198,81,255,0.18)]'
                       : active
                         ? 'min-h-[64px] gap-1 rounded-[18px] bg-[linear-gradient(140deg,rgba(88,155,255,0.48),rgba(170,83,255,0.42))] text-[#eef6ff] shadow-[0_0_16px_rgba(80,145,255,0.3),0_0_24px_rgba(198,81,255,0.18)]'
                         : 'min-h-[64px] gap-1 rounded-[18px] text-[#b8c8e8] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#eff5ff]')
@@ -78,7 +78,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                       className={
                         'inline-flex items-center justify-center ' +
                         (homeActive
-                          ? 'h-[34px] w-[34px] rounded-[12px] bg-[radial-gradient(circle,rgba(99,232,255,0.34),rgba(84,118,255,0.16))] shadow-[0_0_12px_rgba(82,212,255,0.32)]'
+                          ? 'h-[24px] w-[24px] rounded-[7px] bg-[linear-gradient(145deg,rgba(73,222,255,0.26),rgba(66,110,255,0.14))] shadow-[0_0_10px_rgba(70,199,255,0.28)]'
                           : active
                             ? 'h-[24px] w-[24px] rounded-[7px] bg-[radial-gradient(circle,rgba(73,222,255,0.3),rgba(66,110,255,0.14))] shadow-[0_0_10px_rgba(70,199,255,0.28)]'
                             : 'h-[24px] w-[24px] rounded-[7px] bg-[rgba(255,255,255,0.03)]')
@@ -91,7 +91,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                         height={32}
                         className={
                           'rounded-[8px] object-cover ' +
-                          (homeActive ? 'h-[26px] w-[26px]' : 'h-[22px] w-[22px]') +
+                          'h-[22px] w-[22px]' +
                           (active ? '' : ' opacity-90 group-hover:opacity-100')
                         }
                         priority={false}
@@ -101,10 +101,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                     <Icon className={'h-[22px] w-[22px] ' + (active ? 'text-[#9ce8ff]' : 'text-[#a9badc] group-hover:text-[#eef5ff]')} />
                   )}
                   <span
-                    className={
-                      'line-clamp-2 px-0.5 text-center leading-tight ' +
-                      (homeActive ? 'min-h-[21px] text-[12px] font-bold tracking-[0.005em]' : 'min-h-[21px] text-[11px]')
-                    }
+                    className='line-clamp-2 min-h-[21px] px-0.5 text-center text-[11px] leading-tight'
                   >
                     {item.label}
                   </span>
