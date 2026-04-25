@@ -7,6 +7,9 @@ import Image from 'next/image';
 import { FileText, House, Key, KeyRound, LayoutDashboard, ScrollText, Settings, ShieldCheck, User } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 
+const HOME_NAV_ICON_URL =
+  'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/1919225369.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzE5MTkyMjUzNjkucG5nIiwiaWF0IjoxNzc3MTAxOTU3LCJleHAiOjE4MDg2Mzc5NTd9.tUuLB6jzmO_ru0Hqu0Blu2dCehGPlPoLynu7p9Kif8k';
+
 type Item = {
   href: string;
   label: string;
@@ -47,52 +50,70 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
 
   return (
     <nav className='bottom-nav-root pointer-events-none absolute inset-x-0 bottom-0 z-50 w-full px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 will-change-transform'>
-      <div className='pointer-events-auto rounded-[26px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(24,38,86,0.88),rgba(17,29,68,0.92))] p-1.5 shadow-[0_18px_40px_rgba(7,12,30,0.2),inset_0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl'>
-        <ul className='grid gap-1.5' style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+      <div className='pointer-events-auto relative rounded-[30px] bg-[linear-gradient(110deg,rgba(40,230,255,0.7)_0%,rgba(96,127,255,0.62)_46%,rgba(235,82,255,0.78)_100%)] p-[1.5px] shadow-[0_0_0_1px_rgba(170,203,255,0.18),0_0_26px_rgba(100,117,255,0.4),0_0_38px_rgba(211,87,255,0.24)]'>
+        <div className='rounded-[28px] border border-[rgba(171,193,255,0.26)] bg-[linear-gradient(180deg,rgba(20,35,88,0.94),rgba(11,23,65,0.96))] p-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl'>
+          <ul className='grid gap-1.5' style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
           {items.map((item) => {
             const active = isActivePath(pathname, item.href);
             const Icon = item.icon;
             const homeItem = item.href === '/home' && !admin;
+            const homeActive = homeItem && active;
 
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   className={
-                    'group flex min-h-[62px] w-full select-none touch-manipulation flex-col items-center justify-center gap-1 rounded-[18px] border px-1.5 py-1 text-[11px] font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
-                    (active
-                      ? 'border-[rgba(159,182,255,0.34)] bg-[linear-gradient(135deg,rgba(67,109,210,0.52),rgba(106,79,203,0.48))] text-[#eaf4ff] shadow-[0_0_24px_rgba(78,88,255,0.18),inset_0_0_24px_rgba(255,255,255,0.08)]'
-                      : 'border-transparent text-[#b8c8e8] hover:bg-[rgba(255,255,255,0.05)] hover:text-[#eff5ff]')
+                    'group flex w-full select-none touch-manipulation flex-col items-center justify-center border px-1.5 py-1 text-[11px] font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
+                    (homeActive
+                      ? 'min-h-[72px] gap-1.5 rounded-[999px] border-[rgba(156,225,255,0.85)] bg-[linear-gradient(140deg,rgba(72,145,255,0.66),rgba(191,76,255,0.58))] text-[#f2f8ff] shadow-[0_0_0_1px_rgba(124,202,255,0.32),0_0_24px_rgba(69,150,255,0.42),0_0_34px_rgba(214,76,255,0.28),inset_0_0_0_1px_rgba(255,255,255,0.28)]'
+                      : active
+                        ? 'min-h-[62px] gap-1 rounded-[18px] border-[rgba(168,197,255,0.55)] bg-[linear-gradient(140deg,rgba(88,155,255,0.52),rgba(170,83,255,0.5))] text-[#eef6ff] shadow-[0_0_20px_rgba(80,145,255,0.35),0_0_30px_rgba(198,81,255,0.2),inset_0_0_0_1px_rgba(255,255,255,0.18)]'
+                        : 'min-h-[62px] gap-1 rounded-[18px] border-transparent text-[#b8c8e8] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#eff5ff]')
                   }
                   aria-current={active ? 'page' : undefined}
                 >
                   {homeItem ? (
                     <span
                       className={
-                        'inline-flex h-[23px] w-[23px] items-center justify-center rounded-[7px] ' +
-                        (active
-                          ? 'bg-[radial-gradient(circle,rgba(73,222,255,0.3),rgba(66,110,255,0.15))] shadow-[0_0_14px_rgba(70,199,255,0.36)]'
-                          : 'bg-[rgba(255,255,255,0.03)]')
+                        'inline-flex items-center justify-center ' +
+                        (homeActive
+                          ? 'h-[40px] w-[40px] rounded-[14px] bg-[radial-gradient(circle,rgba(99,232,255,0.4),rgba(84,118,255,0.2))] shadow-[0_0_16px_rgba(82,212,255,0.48)]'
+                          : active
+                            ? 'h-[24px] w-[24px] rounded-[7px] bg-[radial-gradient(circle,rgba(73,222,255,0.34),rgba(66,110,255,0.17))] shadow-[0_0_14px_rgba(70,199,255,0.36)]'
+                            : 'h-[24px] w-[24px] rounded-[7px] bg-[rgba(255,255,255,0.03)]')
                       }
                     >
                       <Image
-                        src='/icons/vault-logo.png'
+                        src={HOME_NAV_ICON_URL}
                         alt='Home'
-                        width={20}
-                        height={20}
-                        className={'h-5 w-5 rounded-[5px] object-cover ' + (active ? '' : 'opacity-85 group-hover:opacity-100')}
+                        width={32}
+                        height={32}
+                        className={
+                          'rounded-[8px] object-cover ' +
+                          (homeActive ? 'h-[32px] w-[32px]' : 'h-[22px] w-[22px]') +
+                          (active ? '' : ' opacity-90 group-hover:opacity-100')
+                        }
                         priority={false}
                       />
                     </span>
                   ) : (
                     <Icon className={'h-[22px] w-[22px] ' + (active ? 'text-[#9ce8ff]' : 'text-[#a9badc] group-hover:text-[#eef5ff]')} />
                   )}
-                  <span className='line-clamp-2 min-h-[21px] px-0.5 text-center text-[11px] leading-tight'>{item.label}</span>
+                  <span
+                    className={
+                      'line-clamp-2 px-0.5 text-center leading-tight ' +
+                      (homeActive ? 'min-h-[24px] text-[13px] font-extrabold tracking-[0.01em]' : 'min-h-[21px] text-[11px]')
+                    }
+                  >
+                    {item.label}
+                  </span>
                 </Link>
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </div>
       </div>
     </nav>
   );

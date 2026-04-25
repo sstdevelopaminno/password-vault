@@ -627,6 +627,31 @@ body.gate-overlay-open .bottom-nav-root {
   }
 }
 
+@keyframes bell-bounce {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  8% {
+    transform: rotate(-16deg) translateY(-0.5px);
+  }
+  16% {
+    transform: rotate(14deg) translateY(-0.5px);
+  }
+  24% {
+    transform: rotate(-11deg) translateY(-0.5px);
+  }
+  32% {
+    transform: rotate(8deg) translateY(-0.5px);
+  }
+  40% {
+    transform: rotate(-5deg) translateY(0);
+  }
+  48% {
+    transform: rotate(3deg) translateY(0);
+  }
+}
+
 .animate-overlay-in {
   animation: overlay-in 180ms ease-out;
 }
@@ -637,6 +662,11 @@ body.gate-overlay-open .bottom-nav-root {
 
 .animate-screen-in {
   animation: screen-in 220ms ease-out;
+}
+
+.animate-bell-bounce {
+  transform-origin: 50% 8%;
+  animation: bell-bounce 1.25s ease-in-out infinite;
 }
 
 @media (max-width: 460px) {

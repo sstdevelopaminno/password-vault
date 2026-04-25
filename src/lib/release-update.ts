@@ -1,6 +1,7 @@
 import { APP_VERSION } from "@/lib/app-version";
 
 export const UPDATE_DETAILS_PATH = "/settings/notifications/update-notes";
+export const RELEASE_NOTES_READ_VERSION_KEY = "pv_release_notes_read_version";
 export const TWA_ASSETLINKS_ENV_PACKAGE_KEY = "ANDROID_TWA_PACKAGE_NAME";
 export const TWA_ASSETLINKS_ENV_FINGERPRINTS_KEY = "ANDROID_TWA_SHA256_FINGERPRINTS";
 export const DEFAULT_ANDROID_PACKAGE = "com.passwordvault.app";
@@ -154,6 +155,34 @@ export function getReleaseHistory(locale: string) {
     highlights: lang === "th" ? entry.highlightsTh : entry.highlightsEn,
     isCurrent: entry.version === APP_VERSION,
   }));
+}
+
+export function getReleaseNotesVersion(version: string = APP_VERSION) {
+  const normalized = String(version ?? "").trim();
+  return normalized || APP_VERSION;
+}
+
+export function markReleaseNotesAsRead(version: string = APP_VERSION) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(RELEASE_NOTES_READ_VERSION_KEY, getReleaseNotesVersion(version));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+export function hasReadReleaseNotes(version: string = APP_VERSION) {
+  if (typeof window === "undefined") return true;
+  try {
+    const seenVersion = window.localStorage.getItem(RELEASE_NOTES_READ_VERSION_KEY);
+    return seenVersion === getReleaseNotesVersion(version);
+  } catch {
+    return false;
+  }
+}
+
+export function shouldShowReleaseNotesBadge(version: string = APP_VERSION) {
+  return !hasReadReleaseNotes(version);
 }
 
 export function getDefaultTwaAssetLinksPayload() {

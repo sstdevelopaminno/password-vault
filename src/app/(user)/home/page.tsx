@@ -16,6 +16,7 @@ import {
 import { BRAND_LOGO_URL } from '@/lib/brand-logo';
 import { useI18n } from '@/i18n/provider';
 import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
+import { UPDATE_DETAILS_PATH, markReleaseNotesAsRead, shouldShowReleaseNotesBadge } from '@/lib/release-update';
 
 type VersionResponse = {
   appVersion?: string;
@@ -94,6 +95,7 @@ export default function HomePage() {
   const [calendarNotes, setCalendarNotes] = useState<HomeCalendarNote[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarLoadError, setCalendarLoadError] = useState('');
+  const [showReleaseBadge, setShowReleaseBadge] = useState(false);
   const [calendarMonthCursor, setCalendarMonthCursor] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -190,6 +192,10 @@ export default function HomePage() {
     void loadCalendarNotes();
   }
 
+  const syncReleaseBadge = useCallback(() => {
+    setShowReleaseBadge(shouldShowReleaseNotesBadge(appVersion));
+  }, [appVersion]);
+
   useEffect(() => {
     let ignore = false;
 
@@ -278,6 +284,23 @@ export default function HomePage() {
     };
   }, [runtime.isAndroid, runtime.isCapacitorNative, runtime.isIos]);
 
+  useEffect(() => {
+    syncReleaseBadge();
+    if (typeof window === 'undefined') return;
+
+    const refreshOnFocus = () => {
+      if (document.visibilityState === 'hidden') return;
+      syncReleaseBadge();
+    };
+
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnFocus);
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+    };
+  }, [syncReleaseBadge]);
+
   return (
     <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.65rem)] sm:pt-2'>
       <div className='flex items-start justify-between gap-3'>
@@ -298,12 +321,18 @@ export default function HomePage() {
         </div>
 
         <Link
-          href='/settings/notifications'
+          href={UPDATE_DETAILS_PATH}
+          onClick={() => {
+            markReleaseNotesAsRead(appVersion);
+            setShowReleaseBadge(false);
+          }}
           className='relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-100 shadow-[var(--glow-soft)]'
-          aria-label='Notifications'
+          aria-label={showReleaseBadge ? 'Notifications (new update)' : 'Notifications'}
         >
-          <Bell className='h-5 w-5' />
-          <span className='absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-rose-500' />
+          <Bell className={'h-5 w-5 ' + (showReleaseBadge ? 'animate-bell-bounce' : '')} />
+          {showReleaseBadge ? (
+            <span className='absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_12px_rgba(251,113,133,0.75)] animate-pulse' />
+          ) : null}
         </Link>
       </div>
 
@@ -331,8 +360,8 @@ export default function HomePage() {
           const Icon = tile.icon;
           const tileBody = (
             <>
-              <Icon className='h-[18px] w-[18px] text-slate-100' />
-              <p className='text-[14px] font-semibold leading-tight text-slate-100'>{isThai ? tile.titleTh : tile.titleEn}</p>
+              <Icon className='h-[16px] w-[16px] text-slate-100' />
+              <p className='text-[13px] font-semibold leading-tight text-slate-100'>{isThai ? tile.titleTh : tile.titleEn}</p>
             </>
           );
 
@@ -342,7 +371,7 @@ export default function HomePage() {
                 key={tile.href}
                 type='button'
                 onClick={() => setPendingProtectedHref(tile.href)}
-                className='neon-panel group flex min-h-[96px] w-full flex-col items-center justify-center gap-1 rounded-[16px] p-2.5 text-center'
+                className='neon-panel group flex min-h-[82px] w-full flex-col items-center justify-center gap-0.5 rounded-[14px] p-2 text-center'
               >
                 {tileBody}
               </button>
@@ -353,7 +382,7 @@ export default function HomePage() {
             <Link
               key={tile.href}
               href={tile.href}
-              className='neon-panel group flex min-h-[96px] flex-col items-center justify-center gap-1 rounded-[16px] p-2.5 text-center'
+              className='neon-panel group flex min-h-[82px] flex-col items-center justify-center gap-0.5 rounded-[14px] p-2 text-center'
             >
               {tileBody}
             </Link>
@@ -362,10 +391,10 @@ export default function HomePage() {
         <button
           type='button'
           onClick={openCalendarPopup}
-          className='neon-panel group flex min-h-[96px] w-full flex-col items-center justify-center gap-1 rounded-[16px] p-2.5 text-center'
+          className='neon-panel group flex min-h-[82px] w-full flex-col items-center justify-center gap-0.5 rounded-[14px] p-2 text-center'
         >
-          <Calendar className='h-[18px] w-[18px] text-slate-100' />
-          <p className='text-[14px] font-semibold leading-tight text-slate-100'>{tr('ปฏิทิน', 'Calendar')}</p>
+          <Calendar className='h-[16px] w-[16px] text-slate-100' />
+          <p className='text-[13px] font-semibold leading-tight text-slate-100'>{tr('ปฏิทิน', 'Calendar')}</p>
         </button>
       </div>
 

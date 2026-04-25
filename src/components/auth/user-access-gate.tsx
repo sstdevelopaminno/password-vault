@@ -355,7 +355,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
             alt="Access check image"
             width={1280}
             height={720}
-            className="h-auto w-[min(90vw,520px)] object-contain"
+            className="h-auto w-[min(58vw,300px)] object-contain"
             priority
           />
         </div>
@@ -364,7 +364,7 @@ export function UserAccessGate(props: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[rgba(2,7,25,0.86)] p-4 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[rgba(2,7,25,0.24)] p-4 backdrop-blur-[0.5px]">
       <div className="mx-auto mt-8 w-full max-w-[520px]">
         <Card className="relative space-y-4 rounded-[30px] border border-[rgba(123,144,217,0.32)] bg-[linear-gradient(180deg,rgba(8,16,40,0.94),rgba(5,11,30,0.98))] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-md">
           <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-[rgba(128,178,255,0.46)] bg-[rgba(20,36,84,0.92)] shadow-[0_0_18px_rgba(70,166,255,0.32)]">
