@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, KeyRound, Loader2, ShieldCheck, ShieldOff } from 'lucide-react';
+import { ChevronLeft, Loader2, ShieldCheck, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
 import type { PinAction } from '@/lib/pin';
 
 const ACTION_ORDER: PinAction[] = [
+  'open_workspace_folder',
   'view_secret',
   'copy_secret',
   'edit_secret',
@@ -25,6 +25,8 @@ type PinPolicy = Record<PinAction, boolean>;
 
 function actionLabel(action: PinAction, isThai: boolean) {
   switch (action) {
+    case 'open_workspace_folder':
+      return isThai ? 'เปิดโฟลเดอร์คลาวด์ไฟล์งาน' : 'Open cloud folder';
     case 'view_secret':
       return isThai ? 'ดูรหัส/ข้อมูลสำคัญ' : 'View secret data';
     case 'copy_secret':
@@ -107,7 +109,6 @@ export default function PinSecuritySettingsPage() {
           body: JSON.stringify({ policy: { [action]: nextValue } }),
         });
         const body = (await response.json().catch(() => ({}))) as { error?: string; policy?: PinPolicy };
-
         if (!response.ok || !body.policy) {
           setPolicy((prev) => (prev ? { ...prev, [action]: !nextValue } : prev));
           showToast(body.error || (isThai ? 'บันทึกการตั้งค่าไม่สำเร็จ' : 'Failed to save setting'), 'error');
@@ -115,16 +116,6 @@ export default function PinSecuritySettingsPage() {
         }
 
         setPolicy(body.policy);
-        showToast(
-          nextValue
-            ? isThai
-              ? 'เปิดการยืนยัน PIN แล้ว'
-              : 'PIN confirmation enabled'
-            : isThai
-              ? 'ปิดการยืนยัน PIN แล้ว'
-              : 'PIN confirmation disabled',
-          'success',
-        );
       } catch {
         setPolicy((prev) => (prev ? { ...prev, [action]: !nextValue } : prev));
         showToast(isThai ? 'บันทึกการตั้งค่าไม่สำเร็จ' : 'Failed to save setting', 'error');
@@ -136,7 +127,7 @@ export default function PinSecuritySettingsPage() {
   );
 
   return (
-    <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.5rem)] animate-screen-in'>
+    <section className='space-y-3 pb-24 pt-[calc(env(safe-area-inset-top)+0.5rem)] animate-screen-in'>
       <div className='flex items-center gap-2'>
         <button
           type='button'
@@ -148,19 +139,13 @@ export default function PinSecuritySettingsPage() {
         </button>
         <div>
           <h1 className='text-app-h2 font-semibold text-slate-100'>{isThai ? 'ตั้งค่า PIN รายเมนู' : 'PIN By Menu'}</h1>
-          <p className='text-app-caption text-slate-300'>
-            {isThai
-              ? 'กำหนดได้ว่าเมนูไหนต้องยืนยัน PIN ทุกครั้ง (แยกจากล็อคหน้าจอ)'
-              : 'Choose which menu actions require PIN every time (separate from lock screen).'}
-          </p>
+          <p className='text-app-caption text-slate-300'>{isThai ? 'เปิด/ปิดการยืนยัน PIN รายเมนู' : 'Enable or disable PIN confirmation per action.'}</p>
         </div>
       </div>
 
-      <Card className='space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
+      <div className='space-y-2'>
         <div className='flex items-center justify-between'>
-          <p className='text-app-body font-semibold text-slate-100'>
-            {isThai ? 'รายการยืนยัน PIN' : 'PIN Confirmation List'}
-          </p>
+          <p className='text-app-body font-semibold text-slate-100'>{isThai ? 'รายการการยืนยัน PIN' : 'PIN confirmation list'}</p>
           <Button type='button' variant='secondary' size='sm' className='h-8 rounded-xl px-3' onClick={() => void loadPolicy()} disabled={loading}>
             {loading ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : isThai ? 'รีเฟรช' : 'Refresh'}
           </Button>
@@ -184,20 +169,11 @@ export default function PinSecuritySettingsPage() {
               const enabled = policy[action] !== false;
               const saving = savingAction === action;
               return (
-                <div
-                  key={action}
-                  className='flex items-center justify-between gap-3 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2.5'
-                >
+                <div key={action} className='flex items-center justify-between gap-3 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2.5'>
                   <div className='min-w-0'>
                     <p className='truncate text-app-body font-semibold text-slate-100'>{actionLabel(action, isThai)}</p>
                     <p className='text-[11px] text-slate-300'>
-                      {enabled
-                        ? isThai
-                          ? 'ต้องยืนยัน PIN ก่อนดำเนินการ'
-                          : 'PIN confirmation required'
-                        : isThai
-                          ? 'ไม่ต้องยืนยัน PIN'
-                          : 'No PIN confirmation'}
+                      {enabled ? (isThai ? 'ต้องยืนยัน PIN' : 'PIN required') : isThai ? 'ไม่ต้องยืนยัน PIN' : 'No PIN required'}
                     </p>
                   </div>
                   <button
@@ -206,44 +182,18 @@ export default function PinSecuritySettingsPage() {
                     disabled={savingAction !== ''}
                     className={
                       'inline-flex min-w-[108px] items-center justify-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold transition ' +
-                      (enabled
-                        ? 'border-cyan-300/70 bg-cyan-500/20 text-cyan-100'
-                        : 'border-rose-300/60 bg-rose-500/16 text-rose-100')
+                      (enabled ? 'border-cyan-300/70 bg-cyan-500/20 text-cyan-100' : 'border-rose-300/60 bg-rose-500/16 text-rose-100')
                     }
                   >
-                    {saving ? (
-                      <Loader2 className='h-3.5 w-3.5 animate-spin' />
-                    ) : enabled ? (
-                      <ShieldCheck className='h-3.5 w-3.5' />
-                    ) : (
-                      <ShieldOff className='h-3.5 w-3.5' />
-                    )}
-                    {enabled
-                      ? isThai
-                        ? 'เปิดใช้งาน'
-                        : 'Enabled'
-                      : isThai
-                        ? 'ปิดใช้งาน'
-                        : 'Disabled'}
+                    {saving ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : enabled ? <ShieldCheck className='h-3.5 w-3.5' /> : <ShieldOff className='h-3.5 w-3.5' />}
+                    {enabled ? (isThai ? 'เปิด' : 'On') : isThai ? 'ปิด' : 'Off'}
                   </button>
                 </div>
               );
             })}
           </div>
         ) : null}
-      </Card>
-
-      <Card className='space-y-2 rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-3'>
-        <p className='text-app-caption text-slate-300'>
-          {isThai
-            ? 'หมายเหตุ: เมนูล็อคหน้าจอ PIN ยังแยกการทำงานของตัวเองเหมือนเดิม'
-            : 'Note: Lock-screen PIN settings still work separately.'}
-        </p>
-        <Button type='button' className='h-10 rounded-xl' onClick={() => router.push('/settings?section=pin')}>
-          <KeyRound className='mr-1 h-4 w-4' />
-          {isThai ? 'กลับเมนู PIN ความปลอดภัย' : 'Back to PIN Security'}
-        </Button>
-      </Card>
+      </div>
     </section>
   );
 }

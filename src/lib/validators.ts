@@ -145,7 +145,7 @@ export const pinSchema = z.object({
 });
 
 export const pinActionSchema = z.enum(
- ['view_secret', 'copy_secret', 'edit_secret', 'delete_secret', 'delete_account', 'admin_view_vault', 'approve_signup_request', 'delete_signup_request', 'unlock_app', 'delete_workspace_folder'] satisfies [PinAction, ...PinAction[]],
+ ['view_secret', 'copy_secret', 'edit_secret', 'delete_secret', 'open_workspace_folder', 'delete_account', 'admin_view_vault', 'approve_signup_request', 'delete_signup_request', 'unlock_app', 'delete_workspace_folder'] satisfies [PinAction, ...PinAction[]],
 );
 
 export const pinVerifySchema = z.object({

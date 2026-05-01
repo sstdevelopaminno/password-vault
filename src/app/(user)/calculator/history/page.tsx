@@ -1,0 +1,134 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, History, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n/provider';
+
+const HISTORY_STORAGE_KEY = 'pv_calculator_history_v1';
+
+type HistoryItem = {
+  id: string;
+  expression: string;
+  result: string;
+  createdAt: string;
+};
+
+function readHistoryFromStorage() {
+  if (typeof window === 'undefined') return [] as HistoryItem[];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as HistoryItem[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item) => item && typeof item.id === 'string' && typeof item.expression === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function saveHistoryToStorage(items: HistoryItem[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+export default function CalculatorHistoryPage() {
+  const { locale } = useI18n();
+  const router = useRouter();
+  const isThai = locale === 'th';
+
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+
+  useEffect(() => {
+    setHistoryItems(readHistoryFromStorage());
+  }, []);
+
+  const historyCountLabel = useMemo(
+    () => (isThai ? `${historyItems.length} รายการ` : `${historyItems.length} items`),
+    [historyItems.length, isThai],
+  );
+
+  const removeOne = (id: string) => {
+    setHistoryItems((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      saveHistoryToStorage(next);
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setHistoryItems([]);
+    saveHistoryToStorage([]);
+  };
+
+  return (
+    <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.4rem)] animate-screen-in'>
+      <div className='neon-panel rounded-[24px] p-4'>
+        <div className='flex items-center justify-between gap-2'>
+          <div className='flex items-center gap-2'>
+            <button
+              type='button'
+              className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'
+              onClick={() => router.push('/calculator')}
+              aria-label={isThai ? 'ย้อนกลับ' : 'Back'}
+            >
+              <ArrowLeft className='h-4 w-4' />
+            </button>
+            <div>
+              <h1 className='text-app-h3 font-semibold text-slate-100'>{isThai ? 'ประวัติย้อนหลัง' : 'History'}</h1>
+              <p className='text-app-caption text-slate-300'>{historyCountLabel}</p>
+            </div>
+          </div>
+          <Button type='button' variant='secondary' size='sm' className='h-9 rounded-xl px-3' onClick={clearAll}>
+            <Trash2 className='mr-1 h-4 w-4' />
+            {isThai ? 'ล้างทั้งหมด' : 'Clear all'}
+          </Button>
+        </div>
+      </div>
+
+      <div className='space-y-2'>
+        {historyItems.length === 0 ? (
+          <div className='neon-soft-panel rounded-[20px] p-4 text-center text-app-body text-slate-200'>
+            {isThai ? 'ยังไม่มีประวัติการคำนวณ' : 'No calculation history yet.'}
+          </div>
+        ) : null}
+
+        {historyItems.map((item) => (
+          <div key={item.id} className='neon-soft-panel rounded-[18px] p-3'>
+            <button
+              type='button'
+              className='w-full text-left'
+              onClick={() =>
+                router.push(
+                  '/calculator?expression=' +
+                    encodeURIComponent(item.expression) +
+                    '&result=' +
+                    encodeURIComponent(item.result),
+                )
+              }
+            >
+              <p className='line-clamp-1 font-mono text-app-caption font-semibold text-slate-100'>
+                {item.expression} = {item.result}
+              </p>
+              <p className='mt-1 text-[11px] text-slate-300'>
+                <History className='mr-1 inline h-3.5 w-3.5' />
+                {new Date(item.createdAt).toLocaleString(isThai ? 'th-TH' : 'en-US')}
+              </p>
+            </button>
+            <div className='mt-2 flex justify-end'>
+              <Button type='button' variant='secondary' size='sm' className='h-8 rounded-xl px-3 text-rose-100' onClick={() => removeOne(item.id)}>
+                <Trash2 className='mr-1 h-3.5 w-3.5' />
+                {isThai ? 'ลบรายการนี้' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

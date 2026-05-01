@@ -12,6 +12,8 @@ import {
   FileText,
   Folder,
   FolderPlus,
+  Grid3X3,
+  List,
   Loader2,
   Music2,
   RefreshCcw,
@@ -54,6 +56,8 @@ type WorkspaceFolderItem = {
 };
 
 type FileSort = 'latest' | 'oldest' | 'name_az' | 'size_desc';
+type FileView = 'grid' | 'list';
+type PinPolicy = { open_workspace_folder?: boolean };
 
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
@@ -77,6 +81,21 @@ function chooseFileIcon(mimeType: string) {
   return File;
 }
 
+function parseEmails(raw: string) {
+  return Array.from(
+    new Set(
+      String(raw)
+        .split(/[\s,;]+/)
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export default function WorkspaceCloudPage() {
   const { locale } = useI18n();
   const { showToast } = useToast();
@@ -87,7 +106,8 @@ export default function WorkspaceCloudPage() {
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [shareEmailByFolderId, setShareEmailByFolderId] = useState<Record<string, string>>({});
+
+  const [shareEmailsByFolderId, setShareEmailsByFolderId] = useState<Record<string, string>>({});
   const [activeShareFolderId, setActiveShareFolderId] = useState('');
   const [sharingFolderId, setSharingFolderId] = useState('');
 
@@ -98,15 +118,19 @@ export default function WorkspaceCloudPage() {
 
   const [fileQuery, setFileQuery] = useState('');
   const [fileSort, setFileSort] = useState<FileSort>('latest');
+  const [fileView, setFileView] = useState<FileView>('grid');
 
-  const [pinDeleteModalOpen, setPinDeleteModalOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pendingDeleteFolder, setPendingDeleteFolder] = useState<WorkspaceFolderItem | null>(null);
+  const [pinDeleteModalOpen, setPinDeleteModalOpen] = useState(false);
   const [deletingFolderId, setDeletingFolderId] = useState('');
 
-  const activeFolder = useMemo(
-    () => folders.find((item) => item.id === activeFolderId) ?? null,
-    [folders, activeFolderId],
-  );
+  const [pinOpenFolderModalOpen, setPinOpenFolderModalOpen] = useState(false);
+  const [pendingOpenFolder, setPendingOpenFolder] = useState<WorkspaceFolderItem | null>(null);
+  const [pinPolicy, setPinPolicy] = useState<PinPolicy | null>(null);
+
+  const activeFolder = useMemo(() => folders.find((item) => item.id === activeFolderId) ?? null, [folders, activeFolderId]);
+  const requirePinToOpenFolder = pinPolicy?.open_workspace_folder !== false;
 
   const filteredFiles = useMemo(() => {
     const query = fileQuery.trim().toLowerCase();
@@ -119,25 +143,14 @@ export default function WorkspaceCloudPage() {
       : [...files];
 
     list.sort((a, b) => {
-      if (fileSort === 'oldest') {
-        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
-      }
-      if (fileSort === 'name_az') {
-        return String(a.name ?? '').localeCompare(String(b.name ?? ''), isThai ? 'th' : 'en');
-      }
-      if (fileSort === 'size_desc') {
-        return Number(b.size ?? 0) - Number(a.size ?? 0);
-      }
+      if (fileSort === 'oldest') return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      if (fileSort === 'name_az') return String(a.name ?? '').localeCompare(String(b.name ?? ''), isThai ? 'th' : 'en');
+      if (fileSort === 'size_desc') return Number(b.size ?? 0) - Number(a.size ?? 0);
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 
     return list;
   }, [fileQuery, fileSort, files, isThai]);
-
-  const fileCountLabel = useMemo(() => {
-    if (isThai) return 'ไฟล์ทั้งหมด ' + String(files.length) + ' รายการ';
-    return String(files.length) + ' files';
-  }, [files.length, isThai]);
 
   const loadFolders = useCallback(async () => {
     setLoadingFolders(true);
@@ -162,6 +175,17 @@ export default function WorkspaceCloudPage() {
       setLoadingFolders(false);
     }
   }, [isThai, showToast]);
+
+  const loadPinPolicy = useCallback(async () => {
+    try {
+      const response = await fetch('/api/pin/preferences', { cache: 'no-store' });
+      if (!response.ok) return;
+      const body = (await response.json().catch(() => ({}))) as { policy?: PinPolicy };
+      if (body.policy) setPinPolicy(body.policy);
+    } catch {
+      // Keep default policy behavior.
+    }
+  }, []);
 
   const loadFiles = useCallback(
     async (folderId: string) => {
@@ -191,11 +215,29 @@ export default function WorkspaceCloudPage() {
 
   useEffect(() => {
     void loadFolders();
-  }, [loadFolders]);
+    void loadPinPolicy();
+  }, [loadFolders, loadPinPolicy]);
 
   useEffect(() => {
     void loadFiles(activeFolderId);
   }, [activeFolderId, loadFiles]);
+
+  const openFolderDirect = useCallback((folderId: string) => {
+    setActiveFolderId(folderId);
+    setFileQuery('');
+  }, []);
+
+  const requestOpenFolder = useCallback(
+    (folder: WorkspaceFolderItem) => {
+      if (!requirePinToOpenFolder) {
+        openFolderDirect(folder.id);
+        return;
+      }
+      setPendingOpenFolder(folder);
+      setPinOpenFolderModalOpen(true);
+    },
+    [openFolderDirect, requirePinToOpenFolder],
+  );
 
   const createFolder = useCallback(async () => {
     const name = newFolderName.trim();
@@ -233,51 +275,71 @@ export default function WorkspaceCloudPage() {
         return;
       }
 
-      const email = String(shareEmailByFolderId[folder.id] ?? '')
-        .trim()
-        .toLowerCase();
-      if (!email) {
-        showToast(isThai ? 'กรุณาใส่อีเมลผู้รับ' : 'Please enter recipient email', 'error');
+      const emailInput = String(shareEmailsByFolderId[folder.id] ?? '');
+      const allEmails = parseEmails(emailInput);
+      const validEmails = allEmails.filter(isValidEmail);
+      if (validEmails.length === 0) {
+        showToast(isThai ? 'กรุณาใส่อีเมลอย่างน้อย 1 รายการ' : 'Please enter at least one valid email', 'error');
         return;
       }
 
       setSharingFolderId(folder.id);
+      let successCount = 0;
+      const failed: string[] = [];
+
       try {
-        const response = await fetch('/api/workspace-folders/' + encodeURIComponent(folder.id) + '/share', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, role: 'editor' }),
-        });
-        const body = (await response.json().catch(() => ({}))) as {
-          error?: string;
-          shared?: { folderId: string; userId: string; email: string; role: 'viewer' | 'editor' };
-        };
-        if (!response.ok || !body.shared) {
-          showToast(body.error || (isThai ? 'แชร์โฟลเดอร์ไม่สำเร็จ' : 'Failed to share folder'), 'error');
-          return;
+        for (const email of validEmails) {
+          const response = await fetch('/api/workspace-folders/' + encodeURIComponent(folder.id) + '/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, role: 'editor' }),
+          });
+          const body = (await response.json().catch(() => ({}))) as {
+            error?: string;
+            shared?: { folderId: string; userId: string; email: string; role: 'viewer' | 'editor' };
+          };
+
+          if (!response.ok || !body.shared) {
+            failed.push(email);
+            continue;
+          }
+
+          successCount += 1;
+          setFolders((prev) =>
+            prev.map((row) => {
+              if (row.id !== body.shared!.folderId) return row;
+              const exists = row.sharedMembers.some((item) => item.userId === body.shared!.userId);
+              const nextMembers = exists
+                ? row.sharedMembers.map((item) =>
+                    item.userId === body.shared!.userId ? { ...item, role: body.shared!.role, email: body.shared!.email } : item,
+                  )
+                : [...row.sharedMembers, body.shared!];
+              return { ...row, sharedMembers: nextMembers };
+            }),
+          );
         }
 
-        setShareEmailByFolderId((prev) => ({ ...prev, [folder.id]: '' }));
-        setFolders((prev) =>
-          prev.map((row) => {
-            if (row.id !== body.shared!.folderId) return row;
-            const exists = row.sharedMembers.some((item) => item.userId === body.shared!.userId);
-            const nextMembers = exists
-              ? row.sharedMembers.map((item) =>
-                  item.userId === body.shared!.userId ? { ...item, role: body.shared!.role, email: body.shared!.email } : item,
-                )
-              : [...row.sharedMembers, body.shared!];
-            return { ...row, sharedMembers: nextMembers };
-          }),
-        );
-        showToast(isThai ? 'แชร์โฟลเดอร์เรียบร้อย' : 'Folder shared', 'success');
+        if (successCount > 0) {
+          setShareEmailsByFolderId((prev) => ({ ...prev, [folder.id]: '' }));
+        }
+
+        if (successCount > 0 && failed.length === 0) {
+          showToast(isThai ? `แชร์โฟลเดอร์สำเร็จ ${successCount} อีเมล` : `Folder shared to ${successCount} email(s)`, 'success');
+        } else if (successCount > 0 && failed.length > 0) {
+          showToast(
+            isThai ? `แชร์สำเร็จ ${successCount} อีเมล, ไม่สำเร็จ ${failed.length} อีเมล` : `Shared ${successCount}, failed ${failed.length}`,
+            'success',
+          );
+        } else {
+          showToast(isThai ? 'แชร์โฟลเดอร์ไม่สำเร็จ' : 'Failed to share folder', 'error');
+        }
       } catch {
         showToast(isThai ? 'แชร์โฟลเดอร์ไม่สำเร็จ' : 'Failed to share folder', 'error');
       } finally {
         setSharingFolderId('');
       }
     },
-    [isThai, shareEmailByFolderId, showToast],
+    [isThai, shareEmailsByFolderId, showToast],
   );
 
   const deleteFolderWithAssertion = useCallback(
@@ -286,9 +348,7 @@ export default function WorkspaceCloudPage() {
       try {
         const response = await fetch('/api/workspace-folders/' + encodeURIComponent(folder.id), {
           method: 'DELETE',
-          headers: {
-            'x-pin-assertion': assertionToken,
-          },
+          headers: { 'x-pin-assertion': assertionToken },
         });
         const body = (await response.json().catch(() => ({}))) as { error?: string };
         if (!response.ok) {
@@ -297,7 +357,7 @@ export default function WorkspaceCloudPage() {
         }
 
         setFolders((prev) => prev.filter((item) => item.id !== folder.id));
-        setShareEmailByFolderId((prev) => {
+        setShareEmailsByFolderId((prev) => {
           const next = { ...prev };
           delete next[folder.id];
           return next;
@@ -322,19 +382,8 @@ export default function WorkspaceCloudPage() {
         showToast(isThai ? 'ลบได้เฉพาะเจ้าของโฟลเดอร์' : 'Only folder owner can delete', 'error');
         return;
       }
-
-      const confirmed =
-        typeof window === 'undefined'
-          ? true
-          : window.confirm(
-              isThai
-                ? 'ยืนยันการลบโฟลเดอร์ "' + folder.name + '" และไฟล์ทั้งหมดในโฟลเดอร์นี้?'
-                : 'Delete folder "' + folder.name + '" and all files inside it?',
-            );
-      if (!confirmed) return;
-
       setPendingDeleteFolder(folder);
-      setPinDeleteModalOpen(true);
+      setDeleteConfirmOpen(true);
     },
     [isThai, showToast],
   );
@@ -352,10 +401,7 @@ export default function WorkspaceCloudPage() {
           const formData = new FormData();
           formData.append('folderId', folderId);
           formData.append('file', file);
-          const response = await fetch('/api/workspace-files', {
-            method: 'POST',
-            body: formData,
-          });
+          const response = await fetch('/api/workspace-files', { method: 'POST', body: formData });
           const body = (await response.json().catch(() => ({}))) as { error?: string };
           if (!response.ok) {
             throw new Error(body.error || (isThai ? 'อัปโหลดไฟล์ไม่สำเร็จ' : 'Upload failed'));
@@ -363,9 +409,7 @@ export default function WorkspaceCloudPage() {
         }
 
         showToast(
-          isThai
-            ? 'อัปโหลดไฟล์เรียบร้อย ' + String(selectedFiles.length) + ' รายการ'
-            : 'Uploaded ' + String(selectedFiles.length) + ' file(s) successfully',
+          isThai ? 'อัปโหลดไฟล์เรียบร้อย ' + String(selectedFiles.length) + ' รายการ' : 'Uploaded ' + String(selectedFiles.length) + ' file(s) successfully',
           'success',
         );
         await loadFiles(folderId);
@@ -385,9 +429,7 @@ export default function WorkspaceCloudPage() {
       try {
         const response = await fetch(
           '/api/workspace-files?folderId=' + encodeURIComponent(activeFolderId) + '&path=' + encodeURIComponent(target.path),
-          {
-            method: 'DELETE',
-          },
+          { method: 'DELETE' },
         );
         const body = (await response.json().catch(() => ({}))) as { error?: string };
         if (!response.ok) {
@@ -411,14 +453,17 @@ export default function WorkspaceCloudPage() {
         <div className='flex items-start justify-between gap-2'>
           <div>
             <h1 className='text-app-h3 font-semibold text-slate-100'>{isThai ? 'คลาวด์ไฟล์งาน' : 'Cloud Files'}</h1>
-            <p className='mt-1 text-app-caption text-slate-300'>{fileCountLabel}</p>
+            <p className='mt-1 text-app-caption text-slate-300'>{isThai ? `ไฟล์ทั้งหมด ${files.length} รายการ` : `${files.length} files`}</p>
           </div>
           <Button
             type='button'
             variant='secondary'
             size='sm'
             className='h-9 rounded-xl px-3 text-app-caption'
-            onClick={() => void loadFolders()}
+            onClick={() => {
+              void loadFolders();
+              void loadPinPolicy();
+            }}
             disabled={loadingFolders || uploading || creatingFolder}
           >
             {loadingFolders ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <RefreshCcw className='mr-1 h-3.5 w-3.5' />}
@@ -427,25 +472,18 @@ export default function WorkspaceCloudPage() {
         </div>
 
         {!activeFolderId ? (
-          <>
-            <div className='mt-3 grid grid-cols-[1fr_auto] gap-2'>
-              <input
-                value={newFolderName}
-                onChange={(event) => setNewFolderName(event.target.value)}
-                placeholder={isThai ? 'ตั้งชื่อ New folder / ห้องเก็บไฟล์' : 'New folder name'}
-                className='h-10 w-full rounded-xl border border-[var(--border-soft)] bg-[rgba(16,31,78,0.72)] px-3 text-app-body text-slate-100 outline-none focus:border-[var(--border-strong)]'
-              />
-              <Button type='button' className='h-10 rounded-xl px-3 text-app-caption' onClick={() => void createFolder()} disabled={creatingFolder}>
-                {creatingFolder ? <Loader2 className='mr-1 h-4 w-4 animate-spin' /> : <FolderPlus className='mr-1 h-4 w-4' />}
-                {isThai ? 'สร้าง' : 'Create'}
-              </Button>
-            </div>
-            <p className='mt-2 text-app-micro text-slate-300'>
-              {isThai
-                ? 'กดเข้าแต่ละโฟลเดอร์เพื่ออัปโหลดไฟล์ จัดการไฟล์ และแชร์สิทธิ์'
-                : 'Open each folder to upload files, manage content, and share access.'}
-            </p>
-          </>
+          <div className='mt-3 grid grid-cols-[1fr_auto] gap-2'>
+            <input
+              value={newFolderName}
+              onChange={(event) => setNewFolderName(event.target.value)}
+              placeholder={isThai ? 'ตั้งชื่อ New folder / ห้องเก็บไฟล์' : 'New folder name'}
+              className='h-10 w-full rounded-xl border border-[var(--border-soft)] bg-[rgba(16,31,78,0.72)] px-3 text-app-body text-slate-100 outline-none focus:border-[var(--border-strong)]'
+            />
+            <Button type='button' className='h-10 rounded-xl px-3 text-app-caption' onClick={() => void createFolder()} disabled={creatingFolder}>
+              {creatingFolder ? <Loader2 className='mr-1 h-4 w-4 animate-spin' /> : <FolderPlus className='mr-1 h-4 w-4' />}
+              {isThai ? 'สร้าง' : 'Create'}
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -454,19 +492,9 @@ export default function WorkspaceCloudPage() {
           <p className='text-app-caption font-semibold text-slate-100'>{isThai ? 'โฟลเดอร์ / ห้องเก็บไฟล์' : 'Folders / Rooms'}</p>
           <div className='space-y-2'>
             {folders.map((folder) => (
-              <div
-                key={folder.id}
-                className='rounded-2xl border border-[rgba(139,171,255,0.3)] bg-[rgba(17,33,84,0.62)] px-3 py-2.5'
-              >
+              <div key={folder.id} className='rounded-2xl border border-[rgba(139,171,255,0.3)] bg-[rgba(17,33,84,0.62)] px-3 py-2.5'>
                 <div className='flex items-center justify-between gap-2'>
-                  <button
-                    type='button'
-                    onClick={() => {
-                      setActiveFolderId(folder.id);
-                      setFileQuery('');
-                    }}
-                    className='min-w-0 flex-1 text-left'
-                  >
+                  <button type='button' onClick={() => requestOpenFolder(folder)} className='min-w-0 flex-1 text-left'>
                     <p className='flex items-center gap-2 text-app-caption font-semibold text-slate-100'>
                       <Folder className='h-4 w-4 text-cyan-200' />
                       <span className='line-clamp-1'>{folder.name}</span>
@@ -485,18 +513,8 @@ export default function WorkspaceCloudPage() {
                             : 'Shared (viewer)'}
                     </p>
                   </button>
+
                   <div className='flex shrink-0 items-center gap-1.5'>
-                    <Button
-                      type='button'
-                      size='sm'
-                      className='h-8 rounded-xl px-2.5'
-                      onClick={() => {
-                        setActiveFolderId(folder.id);
-                        setFileQuery('');
-                      }}
-                    >
-                      {isThai ? 'เข้า' : 'Open'}
-                    </Button>
                     {folder.isOwner ? (
                       <>
                         <Button
@@ -505,7 +523,6 @@ export default function WorkspaceCloudPage() {
                           size='sm'
                           className='h-8 rounded-xl px-2.5'
                           onClick={() => setActiveShareFolderId((prev) => (prev === folder.id ? '' : folder.id))}
-                          aria-label={isThai ? 'แชร์โฟลเดอร์' : 'Share folder'}
                         >
                           <Share2 className='h-3.5 w-3.5' />
                         </Button>
@@ -516,13 +533,8 @@ export default function WorkspaceCloudPage() {
                           className='h-8 rounded-xl px-2.5 text-rose-100'
                           onClick={() => requestDeleteFolder(folder)}
                           disabled={deletingFolderId === folder.id}
-                          aria-label={isThai ? 'ลบโฟลเดอร์' : 'Delete folder'}
                         >
-                          {deletingFolderId === folder.id ? (
-                            <Loader2 className='h-3.5 w-3.5 animate-spin' />
-                          ) : (
-                            <Trash2 className='h-3.5 w-3.5' />
-                          )}
+                          {deletingFolderId === folder.id ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <Trash2 className='h-3.5 w-3.5' />}
                         </Button>
                       </>
                     ) : null}
@@ -532,28 +544,18 @@ export default function WorkspaceCloudPage() {
                 {folder.isOwner && activeShareFolderId === folder.id ? (
                   <div className='mt-2 grid grid-cols-[1fr_auto] gap-2'>
                     <input
-                      value={String(shareEmailByFolderId[folder.id] ?? '')}
+                      value={String(shareEmailsByFolderId[folder.id] ?? '')}
                       onChange={(event) =>
-                        setShareEmailByFolderId((prev) => ({
+                        setShareEmailsByFolderId((prev) => ({
                           ...prev,
                           [folder.id]: event.target.value,
                         }))
                       }
-                      placeholder={isThai ? 'อีเมลผู้ใช้ในระบบเดียวกัน' : 'User email in same app'}
+                      placeholder={isThai ? 'อีเมลหลายรายการคั่น , หรือ ;' : 'Multiple emails separated by , or ;'}
                       className='h-9 w-full rounded-xl border border-[var(--border-soft)] bg-[rgba(14,27,70,0.75)] px-3 text-app-caption text-slate-100 outline-none focus:border-[var(--border-strong)]'
                     />
-                    <Button
-                      type='button'
-                      size='sm'
-                      className='h-9 rounded-xl px-3 text-app-caption'
-                      onClick={() => void shareFolder(folder)}
-                      disabled={sharingFolderId === folder.id}
-                    >
-                      {sharingFolderId === folder.id ? (
-                        <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' />
-                      ) : (
-                        <Share2 className='mr-1 h-3.5 w-3.5' />
-                      )}
+                    <Button type='button' size='sm' className='h-9 rounded-xl px-3 text-app-caption' onClick={() => void shareFolder(folder)} disabled={sharingFolderId === folder.id}>
+                      {sharingFolderId === folder.id ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <Share2 className='mr-1 h-3.5 w-3.5' />}
                       {isThai ? 'แชร์' : 'Share'}
                     </Button>
                   </div>
@@ -588,38 +590,20 @@ export default function WorkspaceCloudPage() {
                 </button>
                 <div className='min-w-0'>
                   <p className='line-clamp-1 text-app-body font-semibold text-slate-100'>{activeFolder.name}</p>
-                  <p className='text-[11px] text-slate-300'>
-                    {isThai ? 'ไฟล์ในโฟลเดอร์นี้' : 'Files in this folder'}
-                  </p>
+                  <p className='text-[11px] text-slate-300'>{isThai ? 'ไฟล์ในโฟลเดอร์นี้' : 'Files in this folder'}</p>
                 </div>
               </div>
+
               <div className='flex items-center gap-1.5'>
-                <Button
-                  type='button'
-                  variant='secondary'
-                  size='sm'
-                  className='h-8 rounded-xl px-2.5'
-                  onClick={() => void loadFiles(activeFolder.id)}
-                  disabled={loadingFiles || uploading}
-                >
+                <Button type='button' variant={fileView === 'grid' ? 'default' : 'secondary'} size='sm' className='h-8 rounded-xl px-2.5' onClick={() => setFileView('grid')}>
+                  <Grid3X3 className='h-3.5 w-3.5' />
+                </Button>
+                <Button type='button' variant={fileView === 'list' ? 'default' : 'secondary'} size='sm' className='h-8 rounded-xl px-2.5' onClick={() => setFileView('list')}>
+                  <List className='h-3.5 w-3.5' />
+                </Button>
+                <Button type='button' variant='secondary' size='sm' className='h-8 rounded-xl px-2.5' onClick={() => void loadFiles(activeFolder.id)} disabled={loadingFiles || uploading}>
                   {loadingFiles ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <RefreshCcw className='h-3.5 w-3.5' />}
                 </Button>
-                {activeFolder.isOwner ? (
-                  <Button
-                    type='button'
-                    variant='secondary'
-                    size='sm'
-                    className='h-8 rounded-xl px-2.5 text-rose-100'
-                    onClick={() => requestDeleteFolder(activeFolder)}
-                    disabled={deletingFolderId === activeFolder.id}
-                  >
-                    {deletingFolderId === activeFolder.id ? (
-                      <Loader2 className='h-3.5 w-3.5 animate-spin' />
-                    ) : (
-                      <Trash2 className='h-3.5 w-3.5' />
-                    )}
-                  </Button>
-                ) : null}
               </div>
             </div>
 
@@ -651,13 +635,7 @@ export default function WorkspaceCloudPage() {
               <input type='file' multiple className='hidden' onChange={handleUpload} />
               {uploading ? <Loader2 className='h-4 w-4 animate-spin text-cyan-100' /> : <CloudUpload className='h-4 w-4 text-cyan-100' />}
               <span className='text-app-caption font-semibold text-slate-100'>
-                {uploading
-                  ? isThai
-                    ? 'กำลังอัปโหลด...'
-                    : 'Uploading...'
-                  : isThai
-                    ? 'อัปโหลดไฟล์หรือรูปภาพเข้าโฟลเดอร์นี้'
-                    : 'Upload files or images to this folder'}
+                {uploading ? (isThai ? 'กำลังอัปโหลด...' : 'Uploading...') : isThai ? 'อัปโหลดไฟล์หรือรูปภาพเข้าโฟลเดอร์นี้' : 'Upload files or images to this folder'}
               </span>
               <FilePlus2 className='h-4 w-4 text-cyan-100' />
             </label>
@@ -672,35 +650,22 @@ export default function WorkspaceCloudPage() {
 
             {!loadingFiles && filteredFiles.length === 0 ? (
               <div className='rounded-[16px] border border-[rgba(139,171,255,0.28)] bg-[rgba(17,33,84,0.56)] p-4 text-center text-app-body text-slate-200'>
-                {fileQuery.trim()
-                  ? isThai
-                    ? 'ไม่พบไฟล์ตามคำค้นหา'
-                    : 'No files match your search.'
-                  : isThai
-                    ? 'โฟลเดอร์นี้ยังไม่มีไฟล์'
-                    : 'No files in this folder.'}
+                {fileQuery.trim() ? (isThai ? 'ไม่พบไฟล์ตามคำค้นหา' : 'No files match your search.') : isThai ? 'โฟลเดอร์นี้ยังไม่มีไฟล์' : 'No files in this folder.'}
               </div>
             ) : null}
 
             {filteredFiles.length > 0 ? (
-              <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+              <div className={fileView === 'grid' ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'space-y-2'}>
                 {filteredFiles.map((fileItem) => {
                   const Icon = chooseFileIcon(fileItem.mimeType);
                   const deleting = deletingPath === fileItem.path;
                   const isImage = String(fileItem.mimeType ?? '').toLowerCase().startsWith('image/');
+
                   return (
-                    <article
-                      key={fileItem.path}
-                      className='rounded-[16px] border border-[rgba(139,171,255,0.28)] bg-[rgba(17,33,84,0.56)] p-2.5'
-                    >
+                    <article key={fileItem.path} className='rounded-[16px] border border-[rgba(139,171,255,0.28)] bg-[rgba(17,33,84,0.56)] p-2.5'>
                       <div className='flex items-center gap-2.5'>
                         {isImage ? (
-                          <img
-                            src={fileItem.previewUrl}
-                            alt={fileItem.name}
-                            className='h-20 w-20 shrink-0 rounded-xl border border-[var(--border-soft)] object-cover'
-                            loading='lazy'
-                          />
+                          <img src={fileItem.previewUrl} alt={fileItem.name} className='h-20 w-20 shrink-0 rounded-xl border border-[var(--border-soft)] object-cover' loading='lazy' />
                         ) : (
                           <div className='flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[rgba(19,35,87,0.72)]'>
                             <Icon className='h-9 w-9 text-cyan-100' />
@@ -713,14 +678,9 @@ export default function WorkspaceCloudPage() {
                           </p>
                         </div>
                       </div>
+
                       <div className='mt-2.5 flex items-center gap-2'>
-                        <a
-                          href={fileItem.downloadUrl}
-                          target='_blank'
-                          rel='noreferrer'
-                          className='inline-flex h-8 flex-1 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'
-                          aria-label={isThai ? 'ดาวน์โหลดไฟล์' : 'Download file'}
-                        >
+                        <a href={fileItem.downloadUrl} target='_blank' rel='noreferrer' className='inline-flex h-8 flex-1 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'>
                           <Download className='mr-1 h-4 w-4' />
                           <span className='text-[11px] font-semibold'>{isThai ? 'ดาวน์โหลด' : 'Download'}</span>
                         </a>
@@ -731,7 +691,6 @@ export default function WorkspaceCloudPage() {
                           className='h-8 rounded-xl px-2.5'
                           disabled={deleting || (!activeFolder?.isOwner && activeFolder?.memberRole !== 'editor')}
                           onClick={() => void handleDeleteFile(fileItem)}
-                          aria-label={isThai ? 'ลบไฟล์' : 'Delete file'}
                         >
                           {deleting ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <Trash2 className='h-3.5 w-3.5' />}
                         </Button>
@@ -741,6 +700,40 @@ export default function WorkspaceCloudPage() {
                 })}
               </div>
             ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {deleteConfirmOpen && pendingDeleteFolder ? (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-[2px]'>
+          <div className='w-full max-w-[420px] rounded-[22px] border border-cyan-300/35 bg-[linear-gradient(160deg,rgba(18,38,94,0.98),rgba(18,29,74,0.98))] p-4 shadow-[0_18px_44px_rgba(10,26,78,0.45)]'>
+            <h3 className='text-app-h3 font-semibold text-slate-100'>{isThai ? 'ยืนยันการลบโฟลเดอร์' : 'Confirm Folder Deletion'}</h3>
+            <p className='mt-2 text-app-caption text-slate-200'>
+              {isThai ? `ลบโฟลเดอร์ "${pendingDeleteFolder.name}" และไฟล์ทั้งหมดภายในหรือไม่?` : `Delete folder "${pendingDeleteFolder.name}" and all files inside?`}
+            </p>
+            <div className='mt-4 grid grid-cols-2 gap-2'>
+              <Button
+                type='button'
+                variant='secondary'
+                className='h-10 rounded-xl'
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setPendingDeleteFolder(null);
+                }}
+              >
+                {isThai ? 'ยกเลิก' : 'Cancel'}
+              </Button>
+              <Button
+                type='button'
+                className='h-10 rounded-xl'
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setPinDeleteModalOpen(true);
+                }}
+              >
+                {isThai ? 'ยืนยันต่อ' : 'Continue'}
+              </Button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -760,6 +753,25 @@ export default function WorkspaceCloudPage() {
             setPendingDeleteFolder(null);
             if (!folder) return;
             void deleteFolderWithAssertion(folder, assertionToken);
+          }}
+        />
+      ) : null}
+
+      {pinOpenFolderModalOpen && pendingOpenFolder ? (
+        <PinModal
+          action='open_workspace_folder'
+          actionLabel={isThai ? `เปิดโฟลเดอร์ ${pendingOpenFolder.name}` : `Open folder ${pendingOpenFolder.name}`}
+          targetItemId={pendingOpenFolder.id}
+          onClose={() => {
+            setPinOpenFolderModalOpen(false);
+            setPendingOpenFolder(null);
+          }}
+          onVerified={() => {
+            const folder = pendingOpenFolder;
+            setPinOpenFolderModalOpen(false);
+            setPendingOpenFolder(null);
+            if (!folder) return;
+            openFolderDirect(folder.id);
           }}
         />
       ) : null}

@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calculator, Delete, Equal, History, Loader2, NotebookPen, RefreshCcw, Trash2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Calculator, Delete, Equal, History, Loader2, NotebookPen, RefreshCcw } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 
-const HISTORY_STORAGE_KEY = 'pv_calculator_history_v1';
+export const HISTORY_STORAGE_KEY = 'pv_calculator_history_v1';
 const HISTORY_MAX_ITEMS = 300;
 const BACKSPACE_KEY = 'BACKSPACE';
 
@@ -142,9 +143,7 @@ function readHistoryFromStorage() {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as HistoryItem[];
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => item && typeof item.expression === 'string' && typeof item.result === 'string')
-      .slice(0, HISTORY_MAX_ITEMS);
+    return parsed.filter((item) => item && typeof item.expression === 'string' && typeof item.result === 'string').slice(0, HISTORY_MAX_ITEMS);
   } catch {
     return [];
   }
@@ -162,18 +161,26 @@ function saveHistoryToStorage(items: HistoryItem[]) {
 export default function CalculatorPage() {
   const { locale } = useI18n();
   const { showToast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const isThai = locale === 'th';
 
   const [expression, setExpression] = useState('');
   const [result, setResult] = useState('0');
   const [error, setError] = useState('');
-  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [lastEquation, setLastEquation] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [resultPopup, setResultPopup] = useState<{ expression: string; result: string } | null>(null);
 
   useEffect(() => {
-    setHistoryItems(readHistoryFromStorage());
-  }, []);
+    const nextExpression = String(searchParams.get('expression') ?? '').trim();
+    const nextResult = String(searchParams.get('result') ?? '').trim();
+    if (!nextExpression && !nextResult) return;
+    setExpression(nextExpression || nextResult);
+    setResult(nextResult || '0');
+    setLastEquation(nextExpression && nextResult ? nextExpression + ' = ' + nextResult : '');
+    setError('');
+  }, [searchParams]);
 
   const summaryLabel = useMemo(() => (isThai ? 'ผลลัพธ์ล่าสุด' : 'Latest result'), [isThai]);
 
@@ -199,6 +206,7 @@ export default function CalculatorPage() {
     setResult('0');
     setError('');
     setLastEquation('');
+    setResultPopup(null);
   }, []);
 
   const backspace = useCallback(() => {
@@ -206,17 +214,10 @@ export default function CalculatorPage() {
     setExpression((prev) => prev.slice(0, -1));
   }, []);
 
-  const clearHistory = useCallback(() => {
-    setHistoryItems([]);
-    saveHistoryToStorage([]);
-  }, []);
-
   const addHistory = useCallback((item: HistoryItem) => {
-    setHistoryItems((prev) => {
-      const next = [item, ...prev].slice(0, HISTORY_MAX_ITEMS);
-      saveHistoryToStorage(next);
-      return next;
-    });
+    const current = readHistoryFromStorage();
+    const next = [item, ...current].slice(0, HISTORY_MAX_ITEMS);
+    saveHistoryToStorage(next);
   }, []);
 
   const calculateNow = useCallback(() => {
@@ -230,6 +231,7 @@ export default function CalculatorPage() {
       setExpression(formatted);
       setError('');
       setLastEquation(equation);
+      setResultPopup({ expression: sourceExpression, result: formatted });
       addHistory({
         id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
         expression: sourceExpression,
@@ -240,13 +242,6 @@ export default function CalculatorPage() {
       setError(isThai ? 'สมการไม่ถูกต้อง' : 'Invalid expression');
     }
   }, [addHistory, expression, isThai]);
-
-  const applyHistoryItem = useCallback((item: HistoryItem) => {
-    setExpression(item.expression);
-    setResult(item.result);
-    setLastEquation(item.expression + ' = ' + item.result);
-    setError('');
-  }, []);
 
   const saveLatestToNote = useCallback(async () => {
     const sourceExpression = expression.trim();
@@ -308,19 +303,13 @@ export default function CalculatorPage() {
         </div>
 
         <div className='mt-2 grid grid-cols-2 gap-2'>
-          <Button
-            type='button'
-            variant='secondary'
-            className='h-10 rounded-xl text-app-caption'
-            onClick={() => void saveLatestToNote()}
-            disabled={savingNote}
-          >
+          <Button type='button' variant='secondary' className='h-10 rounded-xl text-app-caption' onClick={() => void saveLatestToNote()} disabled={savingNote}>
             {savingNote ? <Loader2 className='mr-1 h-4 w-4 animate-spin' /> : <NotebookPen className='mr-1 h-4 w-4' />}
             {isThai ? 'บันทึกลงโน้ต' : 'Save to notes'}
           </Button>
-          <Button type='button' variant='secondary' className='h-10 rounded-xl text-app-caption' onClick={clearHistory}>
-            <Trash2 className='mr-1 h-4 w-4' />
-            {isThai ? 'ล้างประวัติ' : 'Clear history'}
+          <Button type='button' variant='secondary' className='h-10 rounded-xl text-app-caption' onClick={() => router.push('/calculator/history')}>
+            <History className='mr-1 h-4 w-4' />
+            {isThai ? 'ประวัติย้อนหลัง' : 'History'}
           </Button>
         </div>
       </div>
@@ -348,42 +337,30 @@ export default function CalculatorPage() {
               </button>
             );
           })}
-          <Button type='button' className='col-span-4 h-14 rounded-2xl text-[20px]' onClick={calculateNow}>
+          <Button type='button' className='col-span-3 h-14 rounded-2xl text-[20px]' onClick={calculateNow}>
             <Equal className='mr-1 h-5 w-5' />
             {isThai ? 'คำนวณผลลัพธ์' : 'Calculate result'}
+          </Button>
+          <Button type='button' variant='secondary' className='col-span-1 h-14 rounded-2xl' onClick={() => router.push('/calculator/history')}>
+            <History className='h-5 w-5' />
           </Button>
         </div>
       </div>
 
-      <div className='neon-soft-panel rounded-[24px] p-3'>
-        <div className='mb-2 flex items-center justify-between'>
-          <p className='inline-flex items-center gap-1 text-app-caption font-semibold text-slate-100'>
-            <History className='h-4 w-4' />
-            {isThai ? 'ประวัติย้อนหลัง' : 'History'}
-          </p>
-          <span className='text-app-micro text-slate-300'>{historyItems.length} {isThai ? 'รายการ' : 'items'}</span>
+      {resultPopup ? (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-[3px]'>
+          <div className='w-full max-w-[420px] rounded-[24px] border border-cyan-300/40 bg-[linear-gradient(165deg,rgba(18,39,98,0.98),rgba(20,31,76,0.98))] p-4 shadow-[0_24px_52px_rgba(8,22,66,0.55)]'>
+            <p className='text-app-caption text-cyan-100'>{isThai ? 'ผลลัพธ์ล่าสุด' : 'Latest Result'}</p>
+            <p className='mt-2 break-all text-right font-mono text-[16px] text-slate-200'>{resultPopup.expression}</p>
+            <p className='mt-1 break-all text-right font-mono text-[34px] font-semibold text-cyan-100'>= {resultPopup.result}</p>
+            <div className='mt-4 flex justify-end'>
+              <Button type='button' className='h-10 rounded-xl px-5' onClick={() => setResultPopup(null)}>
+                {isThai ? 'ปิด' : 'Close'}
+              </Button>
+            </div>
+          </div>
         </div>
-        <div className='max-h-[260px] space-y-1.5 overflow-y-auto pr-1'>
-          {historyItems.length === 0 ? (
-            <p className='rounded-xl border border-[var(--border-soft)] bg-[rgba(18,32,79,0.62)] p-2.5 text-app-caption text-slate-300'>
-              {isThai ? 'ยังไม่มีประวัติการคำนวณ' : 'No calculation history yet.'}
-            </p>
-          ) : null}
-          {historyItems.map((item) => (
-            <button
-              key={item.id}
-              type='button'
-              onClick={() => applyHistoryItem(item)}
-              className='w-full rounded-xl border border-[var(--border-soft)] bg-[rgba(18,32,79,0.62)] px-2.5 py-2 text-left transition hover:border-[var(--border-strong)]'
-            >
-              <p className='line-clamp-1 font-mono text-app-caption font-semibold text-slate-100'>
-                {item.expression} = {item.result}
-              </p>
-              <p className='mt-0.5 text-[10px] text-slate-300'>{new Date(item.createdAt).toLocaleString(isThai ? 'th-TH' : 'en-US')}</p>
-            </button>
-          ))}
-        </div>
-      </div>
+      ) : null}
     </section>
   );
 }

@@ -681,16 +681,13 @@ export default function SettingsPage() {
   );
 
   const pinView = (
-    <Card className='space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
-      <p className='text-app-body text-slate-300'>
-        {locale === 'th'
-          ? 'จัดการ PIN ความปลอดภัยของระบบ และแยกตั้งค่าได้ว่าเมนูไหนต้องยืนยัน PIN ทุกครั้ง'
-          : 'Manage your security PIN and choose which actions require PIN confirmation every time.'}
+    <div className='space-y-2'>
+      <p className='text-app-caption text-slate-300'>
+        {locale === 'th' ? 'เลือกจัดการ PIN หรือกำหนด PIN รายเมนู' : 'Change PIN or manage PIN per menu.'}
       </p>
-
       <Button
         type='button'
-        className='h-10 rounded-xl'
+        className='h-10 w-full rounded-xl'
         onClick={() => {
           setCurrentPin('');
           setNewPin('');
@@ -706,16 +703,10 @@ export default function SettingsPage() {
             ? 'Change Security PIN'
             : 'Set Security PIN'}
       </Button>
-
-      <Button
-        type='button'
-        variant='secondary'
-        className='h-10 rounded-xl'
-        onClick={() => router.push('/settings/pin-security')}
-      >
+      <Button type='button' variant='secondary' className='h-10 w-full rounded-xl' onClick={() => router.push('/settings/pin-security')}>
         {locale === 'th' ? 'ตั้งค่า PIN รายเมนู' : 'PIN Per-Menu Settings'}
       </Button>
-    </Card>
+    </div>
   );
 
   const languageView = (
