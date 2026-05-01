@@ -398,13 +398,13 @@ export default function HomePage() {
         </span>
       </div>
 
-      <div className='space-y-1.5'>
+      <div className='space-y-2.5'>
         <div className='grid grid-cols-3 gap-2'>
-          {actionTiles.map((tile) => {
+          {actionTiles.slice(0, 3).map((tile) => {
             const Icon = tile.icon;
             const tileBody = (
               <>
-                <Icon className={'h-[22px] w-[22px] ' + tile.iconClass} />
+                <Icon className='h-[22px] w-[22px] text-slate-100' />
                 <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
               </>
             );
@@ -434,7 +434,7 @@ export default function HomePage() {
           })}
         </div>
 
-        <div className='grid grid-cols-3 gap-2'>
+        <div className='grid grid-cols-3 gap-2.5'>
           {actionTiles.slice(3).map((tile) => {
             const Icon = tile.icon;
             return (
