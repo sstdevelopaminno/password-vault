@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, History, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PinModal } from '@/components/vault/pin-modal';
 import { useI18n } from '@/i18n/provider';
 
 const HISTORY_STORAGE_KEY = 'pv_calculator_history_v1';
@@ -13,6 +14,10 @@ type HistoryItem = {
   expression: string;
   result: string;
   createdAt: string;
+};
+
+type PinPolicy = {
+  delete_calculator_history?: boolean;
 };
 
 function readHistoryFromStorage() {
@@ -43,9 +48,35 @@ export default function CalculatorHistoryPage() {
   const isThai = locale === 'th';
 
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [pinPolicy, setPinPolicy] = useState<PinPolicy | null>(null);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingClearAll, setPendingClearAll] = useState(false);
+
+  const requirePinToDeleteHistory = pinPolicy?.delete_calculator_history !== false;
 
   useEffect(() => {
     setHistoryItems(readHistoryFromStorage());
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadPinPolicy = async () => {
+      try {
+        const response = await fetch('/api/pin/preferences', { cache: 'no-store' });
+        if (!response.ok) return;
+        const body = (await response.json().catch(() => ({}))) as { policy?: PinPolicy };
+        if (mounted && body.policy) {
+          setPinPolicy(body.policy);
+        }
+      } catch {
+        // keep default requiring PIN
+      }
+    };
+    void loadPinPolicy();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const historyCountLabel = useMemo(
@@ -53,17 +84,37 @@ export default function CalculatorHistoryPage() {
     [historyItems.length, isThai],
   );
 
-  const removeOne = (id: string) => {
+  const removeOneNow = useCallback((id: string) => {
     setHistoryItems((prev) => {
       const next = prev.filter((item) => item.id !== id);
       saveHistoryToStorage(next);
       return next;
     });
-  };
+  }, []);
 
-  const clearAll = () => {
+  const clearAllNow = useCallback(() => {
     setHistoryItems([]);
     saveHistoryToStorage([]);
+  }, []);
+
+  const requestDeleteOne = (id: string) => {
+    if (!requirePinToDeleteHistory) {
+      removeOneNow(id);
+      return;
+    }
+    setPendingDeleteId(id);
+    setPendingClearAll(false);
+    setPinModalOpen(true);
+  };
+
+  const requestClearAll = () => {
+    if (!requirePinToDeleteHistory) {
+      clearAllNow();
+      return;
+    }
+    setPendingDeleteId(null);
+    setPendingClearAll(true);
+    setPinModalOpen(true);
   };
 
   return (
@@ -84,7 +135,7 @@ export default function CalculatorHistoryPage() {
               <p className='text-app-caption text-slate-300'>{historyCountLabel}</p>
             </div>
           </div>
-          <Button type='button' variant='secondary' size='sm' className='h-9 rounded-xl px-3' onClick={clearAll}>
+          <Button type='button' variant='secondary' size='sm' className='h-9 rounded-xl px-3' onClick={requestClearAll}>
             <Trash2 className='mr-1 h-4 w-4' />
             {isThai ? 'ล้างทั้งหมด' : 'Clear all'}
           </Button>
@@ -104,12 +155,7 @@ export default function CalculatorHistoryPage() {
               type='button'
               className='w-full text-left'
               onClick={() =>
-                router.push(
-                  '/calculator?expression=' +
-                    encodeURIComponent(item.expression) +
-                    '&result=' +
-                    encodeURIComponent(item.result),
-                )
+                router.push('/calculator?expression=' + encodeURIComponent(item.expression) + '&result=' + encodeURIComponent(item.result))
               }
             >
               <p className='line-clamp-1 font-mono text-app-caption font-semibold text-slate-100'>
@@ -121,7 +167,7 @@ export default function CalculatorHistoryPage() {
               </p>
             </button>
             <div className='mt-2 flex justify-end'>
-              <Button type='button' variant='secondary' size='sm' className='h-8 rounded-xl px-3 text-rose-100' onClick={() => removeOne(item.id)}>
+              <Button type='button' variant='secondary' size='sm' className='h-8 rounded-xl px-3 text-rose-100' onClick={() => requestDeleteOne(item.id)}>
                 <Trash2 className='mr-1 h-3.5 w-3.5' />
                 {isThai ? 'ลบรายการนี้' : 'Delete'}
               </Button>
@@ -129,6 +175,37 @@ export default function CalculatorHistoryPage() {
           </div>
         ))}
       </div>
+
+      {pinModalOpen ? (
+        <PinModal
+          action='delete_calculator_history'
+          actionLabel={
+            pendingClearAll
+              ? isThai
+                ? 'ล้างประวัติเครื่องคิดเลขทั้งหมด'
+                : 'clear all calculator history'
+              : isThai
+                ? 'ลบประวัติเครื่องคิดเลข'
+                : 'delete calculator history item'
+          }
+          targetItemId={pendingDeleteId ?? undefined}
+          onClose={() => {
+            setPinModalOpen(false);
+            setPendingDeleteId(null);
+            setPendingClearAll(false);
+          }}
+          onVerified={() => {
+            setPinModalOpen(false);
+            if (pendingClearAll) {
+              clearAllNow();
+            } else if (pendingDeleteId) {
+              removeOneNow(pendingDeleteId);
+            }
+            setPendingDeleteId(null);
+            setPendingClearAll(false);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

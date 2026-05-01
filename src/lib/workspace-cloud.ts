@@ -21,12 +21,30 @@ export type WorkspaceFolderAccess = {
 };
 
 export function normalizeFileName(raw: string) {
-  return raw
+  const normalized = String(raw ?? '')
     .normalize('NFKC')
     .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 120);
+    .trim();
+
+  const lastDot = normalized.lastIndexOf('.');
+  const baseRaw = lastDot > 0 ? normalized.slice(0, lastDot) : normalized;
+  const extRaw = lastDot > 0 ? normalized.slice(lastDot + 1) : '';
+
+  const baseSafe = baseRaw
+    .replace(/[^A-Za-z0-9._ -]/g, '_')
+    .replace(/\s+/g, '-')
+    .replace(/_+/g, '_')
+    .replace(/-+/g, '-')
+    .replace(/^[-_.]+|[-_.]+$/g, '')
+    .slice(0, 96);
+
+  const extSafe = extRaw
+    .replace(/[^A-Za-z0-9]/g, '')
+    .slice(0, 12)
+    .toLowerCase();
+
+  const fileBase = baseSafe || 'workspace-file';
+  return extSafe ? `${fileBase}.${extSafe}` : fileBase;
 }
 
 export function sanitizeStoragePath(raw: string | null | undefined) {
@@ -157,4 +175,3 @@ export function buildFolderStoragePath(folderId: string, fileName: string) {
     .slice(0, 6);
   return buildFolderStoragePrefix(folderId) + '/' + stamp + '-' + random + '-' + fileName;
 }
-

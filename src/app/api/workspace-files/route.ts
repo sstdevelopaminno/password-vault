@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
+import { requirePinAssertion } from '@/lib/pin-guard';
 import {
   WORKSPACE_FILES_BUCKET,
   MAX_UPLOAD_BYTES,
@@ -24,6 +26,8 @@ type WorkspaceFileResponse = {
   previewUrl: string;
 };
 
+type SignedPair = { previewUrl: string; downloadUrl: string; path: string } | null;
+
 function normalizeFolderId(raw: unknown) {
   return String(raw ?? '').trim();
 }
@@ -42,6 +46,43 @@ async function requireFolderAccess(folderId: string) {
     return { error: NextResponse.json({ error: 'Folder not found' }, { status: 404 }) } as const;
   }
   return { access } as const;
+}
+
+async function signPath(path: string): Promise<SignedPair> {
+  const admin = createAdminClient();
+  const signedPreview = await admin.storage.from(WORKSPACE_FILES_BUCKET).createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+  const signedDownload = await admin.storage.from(WORKSPACE_FILES_BUCKET).createSignedUrl(path, SIGNED_URL_TTL_SECONDS, {
+    download: true,
+  });
+  if (signedPreview.error || signedDownload.error || !signedPreview.data?.signedUrl || !signedDownload.data?.signedUrl) {
+    return null;
+  }
+  return {
+    previewUrl: signedPreview.data.signedUrl,
+    downloadUrl: signedDownload.data.signedUrl,
+    path,
+  };
+}
+
+async function tryRepairAndSign(input: {
+  folderId: string;
+  currentPath: string;
+  currentName: string;
+}): Promise<SignedPair> {
+  const admin = createAdminClient();
+  const safeName = normalizeFileName(input.currentName);
+  if (!safeName) return null;
+
+  const repairedPath = buildFolderStoragePath(input.folderId, safeName);
+  const copied = await admin.storage.from(WORKSPACE_FILES_BUCKET).copy(input.currentPath, repairedPath);
+  if (copied.error) return null;
+
+  const removed = await admin.storage.from(WORKSPACE_FILES_BUCKET).remove([input.currentPath]);
+  if (removed.error) {
+    // keep copied file even if old key cleanup fails
+  }
+
+  return signPath(repairedPath);
 }
 
 export async function GET(req: Request) {
@@ -72,49 +113,33 @@ export async function GET(req: Request) {
   }
 
   const files = (listed.data ?? []).filter((item) => item.id && item.name && item.metadata);
-  const fullPaths = files.map((item) => prefix + '/' + item.name);
-  const signedPreview =
-    fullPaths.length > 0
-      ? await admin.storage.from(WORKSPACE_FILES_BUCKET).createSignedUrls(fullPaths, SIGNED_URL_TTL_SECONDS)
-      : { data: [], error: null };
-  const signedDownload =
-    fullPaths.length > 0
-      ? await admin.storage.from(WORKSPACE_FILES_BUCKET).createSignedUrls(fullPaths, SIGNED_URL_TTL_SECONDS, { download: true })
-      : { data: [], error: null };
+  const responseFiles: WorkspaceFileResponse[] = [];
 
-  if (signedPreview.error || signedDownload.error) {
-    return NextResponse.json({ error: signedPreview.error?.message ?? signedDownload.error?.message ?? 'Failed to sign URLs' }, { status: 400 });
-  }
+  for (const item of files) {
+    const path = prefix + '/' + item.name;
+    let signed = await signPath(path);
+    if (!signed) {
+      signed = await tryRepairAndSign({
+        folderId,
+        currentPath: path,
+        currentName: String(item.name),
+      });
+    }
+    if (!signed) {
+      continue;
+    }
 
-  const previewByPath = new Map<string, string>();
-  for (const entry of signedPreview.data ?? []) {
-    if (!entry.path || !entry.signedUrl) continue;
-    previewByPath.set(entry.path, entry.signedUrl);
+    responseFiles.push({
+      id: String(item.id),
+      name: String(signed.path.split('/').pop() ?? item.name),
+      path: signed.path,
+      size: Number(item.metadata?.size ?? 0),
+      mimeType: String(item.metadata?.mimetype ?? 'application/octet-stream'),
+      updatedAt: String(item.updated_at ?? item.created_at ?? new Date().toISOString()),
+      previewUrl: signed.previewUrl,
+      downloadUrl: signed.downloadUrl,
+    });
   }
-  const downloadByPath = new Map<string, string>();
-  for (const entry of signedDownload.data ?? []) {
-    if (!entry.path || !entry.signedUrl) continue;
-    downloadByPath.set(entry.path, entry.signedUrl);
-  }
-
-  const responseFiles: WorkspaceFileResponse[] = files
-    .map((item) => {
-      const path = prefix + '/' + item.name;
-      const previewUrl = previewByPath.get(path) ?? '';
-      const downloadUrl = downloadByPath.get(path) ?? '';
-      if (!previewUrl || !downloadUrl) return null;
-      return {
-        id: String(item.id),
-        name: String(item.name),
-        path,
-        size: Number(item.metadata?.size ?? 0),
-        mimeType: String(item.metadata?.mimetype ?? 'application/octet-stream'),
-        updatedAt: String(item.updated_at ?? item.created_at ?? new Date().toISOString()),
-        previewUrl,
-        downloadUrl,
-      } satisfies WorkspaceFileResponse;
-    })
-    .filter((item): item is WorkspaceFileResponse => Boolean(item));
 
   return NextResponse.json({ files: responseFiles });
 }
@@ -191,6 +216,12 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const folderId = normalizeFolderId(searchParams.get('folderId'));
   if (!folderId) {
@@ -213,6 +244,16 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Forbidden path' }, { status: 403 });
   }
 
+  const pinCheck = await requirePinAssertion({
+    request: req,
+    userId: auth.user.id,
+    action: 'delete_workspace_file',
+    targetItemId: sanitized,
+  });
+  if (!pinCheck.ok) {
+    return pinCheck.response;
+  }
+
   try {
     await ensureWorkspaceBucket();
   } catch (error) {
@@ -227,4 +268,3 @@ export async function DELETE(req: Request) {
 
   return NextResponse.json({ ok: true });
 }
-

@@ -57,7 +57,7 @@ type WorkspaceFolderItem = {
 
 type FileSort = 'latest' | 'oldest' | 'name_az' | 'size_desc';
 type FileView = 'grid' | 'list';
-type PinPolicy = { open_workspace_folder?: boolean };
+type PinPolicy = { open_workspace_folder?: boolean; delete_workspace_file?: boolean };
 
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
@@ -127,10 +127,13 @@ export default function WorkspaceCloudPage() {
 
   const [pinOpenFolderModalOpen, setPinOpenFolderModalOpen] = useState(false);
   const [pendingOpenFolder, setPendingOpenFolder] = useState<WorkspaceFolderItem | null>(null);
+  const [pinDeleteFileModalOpen, setPinDeleteFileModalOpen] = useState(false);
+  const [pendingDeleteFile, setPendingDeleteFile] = useState<WorkspaceFileItem | null>(null);
   const [pinPolicy, setPinPolicy] = useState<PinPolicy | null>(null);
 
   const activeFolder = useMemo(() => folders.find((item) => item.id === activeFolderId) ?? null, [folders, activeFolderId]);
   const requirePinToOpenFolder = pinPolicy?.open_workspace_folder !== false;
+  const requirePinToDeleteFile = pinPolicy?.delete_workspace_file !== false;
 
   const filteredFiles = useMemo(() => {
     const query = fileQuery.trim().toLowerCase();
@@ -422,14 +425,14 @@ export default function WorkspaceCloudPage() {
     [activeFolderId, isThai, loadFiles, showToast],
   );
 
-  const handleDeleteFile = useCallback(
-    async (target: WorkspaceFileItem) => {
+  const handleDeleteFileWithAssertion = useCallback(
+    async (target: WorkspaceFileItem, assertionToken: string) => {
       if (!activeFolderId) return;
       setDeletingPath(target.path);
       try {
         const response = await fetch(
           '/api/workspace-files?folderId=' + encodeURIComponent(activeFolderId) + '&path=' + encodeURIComponent(target.path),
-          { method: 'DELETE' },
+          { method: 'DELETE', headers: { 'x-pin-assertion': assertionToken } },
         );
         const body = (await response.json().catch(() => ({}))) as { error?: string };
         if (!response.ok) {
@@ -445,6 +448,18 @@ export default function WorkspaceCloudPage() {
       }
     },
     [activeFolderId, isThai, showToast],
+  );
+
+  const requestDeleteFile = useCallback(
+    (target: WorkspaceFileItem) => {
+      if (!requirePinToDeleteFile) {
+        void handleDeleteFileWithAssertion(target, '');
+        return;
+      }
+      setPendingDeleteFile(target);
+      setPinDeleteFileModalOpen(true);
+    },
+    [handleDeleteFileWithAssertion, requirePinToDeleteFile],
   );
 
   return (
@@ -595,10 +610,26 @@ export default function WorkspaceCloudPage() {
               </div>
 
               <div className='flex items-center gap-1.5'>
-                <Button type='button' variant={fileView === 'grid' ? 'default' : 'secondary'} size='sm' className='h-8 rounded-xl px-2.5' onClick={() => setFileView('grid')}>
+                <Button
+                  type='button'
+                  variant={fileView === 'grid' ? 'default' : 'secondary'}
+                  size='sm'
+                  className='h-8 rounded-xl px-2.5'
+                  onClick={() => setFileView('grid')}
+                  aria-pressed={fileView === 'grid'}
+                  title={isThai ? 'มุมมองแบบตาราง' : 'Grid view'}
+                >
                   <Grid3X3 className='h-3.5 w-3.5' />
                 </Button>
-                <Button type='button' variant={fileView === 'list' ? 'default' : 'secondary'} size='sm' className='h-8 rounded-xl px-2.5' onClick={() => setFileView('list')}>
+                <Button
+                  type='button'
+                  variant={fileView === 'list' ? 'default' : 'secondary'}
+                  size='sm'
+                  className='h-8 rounded-xl px-2.5'
+                  onClick={() => setFileView('list')}
+                  aria-pressed={fileView === 'list'}
+                  title={isThai ? 'มุมมองแบบรายการ' : 'List view'}
+                >
                   <List className='h-3.5 w-3.5' />
                 </Button>
                 <Button type='button' variant='secondary' size='sm' className='h-8 rounded-xl px-2.5' onClick={() => void loadFiles(activeFolder.id)} disabled={loadingFiles || uploading}>
@@ -655,32 +686,61 @@ export default function WorkspaceCloudPage() {
             ) : null}
 
             {filteredFiles.length > 0 ? (
-              <div className={fileView === 'grid' ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'space-y-2'}>
+              <div className={fileView === 'grid' ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'rounded-[16px] border border-[rgba(139,171,255,0.28)] bg-[rgba(17,33,84,0.56)] p-2'}>
                 {filteredFiles.map((fileItem) => {
                   const Icon = chooseFileIcon(fileItem.mimeType);
                   const deleting = deletingPath === fileItem.path;
                   const isImage = String(fileItem.mimeType ?? '').toLowerCase().startsWith('image/');
 
                   return (
-                    <article key={fileItem.path} className='rounded-[16px] border border-[rgba(139,171,255,0.28)] bg-[rgba(17,33,84,0.56)] p-2.5'>
+                    <article
+                      key={fileItem.path}
+                      className={
+                        fileView === 'list'
+                          ? 'border-b border-[rgba(139,171,255,0.2)] px-1.5 py-2.5 last:border-b-0'
+                          : 'rounded-[16px] border border-[rgba(139,171,255,0.28)] bg-[rgba(17,33,84,0.56)] p-2.5'
+                      }
+                    >
                       <div className='flex items-center gap-2.5'>
                         {isImage ? (
-                          <img src={fileItem.previewUrl} alt={fileItem.name} className='h-20 w-20 shrink-0 rounded-xl border border-[var(--border-soft)] object-cover' loading='lazy' />
+                          <img
+                            src={fileItem.previewUrl}
+                            alt={fileItem.name}
+                            className={
+                              (fileView === 'list' ? 'h-16 w-16' : 'h-20 w-20') +
+                              ' shrink-0 rounded-xl border border-[var(--border-soft)] object-cover'
+                            }
+                            loading='lazy'
+                          />
                         ) : (
-                          <div className='flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[rgba(19,35,87,0.72)]'>
+                          <div
+                            className={
+                              'flex shrink-0 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[rgba(19,35,87,0.72)] ' +
+                              (fileView === 'list' ? 'h-16 w-16' : 'h-20 w-20')
+                            }
+                          >
                             <Icon className='h-9 w-9 text-cyan-100' />
                           </div>
                         )}
                         <div className='min-w-0 flex-1'>
-                          <p className='line-clamp-2 text-app-caption font-semibold text-slate-100'>{fileItem.name}</p>
+                          <p className={(fileView === 'list' ? 'line-clamp-1' : 'line-clamp-2') + ' text-app-caption font-semibold text-slate-100'}>{fileItem.name}</p>
                           <p className='mt-1 text-[11px] text-slate-300'>
                             {formatBytes(fileItem.size)} | {new Date(fileItem.updatedAt).toLocaleDateString(isThai ? 'th-TH' : 'en-US')}
                           </p>
                         </div>
                       </div>
 
-                      <div className='mt-2.5 flex items-center gap-2'>
-                        <a href={fileItem.downloadUrl} target='_blank' rel='noreferrer' className='inline-flex h-8 flex-1 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'>
+                      <div className={fileView === 'list' ? 'mt-2 flex items-center justify-end gap-2' : 'mt-2.5 flex items-center gap-2'}>
+                        <a
+                          href={fileItem.downloadUrl}
+                          target='_blank'
+                          rel='noreferrer'
+                          className={
+                            fileView === 'list'
+                              ? 'inline-flex h-8 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 text-slate-100'
+                              : 'inline-flex h-8 flex-1 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'
+                          }
+                        >
                           <Download className='mr-1 h-4 w-4' />
                           <span className='text-[11px] font-semibold'>{isThai ? 'ดาวน์โหลด' : 'Download'}</span>
                         </a>
@@ -690,7 +750,7 @@ export default function WorkspaceCloudPage() {
                           size='sm'
                           className='h-8 rounded-xl px-2.5'
                           disabled={deleting || (!activeFolder?.isOwner && activeFolder?.memberRole !== 'editor')}
-                          onClick={() => void handleDeleteFile(fileItem)}
+                          onClick={() => void requestDeleteFile(fileItem)}
                         >
                           {deleting ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <Trash2 className='h-3.5 w-3.5' />}
                         </Button>
@@ -705,7 +765,7 @@ export default function WorkspaceCloudPage() {
       ) : null}
 
       {deleteConfirmOpen && pendingDeleteFolder ? (
-        <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-[2px]'>
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4'>
           <div className='w-full max-w-[420px] rounded-[22px] border border-cyan-300/35 bg-[linear-gradient(160deg,rgba(18,38,94,0.98),rgba(18,29,74,0.98))] p-4 shadow-[0_18px_44px_rgba(10,26,78,0.45)]'>
             <h3 className='text-app-h3 font-semibold text-slate-100'>{isThai ? 'ยืนยันการลบโฟลเดอร์' : 'Confirm Folder Deletion'}</h3>
             <p className='mt-2 text-app-caption text-slate-200'>
@@ -753,6 +813,25 @@ export default function WorkspaceCloudPage() {
             setPendingDeleteFolder(null);
             if (!folder) return;
             void deleteFolderWithAssertion(folder, assertionToken);
+          }}
+        />
+      ) : null}
+
+      {pinDeleteFileModalOpen && pendingDeleteFile ? (
+        <PinModal
+          action='delete_workspace_file'
+          actionLabel={isThai ? `ลบไฟล์ ${pendingDeleteFile.name}` : `Delete file ${pendingDeleteFile.name}`}
+          targetItemId={pendingDeleteFile.path}
+          onClose={() => {
+            setPinDeleteFileModalOpen(false);
+            setPendingDeleteFile(null);
+          }}
+          onVerified={(assertionToken) => {
+            const file = pendingDeleteFile;
+            setPinDeleteFileModalOpen(false);
+            setPendingDeleteFile(null);
+            if (!file) return;
+            void handleDeleteFileWithAssertion(file, assertionToken);
           }}
         />
       ) : null}

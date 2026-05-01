@@ -10,15 +10,14 @@ import type { PinAction } from '@/lib/pin';
 
 const ACTION_ORDER: PinAction[] = [
   'open_workspace_folder',
+  'delete_workspace_file',
+  'delete_calculator_history',
   'view_secret',
   'copy_secret',
   'edit_secret',
   'delete_secret',
   'delete_workspace_folder',
   'delete_account',
-  'admin_view_vault',
-  'approve_signup_request',
-  'delete_signup_request',
 ];
 
 type PinPolicy = Record<PinAction, boolean>;
@@ -27,6 +26,10 @@ function actionLabel(action: PinAction, isThai: boolean) {
   switch (action) {
     case 'open_workspace_folder':
       return isThai ? 'เปิดโฟลเดอร์คลาวด์ไฟล์งาน' : 'Open cloud folder';
+    case 'delete_workspace_file':
+      return isThai ? 'ลบไฟล์ในคลาวด์ไฟล์งาน' : 'Delete cloud file';
+    case 'delete_calculator_history':
+      return isThai ? 'ลบประวัติเครื่องคิดเลข' : 'Delete calculator history';
     case 'view_secret':
       return isThai ? 'ดูรหัส/ข้อมูลสำคัญ' : 'View secret data';
     case 'copy_secret':

@@ -8,6 +8,8 @@ export const DEFAULT_PIN_POLICY: PinPolicy = {
   edit_secret: true,
   delete_secret: true,
   open_workspace_folder: true,
+  delete_workspace_file: true,
+  delete_calculator_history: true,
   delete_account: true,
   admin_view_vault: true,
   approve_signup_request: true,
@@ -22,11 +24,10 @@ export const PIN_POLICY_EDITABLE_ACTIONS = [
   'edit_secret',
   'delete_secret',
   'open_workspace_folder',
+  'delete_workspace_file',
+  'delete_calculator_history',
   'delete_workspace_folder',
   'delete_account',
-  'admin_view_vault',
-  'approve_signup_request',
-  'delete_signup_request',
 ] as const satisfies readonly PinAction[];
 
 export function normalizePinPolicy(raw: unknown): PinPolicy {
