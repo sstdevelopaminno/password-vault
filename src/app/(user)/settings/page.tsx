@@ -103,6 +103,7 @@ export default function SettingsPage() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinSaving, setPinSaving] = useState(false);
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState<1 | 2 | 3 | 4>(1);
   const [deletePinModalOpen, setDeletePinModalOpen] = useState(false);
@@ -321,8 +322,8 @@ export default function SettingsPage() {
     setCurrentPin('');
     setNewPin('');
     setConfirmPin('');
-    goMenuRoot();
-  }, [confirmPin, currentPin, goMenuRoot, hasExistingPin, locale, newPin, pinSaving, t, toast]);
+    setPinDialogOpen(false);
+  }, [confirmPin, currentPin, hasExistingPin, locale, newPin, pinSaving, t, toast]);
 
   const openDeleteModal = useCallback(() => {
     if (!profileUserId) {
@@ -681,44 +682,38 @@ export default function SettingsPage() {
 
   const pinView = (
     <Card className='space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
-      {hasExistingPin ? (
-        <Input
-          type='password'
-          inputMode='numeric'
-          maxLength={6}
-          value={currentPin}
-          placeholder={locale === 'th' ? 'PIN ปัจจุบัน 6 หลัก' : 'Current 6-digit PIN'}
-          onChange={(event) => setCurrentPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
-        />
-      ) : null}
-      <Input
-        type='password'
-        inputMode='numeric'
-        maxLength={6}
-        value={newPin}
-        placeholder={locale === 'th' ? 'PIN ใหม่ 6 หลัก' : 'New 6-digit PIN'}
-        onChange={(event) => setNewPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
-      />
-      <Input
-        type='password'
-        inputMode='numeric'
-        maxLength={6}
-        value={confirmPin}
-        placeholder={locale === 'th' ? 'ยืนยัน PIN 6 หลัก' : 'Confirm 6-digit PIN'}
-        onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
-      />
-      <Button onClick={() => void updatePin()} disabled={pinSaving} className='h-10 rounded-xl'>
-        {pinSaving
-          ? locale === 'th'
-            ? 'กำลังบันทึก...'
-            : 'Saving...'
-          : locale === 'th'
-            ? hasExistingPin
-              ? 'เปลี่ยน PIN'
-              : 'ตั้งค่า PIN'
-            : hasExistingPin
-              ? 'Change PIN'
-              : 'Set PIN'}
+      <p className='text-app-body text-slate-300'>
+        {locale === 'th'
+          ? 'จัดการ PIN ความปลอดภัยของระบบ และแยกตั้งค่าได้ว่าเมนูไหนต้องยืนยัน PIN ทุกครั้ง'
+          : 'Manage your security PIN and choose which actions require PIN confirmation every time.'}
+      </p>
+
+      <Button
+        type='button'
+        className='h-10 rounded-xl'
+        onClick={() => {
+          setCurrentPin('');
+          setNewPin('');
+          setConfirmPin('');
+          setPinDialogOpen(true);
+        }}
+      >
+        {locale === 'th'
+          ? hasExistingPin
+            ? 'เปลี่ยนรหัส PIN ความปลอดภัย'
+            : 'ตั้งรหัส PIN ความปลอดภัย'
+          : hasExistingPin
+            ? 'Change Security PIN'
+            : 'Set Security PIN'}
+      </Button>
+
+      <Button
+        type='button'
+        variant='secondary'
+        className='h-10 rounded-xl'
+        onClick={() => router.push('/settings/pin-security')}
+      >
+        {locale === 'th' ? 'ตั้งค่า PIN รายเมนู' : 'PIN Per-Menu Settings'}
       </Button>
     </Card>
   );
@@ -954,6 +949,82 @@ export default function SettingsPage() {
               <h2 className='text-app-h3 font-semibold text-slate-100'>{activeTitle}</h2>
             </div>
             {body}
+          </div>
+        </div>
+      ) : null}
+
+      {pinDialogOpen ? (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-[2px]'
+          onClick={() => {
+            if (pinSaving) return;
+            setPinDialogOpen(false);
+          }}
+        >
+          <div className='w-full max-w-[480px]' onClick={(event) => event.stopPropagation()}>
+            <Card className='space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-1)] p-4'>
+              <h3 className='text-app-h3 font-semibold text-slate-100'>
+                {locale === 'th'
+                  ? hasExistingPin
+                    ? 'เปลี่ยนรหัส PIN ความปลอดภัย'
+                    : 'ตั้งรหัส PIN ความปลอดภัย'
+                  : hasExistingPin
+                    ? 'Change Security PIN'
+                    : 'Set Security PIN'}
+              </h3>
+
+              {hasExistingPin ? (
+                <Input
+                  type='password'
+                  inputMode='numeric'
+                  maxLength={6}
+                  value={currentPin}
+                  placeholder={locale === 'th' ? 'PIN ปัจจุบัน 6 หลัก' : 'Current 6-digit PIN'}
+                  onChange={(event) => setCurrentPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                />
+              ) : null}
+              <Input
+                type='password'
+                inputMode='numeric'
+                maxLength={6}
+                value={newPin}
+                placeholder={locale === 'th' ? 'PIN ใหม่ 6 หลัก' : 'New 6-digit PIN'}
+                onChange={(event) => setNewPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              />
+              <Input
+                type='password'
+                inputMode='numeric'
+                maxLength={6}
+                value={confirmPin}
+                placeholder={locale === 'th' ? 'ยืนยัน PIN 6 หลัก' : 'Confirm 6-digit PIN'}
+                onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              />
+
+              <div className='grid grid-cols-2 gap-2'>
+                <Button
+                  type='button'
+                  variant='secondary'
+                  className='h-10 rounded-xl'
+                  onClick={() => setPinDialogOpen(false)}
+                  disabled={pinSaving}
+                >
+                  {locale === 'th' ? 'ยกเลิก' : 'Cancel'}
+                </Button>
+                <Button onClick={() => void updatePin()} disabled={pinSaving} className='h-10 rounded-xl'>
+                  {pinSaving
+                    ? locale === 'th'
+                      ? 'กำลังบันทึก...'
+                      : 'Saving...'
+                    : locale === 'th'
+                      ? hasExistingPin
+                        ? 'เปลี่ยน PIN'
+                        : 'ตั้งค่า PIN'
+                      : hasExistingPin
+                        ? 'Change PIN'
+                        : 'Set PIN'}
+                </Button>
+              </div>
+            </Card>
           </div>
         </div>
       ) : null}

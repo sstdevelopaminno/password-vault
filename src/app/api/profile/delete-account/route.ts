@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const pinCheck = requirePinAssertion({
+  const pinCheck = await requirePinAssertion({
     request: req,
     userId: user.id,
     action: "delete_account",
@@ -176,4 +176,3 @@ export async function POST(req: Request) {
   clearVaultRiskPolicyCookie(response);
   return response;
 }
-

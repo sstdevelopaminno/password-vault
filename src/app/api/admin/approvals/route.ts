@@ -82,7 +82,7 @@ export async function POST(req: Request) {
  return NextResponse.json({ error: 'ข้อมูลคำขอไม่ถูกต้อง' }, { status: 400 });
  }
 
- const pinCheck = requirePinAssertion({
+ const pinCheck = await requirePinAssertion({
  request: req,
  userId: ctx.authUser.id,
  action: approved ? 'approve_signup_request' : 'delete_signup_request',

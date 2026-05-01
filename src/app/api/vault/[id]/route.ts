@@ -55,7 +55,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const pinCheck = requirePinAssertion({ request: req, userId: auth.user.id, action: "edit_secret", targetItemId: id });
+  const pinCheck = await requirePinAssertion({ request: req, userId: auth.user.id, action: "edit_secret", targetItemId: id });
   if (pinCheck.ok === false) return pinCheck.response;
 
   const admin = createAdminClient();
@@ -90,7 +90,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const { data: auth } = await supabase.auth.getUser();
   if (auth.user == null) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const pinCheck = requirePinAssertion({ request: req, userId: auth.user.id, action: "delete_secret", targetItemId: id });
+  const pinCheck = await requirePinAssertion({ request: req, userId: auth.user.id, action: "delete_secret", targetItemId: id });
   if (pinCheck.ok === false) return pinCheck.response;
 
   const admin = createAdminClient();

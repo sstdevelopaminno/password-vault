@@ -30,11 +30,12 @@ export type ResolvedAuthProfile = {
   role: "pending" | "user" | "approver" | "admin" | "super_admin";
   status: "pending_approval" | "active" | "disabled";
   pin_hash: string | null;
+  pin_policy_json?: unknown;
   email_verified_at: string | null;
 };
 
 const AUTH_PROFILE_SELECT_COLUMNS =
-  "id,email,full_name,role,status,pin_hash,email_verified_at";
+  "id,email,full_name,role,status,pin_hash,pin_policy_json,email_verified_at";
 
 export type AuthUserSummary = {
   id: string;

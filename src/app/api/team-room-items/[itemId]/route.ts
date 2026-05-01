@@ -76,7 +76,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ itemId
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const pinCheck = requirePinAssertion({
+  const pinCheck = await requirePinAssertion({
     request: req,
     userId: auth.user.id,
     action: "edit_secret",
@@ -147,7 +147,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ itemI
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const pinCheck = requirePinAssertion({
+  const pinCheck = await requirePinAssertion({
     request: req,
     userId: auth.user.id,
     action: "delete_secret",

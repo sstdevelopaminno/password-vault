@@ -13,7 +13,8 @@ export type PinAction =
   | "admin_view_vault"
   | "approve_signup_request"
   | "delete_signup_request"
-  | "unlock_app";
+  | "unlock_app"
+  | "delete_workspace_folder";
 
 type AssertionPayload = {
   userId: string;

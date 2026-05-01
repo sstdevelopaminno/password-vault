@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import {
   WORKSPACE_FILES_BUCKET,
   buildFolderStoragePrefix,
@@ -7,6 +8,7 @@ import {
   resolveFolderAccess,
   resolveWorkspaceActor,
 } from '@/lib/workspace-cloud';
+import { requirePinAssertion } from '@/lib/pin-guard';
 
 const LIST_LIMIT = 100;
 
@@ -52,6 +54,12 @@ async function removeAllFolderFiles(folderId: string) {
 }
 
 export async function DELETE(_req: Request, context: { params: Promise<{ folderId: string }> }) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const actor = await resolveWorkspaceActor();
   if (!actor) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -72,6 +80,16 @@ export async function DELETE(_req: Request, context: { params: Promise<{ folderI
   }
   if (access.role !== 'owner') {
     return NextResponse.json({ error: 'Only folder owner can delete this folder' }, { status: 403 });
+  }
+
+  const pinCheck = await requirePinAssertion({
+    request: _req,
+    userId: auth.user.id,
+    action: 'delete_workspace_folder',
+    targetItemId: folderId,
+  });
+  if (!pinCheck.ok) {
+    return pinCheck.response;
   }
 
   const admin = createAdminClient();

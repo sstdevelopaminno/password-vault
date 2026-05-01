@@ -46,7 +46,7 @@ export async function POST(req: Request) {
  return NextResponse.json({ error: 'targetUserId is required' }, { status: 400 });
  }
 
- const pinCheck = requirePinAssertion({
+ const pinCheck = await requirePinAssertion({
  request: req,
  userId: ctx.authUser.id,
  action: 'admin_view_vault',
