@@ -9,6 +9,7 @@ export type PinAction =
   | "copy_secret"
   | "edit_secret"
   | "delete_secret"
+  | "delete_account"
   | "admin_view_vault"
   | "approve_signup_request"
   | "delete_signup_request"

@@ -14,6 +14,7 @@ import {
   Mail,
   Moon,
   QrCode,
+  Trash2,
   Sun,
   SunMoon,
   UserRound,
@@ -25,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { PinModal } from '@/components/vault/pin-modal';
 import { useI18n } from '@/i18n/provider';
 import { isAdminFeaturesEnabledClient } from '@/lib/admin-feature-flags';
 import { useTheme, type ThemeMode } from '@/lib/theme';
@@ -38,6 +40,10 @@ function parseSettingsSection(raw: string | null): SettingsSection {
     return raw;
   }
   return '';
+}
+
+function normalizeSpaces(value: string) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
 function mapError<T extends string>(message: unknown, t: (key: T) => string, locale: 'th' | 'en') {
@@ -80,6 +86,7 @@ export default function SettingsPage() {
 
   const [fullName, setFullName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
+  const [profileUserId, setProfileUserId] = useState('');
   const [profileRole, setProfileRole] = useState('pending');
   const [profileStatus, setProfileStatus] = useState('pending_approval');
 
@@ -95,6 +102,21 @@ export default function SettingsPage() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinSaving, setPinSaving] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2 | 3 | 4>(1);
+  const [deletePinModalOpen, setDeletePinModalOpen] = useState(false);
+  const [deletePinAssertionToken, setDeletePinAssertionToken] = useState<string | null>(null);
+  const [deleteOtp, setDeleteOtp] = useState('');
+  const [deleteOtpSending, setDeleteOtpSending] = useState(false);
+  const [deleteOtpCooldown, setDeleteOtpCooldown] = useState(0);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  const deleteConfirmSuffix = 'ยืนยันการลบข้อมูลและบัญชีนี้ อย่างถาวร';
+  const deleteExpectedText = useMemo(
+    () => `${String(fullName ?? '').trim()} ${deleteConfirmSuffix}`.trim(),
+    [fullName],
+  );
 
   const loadProfile = useCallback(async () => {
     const response = await fetch('/api/profile/me', { method: 'GET' });
@@ -103,6 +125,7 @@ export default function SettingsPage() {
 
     setFullName(String(body?.fullName ?? ''));
     setProfileEmail(String(body?.email ?? ''));
+    setProfileUserId(String(body?.userId ?? ''));
     setProfileRole(String(body?.role ?? 'pending'));
     setProfileStatus(String(body?.status ?? 'pending_approval'));
     setHasExistingPin(Boolean(body?.hasPin));
@@ -300,6 +323,93 @@ export default function SettingsPage() {
     goMenuRoot();
   }, [confirmPin, currentPin, goMenuRoot, hasExistingPin, locale, newPin, pinSaving, t, toast]);
 
+  const openDeleteModal = useCallback(() => {
+    if (!profileUserId) {
+      toast.showToast(
+        locale === 'th' ? 'ไม่สามารถเริ่มขั้นตอนลบบัญชีได้ กรุณารีเฟรชหน้าอีกครั้ง' : 'Unable to start delete flow. Please refresh.',
+        'error',
+      );
+      return;
+    }
+    setDeleteModalOpen(true);
+    setDeleteStep(1);
+    setDeletePinModalOpen(false);
+    setDeletePinAssertionToken(null);
+    setDeleteOtp('');
+    setDeleteOtpCooldown(0);
+    setDeleteConfirmationText('');
+  }, [locale, profileUserId, toast]);
+
+  const closeDeleteModal = useCallback(() => {
+    if (deleteSubmitting) return;
+    setDeleteModalOpen(false);
+    setDeleteStep(1);
+    setDeletePinModalOpen(false);
+    setDeletePinAssertionToken(null);
+    setDeleteOtp('');
+    setDeleteOtpCooldown(0);
+    setDeleteConfirmationText('');
+  }, [deleteSubmitting]);
+
+  const sendDeleteOtp = useCallback(async () => {
+    if (deleteOtpCooldown > 0 || deleteOtpSending) return;
+    setDeleteOtpSending(true);
+    const response = await fetch('/api/profile/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ purpose: 'delete_account' }),
+    });
+    const body = await response.json().catch(() => ({}));
+    setDeleteOtpSending(false);
+
+    if (!response.ok) {
+      toast.showToast(mapError(body?.error ?? 'OTP request failed', t, locale), 'error');
+      if (response.status === 429) {
+        setDeleteOtpCooldown(Number(body?.retryAfterSec ?? 60));
+      }
+      return;
+    }
+
+    setDeleteOtpCooldown(60);
+    toast.showToast(
+      locale === 'th' ? 'ส่ง OTP ไปที่อีเมลของคุณแล้ว' : 'OTP sent to your email.',
+      'success',
+    );
+  }, [deleteOtpCooldown, deleteOtpSending, locale, t, toast]);
+
+  const confirmDeleteAccount = useCallback(async () => {
+    if (!deletePinAssertionToken || deleteSubmitting) return;
+    setDeleteSubmitting(true);
+    const response = await fetch('/api/profile/delete-account', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-pin-assertion': deletePinAssertionToken,
+      },
+      body: JSON.stringify({
+        otp: deleteOtp,
+        confirmationText: deleteConfirmationText,
+      }),
+    });
+    const body = await response.json().catch(() => ({}));
+    setDeleteSubmitting(false);
+
+    if (!response.ok) {
+      toast.showToast(mapError(body?.error ?? 'Delete account failed', t, locale), 'error');
+      if (response.status === 400 && typeof body?.expectedPhrase === 'string') {
+        setDeleteConfirmationText(String(body.expectedPhrase));
+      }
+      return;
+    }
+
+    toast.showToast(
+      locale === 'th' ? 'คำขอลบบัญชีถูกบันทึกแล้ว ระบบออกจากระบบให้อัตโนมัติ' : 'Deletion request saved. You have been signed out.',
+      'success',
+    );
+    router.push('/login');
+    router.refresh();
+  }, [deleteConfirmationText, deleteOtp, deletePinAssertionToken, deleteSubmitting, locale, router, t, toast]);
+
   const logout = useCallback(async () => {
     if (loading) return;
     setLoading(true);
@@ -348,6 +458,14 @@ export default function SettingsPage() {
   }, [resendIn]);
 
   useEffect(() => {
+    if (deleteOtpCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setDeleteOtpCooldown((value) => (value > 0 ? value - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [deleteOtpCooldown]);
+
+  useEffect(() => {
     if (active !== 'email') return;
     const timer = window.setTimeout(() => {
       setEmailStep('enter_email');
@@ -374,6 +492,10 @@ export default function SettingsPage() {
         : 'Resend OTP';
 
   const canUseAdminQr = adminFeaturesEnabled && profileStatus === 'active' && ['admin', 'super_admin'].includes(profileRole);
+  const isDeletePhraseMatched = normalizeSpaces(deleteConfirmationText) === normalizeSpaces(deleteExpectedText);
+  const canMoveDeleteStep2 = Boolean(deletePinAssertionToken);
+  const canMoveDeleteStep3 = /^\d{6}$/.test(deleteOtp);
+  const canMoveDeleteStep4 = isDeletePhraseMatched;
 
   const menuBtn = (
     key: Exclude<SettingsSection, ''>,
@@ -422,6 +544,22 @@ export default function SettingsPage() {
       <Button onClick={() => void updateProfile()} disabled={loading} className='h-10 rounded-xl'>
         {loading ? (locale === 'th' ? 'กำลังบันทึก...' : 'Saving...') : t('settings.updateName')}
       </Button>
+      <div className='rounded-2xl border border-rose-300/35 bg-rose-500/10 p-3'>
+        <p className='text-app-caption text-rose-100'>
+          {locale === 'th'
+            ? 'หากต้องการลบบัญชีและข้อมูลทั้งหมดของคุณ สามารถดำเนินการได้จากปุ่มด้านล่าง'
+            : 'If you want to delete your account and all data, continue from the button below.'}
+        </p>
+        <Button
+          type='button'
+          variant='destructive'
+          className='mt-3 h-10 w-full rounded-xl'
+          onClick={openDeleteModal}
+        >
+          <Trash2 className='mr-2 h-4 w-4' />
+          {locale === 'th' ? 'ลบบัญชีและข้อมูลทั้งหมด' : 'Delete account and all data'}
+        </Button>
+      </div>
     </Card>
   );
 
@@ -802,7 +940,197 @@ export default function SettingsPage() {
           </div>
         </div>
       ) : null}
+
+      {deleteModalOpen ? (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-[2px]'
+          onClick={closeDeleteModal}
+        >
+          <div className='w-full max-w-[540px]' onClick={(event) => event.stopPropagation()}>
+            <Card className='space-y-4 rounded-[24px] border border-rose-300/30 bg-[var(--surface-1)] p-5'>
+              <div className='space-y-2'>
+                <h3 className='text-app-h3 font-semibold text-rose-100'>
+                  {locale === 'th' ? 'ยืนยันการลบบัญชีและข้อมูลทั้งหมด' : 'Confirm account and data deletion'}
+                </h3>
+                <p className='text-app-caption text-slate-300'>
+                  {locale === 'th'
+                    ? `ขั้นตอน ${deleteStep === 4 ? 'ยืนยันสุดท้าย' : `${deleteStep}/3`}`
+                    : deleteStep === 4
+                      ? 'Final confirmation'
+                      : `Step ${deleteStep}/3`}
+                </p>
+              </div>
+
+              {deleteStep === 1 ? (
+                <div className='space-y-4'>
+                  <div className='space-y-2'>
+                    <p className='form-label text-slate-300'>{locale === 'th' ? '1) ยืนยัน PIN' : '1) Verify PIN'}</p>
+                    <Button
+                      type='button'
+                      className='h-10 w-full rounded-xl'
+                      variant={deletePinAssertionToken ? 'secondary' : 'default'}
+                      onClick={() => setDeletePinModalOpen(true)}
+                    >
+                      {deletePinAssertionToken
+                        ? locale === 'th'
+                          ? 'ยืนยัน PIN แล้ว'
+                          : 'PIN verified'
+                        : locale === 'th'
+                          ? 'กดเพื่อยืนยัน PIN'
+                          : 'Verify PIN'}
+                    </Button>
+                  </div>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Button type='button' variant='secondary' className='h-10 rounded-xl' onClick={closeDeleteModal}>
+                      {locale === 'th' ? 'ยกเลิก' : 'Cancel'}
+                    </Button>
+                    <Button
+                      type='button'
+                      variant='destructive'
+                      className='h-10 rounded-xl'
+                      disabled={!canMoveDeleteStep2}
+                      onClick={() => setDeleteStep(2)}
+                    >
+                      {locale === 'th' ? 'ขั้นตอนถัดไป' : 'Next step'}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {deleteStep === 2 ? (
+                <div className='space-y-4'>
+                  <div className='space-y-2'>
+                    <p className='form-label text-slate-300'>{locale === 'th' ? '2) กรอก OTP จากอีเมล' : '2) Enter OTP from email'}</p>
+                    <OtpInput value={deleteOtp} onChange={setDeleteOtp} length={6} ariaLabel='Delete account OTP input' />
+                    <Button
+                      type='button'
+                      variant='secondary'
+                      className='h-10 w-full rounded-xl'
+                      onClick={() => void sendDeleteOtp()}
+                      disabled={deleteOtpSending || deleteOtpCooldown > 0}
+                    >
+                      {deleteOtpCooldown > 0
+                        ? `${locale === 'th' ? 'ส่งใหม่ใน' : 'Resend in'} ${deleteOtpCooldown}s`
+                        : locale === 'th'
+                          ? 'ส่ง OTP ไปยังอีเมล'
+                          : 'Send OTP to email'}
+                    </Button>
+                  </div>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Button type='button' variant='secondary' className='h-10 rounded-xl' onClick={() => setDeleteStep(1)}>
+                      {locale === 'th' ? 'ย้อนกลับ' : 'Back'}
+                    </Button>
+                    <Button
+                      type='button'
+                      variant='destructive'
+                      className='h-10 rounded-xl'
+                      disabled={!canMoveDeleteStep3}
+                      onClick={() => setDeleteStep(3)}
+                    >
+                      {locale === 'th' ? 'ขั้นตอนถัดไป' : 'Next step'}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {deleteStep === 3 ? (
+                <div className='space-y-4'>
+                  <div className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-3'>
+                    <p className='text-app-caption text-slate-300'>
+                      {locale === 'th' ? 'ข้อความที่ต้องพิมพ์ให้ตรง:' : 'Required confirmation text:'}
+                    </p>
+                    <p className='mt-1 break-words text-app-body font-semibold text-slate-100'>{deleteExpectedText}</p>
+                  </div>
+                  <div className='space-y-2'>
+                    <p className='form-label text-slate-300'>{locale === 'th' ? '3) พิมพ์ข้อความยืนยัน' : '3) Type confirmation text'}</p>
+                    <Input
+                      value={deleteConfirmationText}
+                      onChange={(event) => setDeleteConfirmationText(event.target.value)}
+                      placeholder={deleteExpectedText}
+                      className='h-10 rounded-xl bg-[var(--surface-2)] text-slate-100'
+                    />
+                  </div>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Button type='button' variant='secondary' className='h-10 rounded-xl' onClick={() => setDeleteStep(2)}>
+                      {locale === 'th' ? 'ย้อนกลับ' : 'Back'}
+                    </Button>
+                    <Button
+                      type='button'
+                      variant='destructive'
+                      className='h-10 rounded-xl'
+                      disabled={!canMoveDeleteStep4}
+                      onClick={() => setDeleteStep(4)}
+                    >
+                      {locale === 'th' ? 'ขั้นตอนถัดไป' : 'Next step'}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {deleteStep === 4 ? (
+                <div className='space-y-4'>
+                  <div className='space-y-3 text-app-caption text-slate-200'>
+                    <p>
+                      คุณแน่ใจ ว่าจะทำการลบบัญชี นี้ และ ข้อมูลของคุณจะถูกลบ ไปด้วย หากต้องการลบ ให้ คัดลอกข้อมูลของคุณไว้
+                      เพื่อไม่ให้เกิดความเสียหายขึ้น ต่อคุณเอง
+                    </p>
+                    <p>
+                      หากยืนยันรอบสุดท้ายนี้ แล้ว ระบบ จะยังเก็บข้อมูลของคุณ ไว้ 7 วัน เพื่อที่สามารถนำมากู้บัญชี และข้อมูลของคุณจะยังคงกลับมาเหมือนเดิม
+                      แต่ หากเลย 7 วันไปแล้ว คุณจะไม่สามารถกู้บัญชี ของคุณได้ อีก
+                    </p>
+                    <p>
+                      แต่คุณยังมีโอกาส อีกครั้ง หากต้องการจะใช้งานบัญชี ของคุณต่อ โดยติดต่อทีมงานซับพอร์ตได้ ภายใน 30 วัน หลังจากที่
+                      กดยืนยันรอบสุดท้าย ข้อมูลของคุณยังคงอยู่ต่ออีก 30 วัน หากเลย 30 วันแล้วคุณไม่ติดต่อมาทางเรา ข้อมูลจะถูกลบอย่างเป็นทางการและถาวร
+                      และจะไม่สามารถกู้ได้อีกเลย
+                    </p>
+                  </div>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <Button
+                      type='button'
+                      variant='secondary'
+                      className='h-10 rounded-xl'
+                      onClick={() => setDeleteStep(3)}
+                      disabled={deleteSubmitting}
+                    >
+                      {locale === 'th' ? 'ย้อนกลับ' : 'Back'}
+                    </Button>
+                    <Button
+                      type='button'
+                      variant='destructive'
+                      className='h-10 rounded-xl'
+                      onClick={() => void confirmDeleteAccount()}
+                      disabled={deleteSubmitting}
+                    >
+                      {deleteSubmitting
+                        ? locale === 'th'
+                          ? 'กำลังยืนยัน...'
+                          : 'Confirming...'
+                        : locale === 'th'
+                          ? 'ยืนยันสุดท้าย'
+                          : 'Final confirm'}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </Card>
+          </div>
+        </div>
+      ) : null}
+
+      {deletePinModalOpen ? (
+        <PinModal
+          action='delete_account'
+          actionLabel={locale === 'th' ? 'ลบบัญชีและข้อมูลทั้งหมด' : 'delete your account and all data'}
+          targetItemId={profileUserId || undefined}
+          onClose={() => setDeletePinModalOpen(false)}
+          onVerified={(assertionToken) => {
+            setDeletePinAssertionToken(assertionToken);
+            setDeletePinModalOpen(false);
+            setDeleteStep(2);
+            toast.showToast(locale === 'th' ? 'ยืนยัน PIN สำเร็จ' : 'PIN verified.', 'success');
+          }}
+        />
+      ) : null}
     </section>
   );
 }
-

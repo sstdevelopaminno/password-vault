@@ -43,6 +43,7 @@ const publicApiPaths = new Set([
   "/api/notifications/push/process",
   "/api/notifications/push/enqueue-system-update",
   "/api/maintenance/cleanup-operational-data",
+  "/api/maintenance/purge-deleted-accounts",
 ]);
 
 function isPublicApiPath(pathname: string) {

@@ -25,7 +25,7 @@ export const resetPasswordSchema = z.object({
  newPassword: z.string().min(8),
 });
 
-export const profileOtpPurposeSchema = z.enum(['change_email', 'change_profile', 'change_password']);
+export const profileOtpPurposeSchema = z.enum(['change_email', 'change_profile', 'change_password', 'delete_account']);
 
 export const vaultSchema = z.object({
  title: z.string().min(1),
@@ -145,7 +145,7 @@ export const pinSchema = z.object({
 });
 
 export const pinActionSchema = z.enum(
- ['view_secret', 'copy_secret', 'edit_secret', 'delete_secret', 'admin_view_vault', 'approve_signup_request', 'delete_signup_request', 'unlock_app'] satisfies [PinAction, ...PinAction[]],
+ ['view_secret', 'copy_secret', 'edit_secret', 'delete_secret', 'delete_account', 'admin_view_vault', 'approve_signup_request', 'delete_signup_request', 'unlock_app'] satisfies [PinAction, ...PinAction[]],
 );
 
 export const pinVerifySchema = z.object({
