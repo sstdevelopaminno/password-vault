@@ -116,7 +116,7 @@ const serviceTiles: ServiceTile[] = [
     href: '/our-packages',
     titleKey: 'nav.ourPackages',
     icon: Package,
-    iconClass: 'text-fuchsia-300',
+    iconClass: 'text-violet-300',
   },
   {
     href: '/wallet',
@@ -398,7 +398,7 @@ export default function HomePage() {
         </span>
       </div>
 
-      <div className='space-y-2.5'>
+      <div>
         <div className='grid grid-cols-3 gap-2'>
           {actionTiles.slice(0, 3).map((tile) => {
             const Icon = tile.icon;
@@ -434,14 +434,14 @@ export default function HomePage() {
           })}
         </div>
 
-        <div className='grid grid-cols-3 gap-2.5'>
+        <div className='mt-3 grid grid-cols-3 gap-2.5'>
           {actionTiles.slice(3).map((tile) => {
             const Icon = tile.icon;
             return (
               <Link
                 key={tile.href}
                 href={tile.href}
-                className='neon-panel group flex min-h-[90px] flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
+                className='group flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[12px] text-center'
                 aria-label={t(tile.titleKey)}
               >
                 <Icon className={'h-[22px] w-[22px] ' + tile.iconClass} />
@@ -453,15 +453,15 @@ export default function HomePage() {
           <button
             type='button'
             onClick={openCalendarPopup}
-            className='neon-panel group flex min-h-[90px] w-full flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
+            className='group flex min-h-[62px] w-full flex-col items-center justify-center gap-1 rounded-[12px] text-center'
             aria-label={t('nav.calendar')}
           >
-            <Calendar className='h-[22px] w-[22px] text-amber-300' />
+            <Calendar className='h-[22px] w-[22px] text-lime-300' />
             <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t('nav.calendar')}</p>
           </button>
         </div>
 
-        <div className='grid grid-cols-3 gap-2'>
+        <div className='mt-2 grid grid-cols-3 gap-2'>
           {serviceTiles.map((tile) => {
             const Icon = tile.icon;
             return (
