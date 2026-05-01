@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, Bell, Calculator, Calendar, ChevronLeft, ChevronRight, Cloud, Download, Package, PackageCheck, Phone, ReceiptText, ScanText, ShieldCheck, Smartphone, WalletCards, X } from 'lucide-react';
+import { Activity, Bell, Calculator, ChevronLeft, ChevronRight, Download, Package, PackageCheck, Phone, ReceiptText, ShieldCheck, Smartphone, WalletCards, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PinModal } from '@/components/vault/pin-modal';
 import { APP_VERSION } from '@/lib/app-version';
@@ -37,18 +37,17 @@ type ActionTile = {
   titleKey:
     | 'nav.privateContacts'
     | 'nav.billing'
-    | 'nav.calculator'
-    | 'nav.cloudFiles'
-    | 'nav.documentScanner';
+    | 'nav.calculator';
   icon: typeof Phone;
+  iconClass: string;
   requiresPin?: boolean;
 };
 
 type ServiceTile = {
   href: string;
   titleKey: 'nav.packageCheck' | 'nav.ourPackages' | 'nav.wallet';
-  subtitleKey: 'packages.checkTitle' | 'packages.plansTitle' | 'packages.walletTitle';
   icon: typeof PackageCheck;
+  iconClass: string;
 };
 
 type HomeCalendarNote = {
@@ -75,27 +74,20 @@ const actionTiles: ActionTile[] = [
     href: '/private-contacts',
     titleKey: 'nav.privateContacts',
     icon: Phone,
+    iconClass: 'text-cyan-300',
     requiresPin: true,
   },
   {
     href: '/billing',
     titleKey: 'nav.billing',
     icon: ReceiptText,
+    iconClass: 'text-emerald-300',
   },
   {
     href: '/calculator',
     titleKey: 'nav.calculator',
     icon: Calculator,
-  },
-  {
-    href: '/workspace-cloud',
-    titleKey: 'nav.cloudFiles',
-    icon: Cloud,
-  },
-  {
-    href: '/document-scanner',
-    titleKey: 'nav.documentScanner',
-    icon: ScanText,
+    iconClass: 'text-violet-300',
   },
 ];
 
@@ -103,20 +95,20 @@ const serviceTiles: ServiceTile[] = [
   {
     href: '/package-check',
     titleKey: 'nav.packageCheck',
-    subtitleKey: 'packages.checkTitle',
     icon: PackageCheck,
+    iconClass: 'text-sky-300',
   },
   {
     href: '/our-packages',
     titleKey: 'nav.ourPackages',
-    subtitleKey: 'packages.plansTitle',
     icon: Package,
+    iconClass: 'text-fuchsia-300',
   },
   {
     href: '/wallet',
     titleKey: 'nav.wallet',
-    subtitleKey: 'packages.walletTitle',
     icon: WalletCards,
+    iconClass: 'text-amber-300',
   },
 ];
 
@@ -394,11 +386,11 @@ export default function HomePage() {
 
       <div className='space-y-1.5'>
         <div className='grid grid-cols-3 gap-2'>
-          {actionTiles.slice(0, 3).map((tile) => {
+          {actionTiles.map((tile) => {
             const Icon = tile.icon;
             const tileBody = (
               <>
-                <Icon className='h-[22px] w-[22px] text-slate-100' />
+                <Icon className={'h-[22px] w-[22px] ' + tile.iconClass} />
                 <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
               </>
             );
@@ -429,42 +421,20 @@ export default function HomePage() {
         </div>
 
         <div className='grid grid-cols-3 gap-2'>
-          {actionTiles.slice(3).map((tile) => {
+          {serviceTiles.map((tile) => {
             const Icon = tile.icon;
-            if (tile.requiresPin) {
-              return (
-                <button
-                  key={tile.href}
-                  type='button'
-                  onClick={() => setPendingProtectedHref(tile.href)}
-                  className='group flex min-h-[62px] w-full items-center justify-center rounded-[12px]'
-                  aria-label={t(tile.titleKey)}
-                >
-                  <Icon className='h-[24px] w-[24px] text-slate-100' />
-                </button>
-              );
-            }
-
             return (
               <Link
                 key={tile.href}
                 href={tile.href}
-                className='group flex min-h-[62px] items-center justify-center rounded-[12px]'
+                className='group flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[12px] text-center'
                 aria-label={t(tile.titleKey)}
               >
-                <Icon className='h-[24px] w-[24px] text-slate-100' />
+                <Icon className={'h-[24px] w-[24px] ' + tile.iconClass} />
+                <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
               </Link>
             );
           })}
-
-          <button
-            type='button'
-            onClick={openCalendarPopup}
-            className='group flex min-h-[62px] w-full items-center justify-center rounded-[12px]'
-            aria-label={t('nav.calendar')}
-          >
-            <Calendar className='h-[24px] w-[24px] text-slate-100' />
-          </button>
         </div>
       </div>
 
@@ -477,32 +447,6 @@ export default function HomePage() {
           className='h-auto w-full object-cover'
           priority={false}
         />
-      </div>
-
-      <div className='space-y-2'>
-        <div className='flex items-center justify-between gap-2'>
-          <h4 className='text-app-body font-semibold text-slate-100'>{t('home.serviceZoneTitle')}</h4>
-          <p className='text-app-micro text-slate-300'>{t('home.serviceZoneSubtitle')}</p>
-        </div>
-        <div className='grid grid-cols-3 gap-2'>
-          {serviceTiles.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className='group relative overflow-hidden rounded-[14px] border border-[rgba(143,183,255,0.36)] bg-[linear-gradient(145deg,rgba(16,34,90,0.96),rgba(12,25,69,0.98))] px-2 py-2.5 shadow-[0_0_0_1px_rgba(145,168,255,0.08),0_10px_24px_rgba(25,80,180,0.22)] transition hover:border-[rgba(165,206,255,0.55)]'
-              >
-                <span className='pointer-events-none absolute -right-7 -top-7 h-16 w-16 rounded-full bg-[radial-gradient(circle,rgba(91,160,255,0.24),transparent_70%)]' />
-                <div className='relative z-10 flex flex-col items-start gap-1.5'>
-                  <Icon className='h-[22px] w-[22px] text-slate-100' />
-                  <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(item.titleKey)}</p>
-                  <p className='line-clamp-1 text-[10px] text-slate-300'>{t(item.subtitleKey)}</p>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
       </div>
 
       {showAndroidInstallCta ? (
