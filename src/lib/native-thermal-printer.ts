@@ -175,6 +175,72 @@ export async function printEscPos80mm(input: { document: BillingDocumentView; pr
   });
 }
 
+function wrapEscPosLines(input: string, maxCharsPerLine = 32) {
+  const rawLines = String(input || "").replace(/\r/g, "").split("\n");
+  const output: string[] = [];
+
+  for (const rawLine of rawLines) {
+    const line = rawLine.trim();
+    if (!line) {
+      output.push("");
+      continue;
+    }
+
+    let cursor = line;
+    while (cursor.length > maxCharsPerLine) {
+      output.push(cursor.slice(0, maxCharsPerLine));
+      cursor = cursor.slice(maxCharsPerLine);
+    }
+    output.push(cursor);
+  }
+
+  return output;
+}
+
+export function buildEscPosText80mm(input: {
+  title: string;
+  body: string;
+  footerLines?: string[];
+}) {
+  const lines: string[] = [];
+  lines.push("[C]<b>" + trimLine(input.title || "Document", 32) + "</b>\n");
+  lines.push("[C]------------------------------\n");
+
+  const wrappedBody = wrapEscPosLines(input.body || "-", 32);
+  for (const bodyLine of wrappedBody) {
+    lines.push("[L]" + (bodyLine || " ") + "\n");
+  }
+
+  if (input.footerLines?.length) {
+    lines.push("[C]------------------------------\n");
+    for (const footerLine of input.footerLines) {
+      const wrappedFooter = wrapEscPosLines(footerLine, 32);
+      for (const line of wrappedFooter) {
+        lines.push("[L]" + line + "\n");
+      }
+    }
+  }
+
+  lines.push("\n\n");
+  return lines.join("");
+}
+
+export async function printEscPosText80mm(input: {
+  printer: SavedNativePrinter;
+  title: string;
+  body: string;
+  footerLines?: string[];
+}) {
+  await printRaw({
+    printer: input.printer,
+    text: buildEscPosText80mm({
+      title: input.title,
+      body: input.body,
+      footerLines: input.footerLines,
+    }),
+  });
+}
+
 export async function printEscPosTest80mm(input: { printer: SavedNativePrinter; sellerName?: string }) {
   const now = new Date();
   const text =

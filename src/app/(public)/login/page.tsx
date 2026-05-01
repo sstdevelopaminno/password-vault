@@ -15,6 +15,7 @@ import {
 } from "@/lib/sso";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { useHeadsUpNotifications } from "@/components/notifications/heads-up-provider";
+import { AndroidApkDownloadButton } from "@/components/app/android-apk-download-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -493,6 +494,8 @@ export default function LoginPage() {
                 {googleLoading ? "Connecting Google..." : "Continue with Google"}
               </Button>
             ) : null}
+
+            <AndroidApkDownloadButton className="pt-1" />
           </form>
 
           <div className="hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4 text-sm text-slate-600">

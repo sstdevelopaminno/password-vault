@@ -27,7 +27,7 @@ type AndroidReleaseApiPayload = {
   compatibility?: AndroidApkCompatibility;
 };
 
-const FORCE_ANDROID_INSTALL_POPUP_EVENT = "pv:force-android-install-popup";
+export const FORCE_ANDROID_INSTALL_POPUP_EVENT = "pv:force-android-install-popup";
 const PWA_INSTALL_REMINDER_KEY = "pv_pwa_install_reminder_v1";
 const PWA_INSTALL_REMINDER_MAX_PER_DAY = 2;
 const PWA_INSTALL_REMINDER_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
@@ -356,11 +356,11 @@ export function AndroidApkUpdatePopup() {
         onClick={dismissPopup}
       />
 
-      <div className="relative z-10 w-[min(92vw,430px)] rounded-3xl border border-sky-100 bg-white p-4 shadow-[0_24px_70px_rgba(15,23,42,0.28)]">
+      <div className="relative z-10 w-[min(92vw,430px)] rounded-3xl border border-[rgba(120,146,230,0.4)] bg-[linear-gradient(180deg,rgba(8,16,40,0.98),rgba(6,12,34,0.98))] p-4 text-slate-100 shadow-[0_24px_70px_rgba(15,23,42,0.4)]">
         <button
           type="button"
           aria-label={locale === "th" ? "ปิด" : "Close"}
-          className="absolute right-3 top-3 rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+          className="absolute right-3 top-3 rounded-lg p-1 text-slate-300 transition hover:bg-white/10 hover:text-white"
           onClick={dismissPopup}
         >
           <X className="h-4 w-4" />
@@ -371,22 +371,22 @@ export function AndroidApkUpdatePopup() {
             <Smartphone className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-base font-semibold text-slate-900">{title}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">{detail}</p>
+            <p className="text-base font-semibold text-slate-100">{title}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-300">{detail}</p>
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-3">
-          <p className="text-xs font-semibold text-slate-700">{locale === "th" ? "แพ็กเกจติดตั้งล่าสุด" : "Latest build package"}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-600">{release.packageName} | {release.publishedAt}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
+        <div className="mt-4 rounded-2xl border border-[rgba(116,145,226,0.38)] bg-[rgba(14,26,62,0.82)] px-3 py-3">
+          <p className="text-xs font-semibold text-slate-100">{locale === "th" ? "แพ็กเกจติดตั้งล่าสุด" : "Latest build package"}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-300">{release.packageName} | {release.publishedAt}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-300">
             {locale === "th"
               ? `เวอร์ชันที่เครื่องนี้กำลังรัน: ${installedVersionName}${installedVersionCode ? ` (${installedVersionCode})` : ""}`
               : `Current running version: ${installedVersionName}${installedVersionCode ? ` (${installedVersionCode})` : ""}`}
           </p>
         </div>
 
-        <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
+        <div className="mt-3 rounded-2xl border border-emerald-300/35 bg-emerald-500/12 px-3 py-3 text-xs text-emerald-100">
           <p className="inline-flex items-center gap-1 font-semibold">
             <ShieldCheck className="h-3.5 w-3.5" />
             {locale === "th" ? "สถานะความเข้ากันได้" : "Compatibility"}
@@ -394,7 +394,7 @@ export function AndroidApkUpdatePopup() {
           <p className="mt-1">{compatibilityText}</p>
         </div>
 
-        <p className="mt-2 text-[11px] leading-5 text-slate-500">{installPolicyHint}</p>
+        <p className="mt-2 text-[11px] leading-5 text-slate-300">{installPolicyHint}</p>
 
         {waitingInstallPermission ? (
           <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">

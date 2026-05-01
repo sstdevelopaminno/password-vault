@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { BellRing, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Copy, Edit3, FileText, ImageUp, Languages, Loader2, Plus, Search, Share2, Sparkles, Trash2, X } from 'lucide-react';
+import { BellRing, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Copy, Edit3, FileText, ImageUp, Languages, Loader2, Plus, Printer, Search, Share2, Sparkles, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { fetchWithSessionRetry } from '@/lib/api-client';
 import { getOfflineCache, setOfflineCache } from '@/lib/offline-store';
 import { flushOfflineQueue, queueOfflineRequest } from '@/lib/offline-sync';
 import { disposeOcrWorker, recognizeImageWithOcr } from '@/lib/ocr-worker';
+import { canUseNativePrinter, loadSelectedNativePrinter, printEscPosText80mm } from '@/lib/native-thermal-printer';
 import { useOutageState } from '@/lib/outage-detector';
 import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
 
@@ -1164,7 +1165,28 @@ setDeleting(true);
  }
  }
 
- async function downloadPdf(note: NoteItem) {
+async function downloadPdf(note: NoteItem) {
+ if (canUseNativePrinter()) {
+ const selected = loadSelectedNativePrinter();
+ if (selected) {
+ try {
+ await printEscPosText80mm({
+ printer: selected,
+ title: note.title || (isTh ? 'โน้ต' : 'Note'),
+ body: note.content || '-',
+ footerLines: [
+ (isTh ? 'อัปเดตล่าสุด: ' : 'Updated: ') + new Date(note.updatedAt).toLocaleString(isTh ? 'th-TH' : 'en-US'),
+ ],
+ });
+ showToast(isTh ? 'ส่งงานพิมพ์ Bluetooth แล้ว' : 'Print job sent to Bluetooth printer.', 'success');
+ return;
+ } catch (error) {
+ showToast(error instanceof Error ? error.message : (isTh ? 'พิมพ์ผ่าน Bluetooth ไม่สำเร็จ' : 'Bluetooth printing failed.'), 'error');
+ return;
+ }
+ }
+ }
+
  try {
  const url = '/api/notes/' + encodeURIComponent(note.id) + '/export?format=pdf&print=1&locale=' + encodeURIComponent(isTh ? 'th-TH' : 'en-US');
  const res = await fetch(url, { method: 'GET' });
@@ -1327,7 +1349,12 @@ setDeleting(true);
  <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[rgba(255,105,157,0.36)] bg-[rgba(64,14,44,0.58)] p-0 text-[#ff88b0] hover:border-rose-300/60 hover:text-[#ff92ba] sm:h-9 sm:w-9' onClick={() => requestDeleteWithPin(note)}><Trash2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-fuchsia-300 hover:border-fuchsia-300/50 hover:text-fuchsia-200 sm:h-9 sm:w-9' onClick={() => requestShareWithPin(note)}><Share2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
  <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-sky-300 hover:border-cyan-300/50 hover:text-sky-200 sm:h-9 sm:w-9' onClick={() => requestCopyWithPin(note)}><Copy className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] px-2.5 text-app-micro font-semibold text-slate-700 hover:border-cyan-300/45 hover:text-slate-900 sm:h-9 sm:px-3' onClick={() => requestPdfWithPin(note)}>{isTh ? 'ไฟล์ PDF' : 'PDF file'}</Button>
+ <Button type='button' size='sm' variant='secondary' className='h-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] px-2.5 text-app-micro font-semibold text-slate-700 hover:border-cyan-300/45 hover:text-slate-900 sm:h-9 sm:px-3' onClick={() => requestPdfWithPin(note)}>
+ <span className='inline-flex items-center gap-1'>
+ <Printer className='h-3.5 w-3.5' />
+ {canUseNativePrinter() ? (isTh ? 'พิมพ์ Bluetooth' : 'Print Bluetooth') : (isTh ? 'ไฟล์ PDF' : 'PDF file')}
+ </span>
+ </Button>
  </div>
  </Card>
  );
@@ -1645,7 +1672,7 @@ setDeleting(true);
  {pendingPdfPinTarget ? (
  <PinModal
  action='copy_secret'
- actionLabel={isTh ? 'บันทึกเป็น PDF' : 'Save as PDF'}
+ actionLabel={canUseNativePrinter() ? (isTh ? 'พิมพ์ Bluetooth' : 'Print Bluetooth') : (isTh ? 'บันทึกเป็น PDF' : 'Save as PDF')}
  targetItemId={pendingPdfPinTarget.id}
  onVerified={() => {
  const target = pendingPdfPinTarget;
