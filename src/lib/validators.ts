@@ -151,7 +151,7 @@ export const pinActionSchema = z.enum(
 export const pinVerifySchema = z.object({
  pin: z.string().regex(/^\d{6}$/),
  action: pinActionSchema,
- targetItemId: z.string().uuid().optional(),
+ targetItemId: z.string().trim().min(1).max(512).optional(),
 });
 
 export const pinSetSchema = z

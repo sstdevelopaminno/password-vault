@@ -392,47 +392,80 @@ export default function HomePage() {
         </span>
       </div>
 
-      <div className='grid grid-cols-3 gap-2'>
-        {actionTiles.map((tile) => {
-          const Icon = tile.icon;
-          const tileBody = (
-            <>
-              <Icon className='h-[22px] w-[22px] text-slate-100' />
-              <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
-            </>
-          );
+      <div className='space-y-1.5'>
+        <div className='grid grid-cols-3 gap-2'>
+          {actionTiles.slice(0, 3).map((tile) => {
+            const Icon = tile.icon;
+            const tileBody = (
+              <>
+                <Icon className='h-[22px] w-[22px] text-slate-100' />
+                <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
+              </>
+            );
 
-          if (tile.requiresPin) {
+            if (tile.requiresPin) {
+              return (
+                <button
+                  key={tile.href}
+                  type='button'
+                  onClick={() => setPendingProtectedHref(tile.href)}
+                  className='neon-panel group flex min-h-[90px] w-full flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
+                >
+                  {tileBody}
+                </button>
+              );
+            }
+
             return (
-              <button
+              <Link
                 key={tile.href}
-                type='button'
-                onClick={() => setPendingProtectedHref(tile.href)}
-                className='neon-panel group flex min-h-[90px] w-full flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
+                href={tile.href}
+                className='neon-panel group flex min-h-[90px] flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
               >
                 {tileBody}
-              </button>
+              </Link>
             );
-          }
+          })}
+        </div>
 
-          return (
-            <Link
-              key={tile.href}
-              href={tile.href}
-              className='neon-panel group flex min-h-[90px] flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
-            >
-              {tileBody}
-            </Link>
-          );
-        })}
-        <button
-          type='button'
-          onClick={openCalendarPopup}
-          className='neon-panel group flex min-h-[90px] w-full flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
-        >
-          <Calendar className='h-[22px] w-[22px] text-slate-100' />
-          <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t('nav.calendar')}</p>
-        </button>
+        <div className='grid grid-cols-3 gap-2'>
+          {actionTiles.slice(3).map((tile) => {
+            const Icon = tile.icon;
+            if (tile.requiresPin) {
+              return (
+                <button
+                  key={tile.href}
+                  type='button'
+                  onClick={() => setPendingProtectedHref(tile.href)}
+                  className='group flex min-h-[62px] w-full items-center justify-center rounded-[12px]'
+                  aria-label={t(tile.titleKey)}
+                >
+                  <Icon className='h-[24px] w-[24px] text-slate-100' />
+                </button>
+              );
+            }
+
+            return (
+              <Link
+                key={tile.href}
+                href={tile.href}
+                className='group flex min-h-[62px] items-center justify-center rounded-[12px]'
+                aria-label={t(tile.titleKey)}
+              >
+                <Icon className='h-[24px] w-[24px] text-slate-100' />
+              </Link>
+            );
+          })}
+
+          <button
+            type='button'
+            onClick={openCalendarPopup}
+            className='group flex min-h-[62px] w-full items-center justify-center rounded-[12px]'
+            aria-label={t('nav.calendar')}
+          >
+            <Calendar className='h-[24px] w-[24px] text-slate-100' />
+          </button>
+        </div>
       </div>
 
       <div className='overflow-hidden rounded-[20px] border border-[var(--border-soft)] bg-[var(--surface-1)] shadow-[var(--glow-soft)]'>
