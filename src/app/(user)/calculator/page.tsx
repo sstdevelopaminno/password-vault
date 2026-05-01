@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n/provider';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 
-export const HISTORY_STORAGE_KEY = 'pv_calculator_history_v1';
+const HISTORY_STORAGE_KEY = 'pv_calculator_history_v1';
 const HISTORY_MAX_ITEMS = 300;
 const BACKSPACE_KEY = 'BACKSPACE';
 
