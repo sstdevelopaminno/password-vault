@@ -9,13 +9,46 @@ export type SavedNativePrinter = {
 };
 
 const STORAGE_KEY = 'pv_billing_native_printer_v1';
+const NATIVE_BRIDGE_WAIT_TIMEOUT_MS = 2500;
+
+function isNativePrinterRuntime() {
+  const runtime = detectRuntimeCapabilities();
+  return runtime.isCapacitorNative && runtime.isAndroid;
+}
+
+function hasNativePrinterBridge() {
+  return typeof window !== 'undefined' && typeof window.ThermalPrinter !== 'undefined';
+}
+
+function toErrorMessage(input: unknown) {
+  if (input instanceof Error) return input.message;
+  if (typeof input === 'string') return input;
+  if (input && typeof input === 'object') {
+    const record = input as Record<string, unknown>;
+    const error = typeof record.error === 'string' ? record.error : '';
+    const message = typeof record.message === 'string' ? record.message : '';
+    if (error) return error;
+    if (message) return message;
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
+function toError(input: unknown, fallback = 'Thermal printer request failed') {
+  const message = toErrorMessage(input).trim();
+  return new Error(message || fallback);
+}
 
 function callNative<T>(fn: (success: (result: T) => void, error: (err: unknown) => void) => void): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     try {
-      fn(resolve, reject);
+      fn(resolve, (err) => reject(toError(err)));
     } catch (error) {
-      reject(error);
+      reject(toError(error));
     }
   });
 }
@@ -26,13 +59,50 @@ function normalizeDeviceId(input: NativePrinterDevice) {
 }
 
 export function canUseNativePrinter() {
-  const runtime = detectRuntimeCapabilities();
-  if (!runtime.isCapacitorNative || !runtime.isAndroid) return false;
-  return typeof window !== 'undefined' && typeof window.ThermalPrinter !== 'undefined';
+  if (!isNativePrinterRuntime()) return false;
+  return hasNativePrinterBridge();
+}
+
+export async function waitForNativePrinterBridge(timeoutMs = NATIVE_BRIDGE_WAIT_TIMEOUT_MS) {
+  if (canUseNativePrinter()) return true;
+  if (typeof window === 'undefined') return false;
+  if (!isNativePrinterRuntime()) return false;
+
+  return new Promise<boolean>((resolve) => {
+    let done = false;
+    const deadline = Date.now() + Math.max(0, timeoutMs);
+
+    const finish = (value: boolean) => {
+      if (done) return;
+      done = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('deviceready', handleReady as EventListener);
+      resolve(value);
+    };
+
+    const tick = () => {
+      if (canUseNativePrinter()) {
+        finish(true);
+        return;
+      }
+      if (Date.now() >= deadline) {
+        finish(false);
+      }
+    };
+
+    const handleReady = () => {
+      tick();
+    };
+
+    const intervalId = window.setInterval(tick, 120);
+    document.addEventListener('deviceready', handleReady as EventListener);
+    tick();
+  });
 }
 
 export async function listNativePrinters(type: NativePrinterType) {
-  if (!canUseNativePrinter() || !window.ThermalPrinter) return [];
+  const ready = await waitForNativePrinterBridge();
+  if (!ready || !window.ThermalPrinter) return [];
   const result = await callNative<NativePrinterDevice[] | { printers?: NativePrinterDevice[] }>((success, error) => {
     window.ThermalPrinter!.listPrinters({ type }, success, error);
   });
@@ -77,7 +147,8 @@ export function loadSelectedNativePrinter(): SavedNativePrinter | null {
 }
 
 export async function requestNativePrinterPermission(type: NativePrinterType, id: string) {
-  if (!canUseNativePrinter() || !window.ThermalPrinter) return;
+  const ready = await waitForNativePrinterBridge();
+  if (!ready || !window.ThermalPrinter) return;
   await callNative((success, error) => {
     window.ThermalPrinter!.requestPermissions({ type, id }, success, error);
   });
@@ -101,7 +172,7 @@ function toAmount(value: number) {
 function trimLine(input: string, max = 32) {
   const normalized = String(input || '').trim().replace(/\s+/g, ' ');
   if (normalized.length <= max) return normalized;
-  return normalized.slice(0, max - 1) + '…';
+  return normalized.slice(0, Math.max(0, max - 3)) + '...';
 }
 
 export function buildEscPos80mmReceipt(document: BillingDocumentView) {
@@ -144,8 +215,9 @@ export function buildEscPos80mmReceipt(document: BillingDocumentView) {
 }
 
 async function printRaw(input: { printer: SavedNativePrinter; text: string }) {
-  if (!canUseNativePrinter() || !window.ThermalPrinter) {
-    throw new Error('Native printer is not available');
+  const ready = await waitForNativePrinterBridge();
+  if (!ready || !window.ThermalPrinter) {
+    throw new Error('Native printer bridge is not ready. Please reopen the app and try again.');
   }
 
   if (input.printer.type === 'usb') {

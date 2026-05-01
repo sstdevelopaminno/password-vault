@@ -30,7 +30,7 @@ import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
 import { fetchWithSessionRetry } from '@/lib/api-client';
 import { computeBillingTotals, formatCurrency, normalizeText, type BillingDocKind, type BillingDocumentView, type BillingLine, type BillingTemplate } from '@/lib/billing';
-import { canUseNativePrinter, loadSelectedNativePrinter, printEscPos80mm, type SavedNativePrinter } from '@/lib/native-thermal-printer';
+import { canUseNativePrinter, loadSelectedNativePrinter, printEscPos80mm, waitForNativePrinterBridge, type SavedNativePrinter } from '@/lib/native-thermal-printer';
 import { disposeOcrWorker, recognizeImageWithOcr } from '@/lib/ocr-worker';
 
 type BillDraft = {
@@ -460,7 +460,7 @@ export default function BillingPage() {
   );
 
   const deletingInProgress = pendingAction === 'delete' || pendingAction === 'delete_all';
-  const nativePrinterReady = useMemo(() => canUseNativePrinter(), []);
+  const [nativePrinterReady, setNativePrinterReady] = useState(() => canUseNativePrinter());
 
   const loadBillingData = useCallback(async () => {
     setLoading(true);
@@ -501,6 +501,28 @@ export default function BillingPage() {
 
   useEffect(() => {
     setSavedNativePrinter(loadSelectedNativePrinter());
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const syncNativeReady = () => {
+      if (!active) return;
+      setNativePrinterReady(canUseNativePrinter());
+    };
+    syncNativeReady();
+    const intervalId = window.setInterval(syncNativeReady, 500);
+    const onReady = () => syncNativeReady();
+    document.addEventListener('deviceready', onReady as EventListener);
+    void waitForNativePrinterBridge(4000).then((ready) => {
+      if (!active || !ready) return;
+      setNativePrinterReady(true);
+    });
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener('deviceready', onReady as EventListener);
+    };
   }, []);
 
   useEffect(() => {
@@ -1062,7 +1084,15 @@ export default function BillingPage() {
       '&print=1&locale=' +
       encodeURIComponent(printLocale);
 
-    if (nativePrinterReady) {
+    let nativeAvailable = nativePrinterReady || canUseNativePrinter();
+    if (!nativeAvailable) {
+      nativeAvailable = await waitForNativePrinterBridge(1200);
+      if (nativeAvailable) {
+        setNativePrinterReady(true);
+      }
+    }
+
+    if (nativeAvailable) {
       const selected = loadSelectedNativePrinter();
       setSavedNativePrinter(selected);
 

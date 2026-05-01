@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Bluetooth, CheckCircle2, ChevronLeft, Printer, RefreshCw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
 import {
   canUseNativePrinter,
+  waitForNativePrinterBridge,
   listNativePrinters,
   loadSelectedNativePrinter,
   printEscPosTest80mm,
@@ -32,9 +33,32 @@ export default function PrinterSettingsPage() {
   const [selected, setSelected] = useState<SavedNativePrinter | null>(null);
   const [scanCompleted, setScanCompleted] = useState(false);
   const [testPrintCompleted, setTestPrintCompleted] = useState(false);
-  const nativeReady = useMemo(() => canUseNativePrinter(), []);
+  const [nativeReady, setNativeReady] = useState(() => canUseNativePrinter());
 
   const smokePass = nativeReady && scanCompleted && Boolean(selected) && testPrintCompleted;
+
+  useEffect(() => {
+    let active = true;
+    const syncNativeReady = () => {
+      if (!active) return;
+      setNativeReady(canUseNativePrinter());
+    };
+
+    syncNativeReady();
+    const intervalId = window.setInterval(syncNativeReady, 500);
+    const onReady = () => syncNativeReady();
+    document.addEventListener("deviceready", onReady as EventListener);
+    void waitForNativePrinterBridge(4000).then((ready) => {
+      if (!active || !ready) return;
+      setNativeReady(true);
+    });
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener("deviceready", onReady as EventListener);
+    };
+  }, []);
 
   const loadDevices = useCallback(async () => {
     if (!nativeReady) {
@@ -123,7 +147,9 @@ export default function PrinterSettingsPage() {
 
         {!nativeReady ? (
           <div className="rounded-xl border border-amber-300/45 bg-amber-500/15 px-3 py-2 text-app-caption text-amber-100">
-            {isThai ? "เมนูนี้ใช้ได้เฉพาะ Android APK เท่านั้น" : "This menu is available only in Android native APK runtime."}
+            {isThai
+              ? "โหมด PWA ใช้การพิมพ์ผ่านหน้าต่างระบบ (Print / Save PDF) ส่วน Bluetooth ตรงนี้ใช้ได้ใน Android APK"
+              : "PWA uses the system print dialog (Print / Save PDF). Bluetooth setup here is available in Android APK."}
           </div>
         ) : null}
 
