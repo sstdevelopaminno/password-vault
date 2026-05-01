@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, Bell, Calendar, ChevronLeft, ChevronRight, Download, Phone, ReceiptText, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { Activity, Bell, Calculator, Calendar, ChevronLeft, ChevronRight, Cloud, Download, Phone, ReceiptText, ScanText, ShieldCheck, Smartphone, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PinModal } from '@/components/vault/pin-modal';
 import { APP_VERSION } from '@/lib/app-version';
@@ -72,6 +72,24 @@ const actionTiles: ActionTile[] = [
     titleTh: 'ออกบิล',
     titleEn: 'Billing',
     icon: ReceiptText,
+  },
+  {
+    href: '/calculator',
+    titleTh: 'Calculator',
+    titleEn: 'Calculator',
+    icon: Calculator,
+  },
+  {
+    href: '/workspace-cloud',
+    titleTh: 'Cloud Files',
+    titleEn: 'Cloud Files',
+    icon: Cloud,
+  },
+  {
+    href: '/document-scanner',
+    titleTh: 'Document Scanner',
+    titleEn: 'Document Scanner',
+    icon: ScanText,
   },
 ];
 
