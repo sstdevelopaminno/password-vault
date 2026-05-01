@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -369,7 +370,19 @@ export default function RegisterPage() {
     <MobileShell>
       <main className="flex flex-1 items-center px-5 py-8">
         <Card className="w-full space-y-4 animate-slide-up">
-          <h1 className="text-xl font-semibold">{t("register.title")}</h1>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-9 w-9 rounded-xl"
+              onClick={() => router.push("/login")}
+              aria-label="Back to login"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-xl font-semibold">{t("register.title")}</h1>
+          </div>
 
           <form
             className="space-y-3"
@@ -481,7 +494,12 @@ export default function RegisterPage() {
             {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
             <Button
-              className="w-full"
+              className={
+                "h-11 w-full " +
+                (otpSent
+                  ? ""
+                  : "bg-gradient-to-r from-cyan-500 via-blue-500 to-fuchsia-500 text-white shadow-[0_12px_24px_rgba(79,123,255,0.38)] hover:brightness-105")
+              }
               disabled={otpSent ? loading || otp.length !== 6 : !canRequestOtp}
             >
               {loading ? (
@@ -493,6 +511,15 @@ export default function RegisterPage() {
               ) : (
                 t("register.sendOtp")
               )}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-11 w-full"
+              onClick={() => router.push("/login")}
+              disabled={loading}
+            >
+              {isThai ? "กลับ" : "Back"}
             </Button>
           </form>
         </Card>

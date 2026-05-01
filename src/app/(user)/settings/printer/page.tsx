@@ -1,0 +1,182 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Bluetooth, CheckCircle2, ChevronLeft, Printer, RefreshCw, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/components/ui/toast";
+import { useI18n } from "@/i18n/provider";
+import {
+  canUseNativePrinter,
+  listNativePrinters,
+  loadSelectedNativePrinter,
+  printEscPosTest80mm,
+  saveSelectedNativePrinter,
+  type SavedNativePrinter,
+} from "@/lib/native-thermal-printer";
+
+type PrinterItem = {
+  id: string;
+  name: string;
+};
+
+export default function PrinterSettingsPage() {
+  const { locale } = useI18n();
+  const { showToast } = useToast();
+  const isThai = locale === "th";
+
+  const [loading, setLoading] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [devices, setDevices] = useState<PrinterItem[]>([]);
+  const [selected, setSelected] = useState<SavedNativePrinter | null>(null);
+  const nativeReady = useMemo(() => canUseNativePrinter(), []);
+
+  const loadDevices = useCallback(async () => {
+    if (!nativeReady) {
+      setDevices([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const rows = await listNativePrinters("bluetooth");
+      setDevices(rows.map((row) => ({ id: row.id, name: row.name })));
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : (isThai ? "ค้นหาเครื่องพิมพ์ไม่สำเร็จ" : "Unable to scan bluetooth printers."),
+        "error",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [isThai, nativeReady, showToast]);
+
+  useEffect(() => {
+    const saved = loadSelectedNativePrinter();
+    setSelected(saved);
+    void loadDevices();
+  }, [loadDevices]);
+
+  function connectDevice(device: PrinterItem) {
+    const next: SavedNativePrinter = {
+      type: "bluetooth",
+      id: device.id,
+      name: device.name,
+    };
+    saveSelectedNativePrinter(next);
+    setSelected(next);
+    showToast(isThai ? "เชื่อมต่อเครื่องพิมพ์แล้ว" : "Printer connected.", "success");
+  }
+
+  function disconnectDevice() {
+    saveSelectedNativePrinter(null);
+    setSelected(null);
+    showToast(isThai ? "ยกเลิกการเชื่อมต่อแล้ว" : "Printer disconnected.", "success");
+  }
+
+  async function runTestPrint() {
+    if (!selected) {
+      showToast(isThai ? "กรุณาเลือกเครื่องพิมพ์ก่อน" : "Please select a printer first.", "error");
+      return;
+    }
+    setTesting(true);
+    try {
+      await printEscPosTest80mm({ printer: selected, sellerName: isThai ? "ระบบออกบิล" : "Billing System" });
+      showToast(isThai ? "ทดสอบพิมพ์สำเร็จ" : "Test print success.", "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : (isThai ? "ทดสอบพิมพ์ไม่สำเร็จ" : "Test print failed."),
+        "error",
+      );
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <section className="space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]">
+      <div className="flex items-center gap-2">
+        <Link
+          href="/settings"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-200"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Link>
+        <h1 className="text-app-h2 font-semibold text-slate-100">
+          {isThai ? "เครื่องพิมพ์ Bluetooth" : "Bluetooth Printer"}
+        </h1>
+      </div>
+
+      <Card className="space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-app-body font-semibold text-slate-100">
+            {isThai ? "ค้นหาและเชื่อมต่อเครื่องพิมพ์" : "Scan and connect printer"}
+          </p>
+          <Button type="button" variant="secondary" className="h-9 gap-2" onClick={() => void loadDevices()} disabled={loading}>
+            <RefreshCw className={"h-4 w-4 " + (loading ? "animate-spin" : "")} />
+            {isThai ? "ค้นหา" : "Scan"}
+          </Button>
+        </div>
+
+        {!nativeReady ? (
+          <div className="rounded-xl border border-amber-300/45 bg-amber-500/15 px-3 py-2 text-app-caption text-amber-100">
+            {isThai
+              ? "เมนูนี้ใช้งานได้ในแอป APK (Android Native) เท่านั้น"
+              : "This menu is available only in Android APK native runtime."}
+          </div>
+        ) : null}
+
+        {nativeReady && devices.length === 0 && !loading ? (
+          <div className="rounded-xl border border-slate-500/45 bg-slate-600/20 px-3 py-2 text-app-caption text-slate-200">
+            {isThai ? "ไม่พบเครื่องพิมพ์ Bluetooth ใกล้เคียง" : "No nearby bluetooth printer found."}
+          </div>
+        ) : null}
+
+        {nativeReady && devices.length > 0 ? (
+          <div className="space-y-2">
+            {devices.map((device) => {
+              const active = selected?.id === device.id && selected?.type === "bluetooth";
+              return (
+                <button
+                  key={device.id}
+                  type="button"
+                  onClick={() => connectDevice(device)}
+                  className={
+                    "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition " +
+                    (active
+                      ? "border-emerald-300/60 bg-emerald-500/15 text-emerald-100"
+                      : "border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-100 hover:border-[var(--border-strong)]")
+                  }
+                >
+                  <span className="inline-flex min-w-0 items-center gap-2">
+                    <Bluetooth className="h-4 w-4 shrink-0" />
+                    <span className="truncate text-app-body">{device.name}</span>
+                  </span>
+                  {active ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" className="h-10 gap-2" onClick={() => void runTestPrint()} disabled={!nativeReady || !selected || testing}>
+            <Printer className="h-4 w-4" />
+            {testing
+              ? (isThai ? "กำลังพิมพ์..." : "Printing...")
+              : (isThai ? "ทดสอบพิมพ์" : "Test print")}
+          </Button>
+          <Button type="button" variant="secondary" className="h-10 gap-2" onClick={disconnectDevice} disabled={!selected}>
+            <XCircle className="h-4 w-4" />
+            {isThai ? "ยกเลิกเชื่อมต่อ" : "Disconnect"}
+          </Button>
+        </div>
+      </Card>
+    </section>
+  );
+}
+

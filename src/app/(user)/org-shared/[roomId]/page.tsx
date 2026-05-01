@@ -254,7 +254,7 @@ setChatInput('');
  }, [items, search]);
 
  return (
- <section className='space-y-4 pb-24 pt-2'>
+ <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]'>
  <header className='space-y-1.5'>
  <div className='flex items-start justify-between gap-2'>
  <div className='min-w-0'>

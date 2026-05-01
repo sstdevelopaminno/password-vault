@@ -268,7 +268,7 @@ export default function OrgSharedPage() {
 
 
  return (
- <section className='space-y-4 pb-24 pt-2'>
+ <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]'>
  <header className='space-y-1'>
  <h1 className='text-[34px] font-semibold leading-tight text-[#f2f8ff]'>{locale === 'th' ? 'รหัสทีม' : 'Team Keys'}</h1>
  <p className='text-sm leading-6 text-[#9eb2d9]'>

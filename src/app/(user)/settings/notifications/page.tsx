@@ -161,7 +161,7 @@ export default function NotificationSettingsPage() {
   }
 
   return (
-    <section className="space-y-4 pb-24">
+    <section className="space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]">
       <div className="flex items-center gap-2">
         <Link
           href="/settings"

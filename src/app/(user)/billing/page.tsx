@@ -29,7 +29,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
 import { fetchWithSessionRetry } from '@/lib/api-client';
-import { computeBillingTotals, formatCurrency, normalizeText, type BillingDocKind, type BillingLine, type BillingTemplate } from '@/lib/billing';
+import { computeBillingTotals, formatCurrency, normalizeText, type BillingDocKind, type BillingDocumentView, type BillingLine, type BillingTemplate } from '@/lib/billing';
+import { canUseNativePrinter, loadSelectedNativePrinter, printEscPos80mm, type SavedNativePrinter } from '@/lib/native-thermal-printer';
 import { disposeOcrWorker, recognizeImageWithOcr } from '@/lib/ocr-worker';
 
 type BillDraft = {
@@ -382,6 +383,8 @@ export default function BillingPage() {
   const [emailQueue, setEmailQueue] = useState<BillingEmailQueueRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [printingDocumentId, setPrintingDocumentId] = useState<string | null>(null);
+  const [savedNativePrinter, setSavedNativePrinter] = useState<SavedNativePrinter | null>(null);
   const [documentsPage, setDocumentsPage] = useState(1);
   const [queuePage, setQueuePage] = useState(1);
 
@@ -457,6 +460,7 @@ export default function BillingPage() {
   );
 
   const deletingInProgress = pendingAction === 'delete' || pendingAction === 'delete_all';
+  const nativePrinterReady = useMemo(() => canUseNativePrinter(), []);
 
   const loadBillingData = useCallback(async () => {
     setLoading(true);
@@ -494,6 +498,10 @@ export default function BillingPage() {
   useEffect(() => {
     loadBillingData().catch(() => undefined);
   }, [loadBillingData]);
+
+  useEffect(() => {
+    setSavedNativePrinter(loadSelectedNativePrinter());
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1032,6 +1040,60 @@ export default function BillingPage() {
       return 'bg-gradient-to-r from-cyan-500 to-fuchsia-500 text-white';
     }
     return 'bg-gradient-to-r from-amber-500 to-rose-500 text-white';
+  }
+
+  function toBillingView(record: BillingDocumentRecord): BillingDocumentView {
+    return {
+      ...record,
+      userId: '',
+      dueDate: record.dueDate ?? null,
+    };
+  }
+
+  async function printDocument(record: BillingDocumentRecord) {
+    if (printingDocumentId) return;
+
+    const printLocale = locale === 'th' ? 'th-TH' : 'en-US';
+    const printUrl =
+      '/api/billing/documents/' +
+      encodeURIComponent(record.id) +
+      '/export?template=' +
+      encodeURIComponent(record.template) +
+      '&print=1&locale=' +
+      encodeURIComponent(printLocale);
+
+    if (nativePrinterReady) {
+      const selected = loadSelectedNativePrinter();
+      setSavedNativePrinter(selected);
+
+      if (!selected) {
+        showToast(
+          tr('ยังไม่ได้เชื่อมต่อเครื่องพิมพ์ Bluetooth กรุณาไปที่ ตั้งค่า > เครื่องพิมพ์ Bluetooth', 'No bluetooth printer connected. Go to Settings > Bluetooth Printer.'),
+          'error',
+        );
+        return;
+      }
+
+      setPrintingDocumentId(record.id);
+      try {
+        await printEscPos80mm({ document: toBillingView(record), printer: selected });
+        showToast(tr('ส่งงานพิมพ์ไปยังเครื่องพิมพ์แล้ว', 'Print job sent to printer.'), 'success');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : tr('พิมพ์ผ่าน Bluetooth ไม่สำเร็จ', 'Bluetooth printing failed.'), 'error');
+      } finally {
+        setPrintingDocumentId(null);
+      }
+      return;
+    }
+
+    try {
+      const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
+      if (!popup) {
+        window.location.href = printUrl;
+      }
+    } catch {
+      window.location.href = printUrl;
+    }
   }
 
   const previewUrl = previewDocumentId
@@ -1653,11 +1715,29 @@ export default function BillingPage() {
                     <Eye className='h-3.5 w-3.5' />
                     {tr('พรีวิว 80mm', 'Preview 80mm')}
                   </Button>
-                  <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={() => window.open('/api/billing/documents/' + encodeURIComponent(selectedDetailDocument.id) + '/export?template=a4&print=1', '_blank', 'noopener,noreferrer')}>
+                  <Button
+                    type='button'
+                    size='sm'
+                    variant='secondary'
+                    className='gap-1'
+                    onClick={() => void printDocument(selectedDetailDocument)}
+                    disabled={printingDocumentId === selectedDetailDocument.id}
+                  >
                     <Printer className='h-3.5 w-3.5' />
-                    {tr('พิมพ์', 'Print')}
+                    {printingDocumentId === selectedDetailDocument.id
+                      ? tr('กำลังพิมพ์...', 'Printing...')
+                      : nativePrinterReady
+                        ? tr('พิมพ์ Bluetooth', 'Print Bluetooth')
+                        : tr('พิมพ์ / บันทึก PDF', 'Print / Save PDF')}
                   </Button>
                 </div>
+                {nativePrinterReady ? (
+                  <p className='text-app-caption text-slate-500'>
+                    {savedNativePrinter
+                      ? tr('เครื่องพิมพ์ที่เชื่อมต่อ: ', 'Connected printer: ') + savedNativePrinter.name
+                      : tr('ยังไม่ได้เชื่อมต่อเครื่องพิมพ์ Bluetooth (ไปที่เมนูตั้งค่า)', 'No bluetooth printer connected yet (open settings menu).')}
+                  </p>
+                ) : null}
 
                 <div className='rounded-2xl border border-slate-200 bg-slate-50 p-3'>
                   <p className='text-app-body font-semibold text-slate-900'>{tr('เนื้อหาเอกสารที่บันทึกไว้', 'Saved document content')}</p>

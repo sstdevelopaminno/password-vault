@@ -13,6 +13,7 @@ import {
   LogOut,
   Mail,
   Moon,
+  Printer,
   QrCode,
   Trash2,
   Sun,
@@ -506,10 +507,10 @@ export default function SettingsPage() {
       key={key}
       type='button'
       onClick={() => openSection(key)}
-      className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
+      className='group flex min-h-[58px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
     >
       <span className='inline-flex items-center gap-3'>
-        <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2.5 text-sky-300 group-hover:text-cyan-200'>
+        <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2 text-sky-300 group-hover:text-cyan-200'>
           <Icon className='h-4 w-4' />
         </span>
         <span className='text-app-h3 font-semibold text-slate-100'>{title}</span>
@@ -840,7 +841,7 @@ export default function SettingsPage() {
               : null;
 
   return (
-    <section className='space-y-5 pb-24 pt-2'>
+    <section className='space-y-5 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]'>
       {active ? null : (
         <div className='flex items-start justify-between gap-3'>
           <div>
@@ -863,7 +864,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className={active ? 'hidden' : 'grid gap-3.5'}>
+      <div className={active ? 'hidden' : 'grid gap-3'}>
         {menuBtn('name', t('settings.nameTitle'), UserRound)}
         {menuBtn('email', t('settings.emailTitle'), Mail)}
         {menuBtn('password', t('settings.passwordTitle'), Lock)}
@@ -874,10 +875,10 @@ export default function SettingsPage() {
         <button
           type='button'
           onClick={() => router.push('/settings/notifications')}
-          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
+          className='group flex min-h-[58px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
         >
           <span className='inline-flex items-center gap-3'>
-            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2.5 text-sky-300 group-hover:text-cyan-200'>
+            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2 text-sky-300 group-hover:text-cyan-200'>
               <Bell className='h-4 w-4' />
             </span>
             <span className='text-app-h3 font-semibold text-slate-100'>
@@ -890,10 +891,10 @@ export default function SettingsPage() {
         <button
           type='button'
           onClick={() => router.push('/settings/lock-screen')}
-          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
+          className='group flex min-h-[58px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
         >
           <span className='inline-flex items-center gap-3'>
-            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2.5 text-sky-300 group-hover:text-cyan-200'>
+            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2 text-sky-300 group-hover:text-cyan-200'>
               <Lock className='h-4 w-4' />
             </span>
             <span className='text-app-h3 font-semibold text-slate-100'>
@@ -906,14 +907,30 @@ export default function SettingsPage() {
         <button
           type='button'
           onClick={() => router.push('/help-center')}
-          className='group flex min-h-[66px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3.5 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
+          className='group flex min-h-[58px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
         >
           <span className='inline-flex items-center gap-3'>
-            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2.5 text-sky-300 group-hover:text-cyan-200'>
+            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2 text-sky-300 group-hover:text-cyan-200'>
               <LifeBuoy className='h-4 w-4' />
             </span>
             <span className='text-app-h3 font-semibold text-slate-100'>
               {locale === 'th' ? 'ศูนย์ช่วยเหลือ' : 'Help center'}
+            </span>
+          </span>
+          <ChevronRight className='h-4 w-4 text-slate-300' />
+        </button>
+
+        <button
+          type='button'
+          onClick={() => router.push('/settings/printer')}
+          className='group flex min-h-[58px] w-full items-center justify-between rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 py-3 text-left shadow-[var(--glow-soft)] transition hover:border-[var(--border-strong)]'
+        >
+          <span className='inline-flex items-center gap-3'>
+            <span className='rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-2 text-sky-300 group-hover:text-cyan-200'>
+              <Printer className='h-4 w-4' />
+            </span>
+            <span className='text-app-h3 font-semibold text-slate-100'>
+              {locale === 'th' ? 'เครื่องพิมพ์ Bluetooth' : 'Bluetooth Printer'}
             </span>
           </span>
           <ChevronRight className='h-4 w-4 text-slate-300' />
@@ -923,9 +940,9 @@ export default function SettingsPage() {
       </div>
 
       {body ? (
-        <div className='mt-2 space-y-3'>
-          <div className='mx-auto w-full max-w-[540px] rounded-[30px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-5 pb-8 pt-5 shadow-[var(--glow-soft)]'>
-            <div className='mb-5 flex items-center gap-2'>
+        <div className='mt-1 space-y-3'>
+          <div className='mx-auto w-full max-w-[520px] rounded-[30px] border border-[var(--border-soft)] bg-[var(--surface-1)] px-4 pb-6 pt-4 shadow-[var(--glow-soft)]'>
+            <div className='mb-4 flex items-center gap-2'>
               <button
                 type='button'
                 className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-200'
