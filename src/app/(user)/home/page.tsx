@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, Bell, Calculator, ChevronLeft, ChevronRight, Download, Package, PackageCheck, Phone, ReceiptText, ShieldCheck, Smartphone, WalletCards, X } from 'lucide-react';
+import { Activity, Bell, Calculator, Calendar, ChevronLeft, ChevronRight, Cloud, Download, Package, PackageCheck, Phone, ReceiptText, ScanText, ShieldCheck, Smartphone, WalletCards, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PinModal } from '@/components/vault/pin-modal';
 import { APP_VERSION } from '@/lib/app-version';
@@ -37,7 +37,9 @@ type ActionTile = {
   titleKey:
     | 'nav.privateContacts'
     | 'nav.billing'
-    | 'nav.calculator';
+    | 'nav.calculator'
+    | 'nav.cloudFiles'
+    | 'nav.documentScanner';
   icon: typeof Phone;
   iconClass: string;
   requiresPin?: boolean;
@@ -88,6 +90,18 @@ const actionTiles: ActionTile[] = [
     titleKey: 'nav.calculator',
     icon: Calculator,
     iconClass: 'text-violet-300',
+  },
+  {
+    href: '/workspace-cloud',
+    titleKey: 'nav.cloudFiles',
+    icon: Cloud,
+    iconClass: 'text-cyan-300',
+  },
+  {
+    href: '/document-scanner',
+    titleKey: 'nav.documentScanner',
+    icon: ScanText,
+    iconClass: 'text-pink-300',
   },
 ];
 
@@ -418,6 +432,33 @@ export default function HomePage() {
               </Link>
             );
           })}
+        </div>
+
+        <div className='grid grid-cols-3 gap-2'>
+          {actionTiles.slice(3).map((tile) => {
+            const Icon = tile.icon;
+            return (
+              <Link
+                key={tile.href}
+                href={tile.href}
+                className='neon-panel group flex min-h-[90px] flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
+                aria-label={t(tile.titleKey)}
+              >
+                <Icon className={'h-[22px] w-[22px] ' + tile.iconClass} />
+                <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
+              </Link>
+            );
+          })}
+
+          <button
+            type='button'
+            onClick={openCalendarPopup}
+            className='neon-panel group flex min-h-[90px] w-full flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
+            aria-label={t('nav.calendar')}
+          >
+            <Calendar className='h-[22px] w-[22px] text-amber-300' />
+            <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t('nav.calendar')}</p>
+          </button>
         </div>
 
         <div className='grid grid-cols-3 gap-2'>
