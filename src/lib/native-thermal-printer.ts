@@ -40,6 +40,13 @@ function toErrorMessage(input: unknown) {
 
 function toError(input: unknown, fallback = 'Thermal printer request failed') {
   const message = toErrorMessage(input).trim();
+  const lowered = message.toLowerCase();
+  if (lowered.includes('missing permission for android.permission.bluetooth')) {
+    return new Error('Bluetooth permission is missing. Please allow Nearby devices/Bluetooth in Android settings, then reopen the app.');
+  }
+  if (lowered.includes('device not enabled bluetooth')) {
+    return new Error('Bluetooth is off. Please turn on Bluetooth and try again.');
+  }
   return new Error(message || fallback);
 }
 
