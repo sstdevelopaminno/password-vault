@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, Bell, Calculator, Calendar, ChevronLeft, ChevronRight, Cloud, Download, Phone, ReceiptText, ScanText, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { Activity, Bell, Calculator, Calendar, ChevronLeft, ChevronRight, Cloud, Download, Package, PackageCheck, Phone, ReceiptText, ScanText, ShieldCheck, Smartphone, WalletCards, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PinModal } from '@/components/vault/pin-modal';
 import { APP_VERSION } from '@/lib/app-version';
@@ -34,10 +34,21 @@ type AndroidReleaseApiPayload = {
 
 type ActionTile = {
   href: string;
-  titleTh: string;
-  titleEn: string;
+  titleKey:
+    | 'nav.privateContacts'
+    | 'nav.billing'
+    | 'nav.calculator'
+    | 'nav.cloudFiles'
+    | 'nav.documentScanner';
   icon: typeof Phone;
   requiresPin?: boolean;
+};
+
+type ServiceTile = {
+  href: string;
+  titleKey: 'nav.packageCheck' | 'nav.ourPackages' | 'nav.wallet';
+  subtitleKey: 'packages.checkTitle' | 'packages.plansTitle' | 'packages.walletTitle';
+  icon: typeof PackageCheck;
 };
 
 type HomeCalendarNote = {
@@ -62,34 +73,50 @@ function dateKeyFromIso(raw: string | null | undefined) {
 const actionTiles: ActionTile[] = [
   {
     href: '/private-contacts',
-    titleTh: 'เบอร์โทรลับ',
-    titleEn: 'Private Contacts',
+    titleKey: 'nav.privateContacts',
     icon: Phone,
     requiresPin: true,
   },
   {
     href: '/billing',
-    titleTh: 'ออกบิล',
-    titleEn: 'Billing',
+    titleKey: 'nav.billing',
     icon: ReceiptText,
   },
   {
     href: '/calculator',
-    titleTh: 'Calculator',
-    titleEn: 'Calculator',
+    titleKey: 'nav.calculator',
     icon: Calculator,
   },
   {
     href: '/workspace-cloud',
-    titleTh: 'Cloud Files',
-    titleEn: 'Cloud Files',
+    titleKey: 'nav.cloudFiles',
     icon: Cloud,
   },
   {
     href: '/document-scanner',
-    titleTh: 'Document Scanner',
-    titleEn: 'Document Scanner',
+    titleKey: 'nav.documentScanner',
     icon: ScanText,
+  },
+];
+
+const serviceTiles: ServiceTile[] = [
+  {
+    href: '/package-check',
+    titleKey: 'nav.packageCheck',
+    subtitleKey: 'packages.checkTitle',
+    icon: PackageCheck,
+  },
+  {
+    href: '/our-packages',
+    titleKey: 'nav.ourPackages',
+    subtitleKey: 'packages.plansTitle',
+    icon: Package,
+  },
+  {
+    href: '/wallet',
+    titleKey: 'nav.wallet',
+    subtitleKey: 'packages.walletTitle',
+    icon: WalletCards,
   },
 ];
 
@@ -99,7 +126,7 @@ const HOME_BANNER_IMAGE_URL =
   'https://phswnczojmrdfioyqsql.supabase.co/storage/v1/object/sign/Address/5587799.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82NDIwYTUxNy05Y2M3LTQzZWUtOWFhMi00NGQ3YjAwMTVhNDkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJBZGRyZXNzLzU1ODc3OTkucG5nIiwiaWF0IjoxNzc3MDgzMTIyLCJleHAiOjE4MDg2MTkxMjJ9.63oigSLqpOeKil9QOLDxZn0hlaJqwWk6A-OdAF6ccvQ';
 
 export default function HomePage() {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const runtime = detectRuntimeCapabilities();
   const router = useRouter();
   const [appVersion, setAppVersion] = useState(APP_VERSION);
@@ -357,18 +384,18 @@ export default function HomePage() {
       <div className='flex flex-wrap items-center gap-2'>
         <span className='neon-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-app-caption font-semibold'>
           <ShieldCheck className='h-3.5 w-3.5' />
-          {tr('สิทธิ์', 'Role')}: {userRole}
+          {t('home.roleLabel')}: {userRole}
         </span>
         <span className='neon-chip neon-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-app-caption font-semibold'>
           <Activity className='h-3.5 w-3.5' />
-          {tr('สถานะ', 'Status')}: {userStatus}
+          {t('home.statusLabel')}: {userStatus}
         </span>
       </div>
 
       <div className='flex items-center justify-between pt-1'>
-        <h3 className='text-app-h2 font-semibold text-slate-100'>{tr('เมนูหลัก', 'Main Menu')}</h3>
+        <h3 className='text-app-h2 font-semibold text-slate-100'>{t('home.mainMenu')}</h3>
         <Link href='/settings' className='inline-flex items-center gap-1 text-app-body font-medium text-slate-200'>
-          {tr('ดูทั้งหมด', 'View all')}
+          {t('home.viewAll')}
           <ChevronRight className='h-4 w-4' />
         </Link>
       </div>
@@ -378,8 +405,10 @@ export default function HomePage() {
           const Icon = tile.icon;
           const tileBody = (
             <>
-              <Icon className='h-[16px] w-[16px] text-slate-100' />
-              <p className='text-[13px] font-semibold leading-tight text-slate-100'>{isThai ? tile.titleTh : tile.titleEn}</p>
+              <span className='inline-flex h-6 w-6 items-center justify-center rounded-full border border-[rgba(159,195,255,0.42)] bg-[rgba(29,56,132,0.56)] shadow-[0_0_14px_rgba(98,152,255,0.25)]'>
+                <Icon className='h-[13px] w-[13px] text-slate-100' />
+              </span>
+              <p className='line-clamp-2 text-[11px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
             </>
           );
 
@@ -389,7 +418,7 @@ export default function HomePage() {
                 key={tile.href}
                 type='button'
                 onClick={() => setPendingProtectedHref(tile.href)}
-                className='neon-panel group flex min-h-[82px] w-full flex-col items-center justify-center gap-0.5 rounded-[14px] p-2 text-center'
+                className='neon-panel group flex min-h-[72px] w-full flex-col items-center justify-center gap-1 rounded-[12px] px-1.5 py-1.5 text-center'
               >
                 {tileBody}
               </button>
@@ -400,7 +429,7 @@ export default function HomePage() {
             <Link
               key={tile.href}
               href={tile.href}
-              className='neon-panel group flex min-h-[82px] flex-col items-center justify-center gap-0.5 rounded-[14px] p-2 text-center'
+              className='neon-panel group flex min-h-[72px] flex-col items-center justify-center gap-1 rounded-[12px] px-1.5 py-1.5 text-center'
             >
               {tileBody}
             </Link>
@@ -409,10 +438,12 @@ export default function HomePage() {
         <button
           type='button'
           onClick={openCalendarPopup}
-          className='neon-panel group flex min-h-[82px] w-full flex-col items-center justify-center gap-0.5 rounded-[14px] p-2 text-center'
+          className='neon-panel group flex min-h-[72px] w-full flex-col items-center justify-center gap-1 rounded-[12px] px-1.5 py-1.5 text-center'
         >
-          <Calendar className='h-[16px] w-[16px] text-slate-100' />
-          <p className='text-[13px] font-semibold leading-tight text-slate-100'>{tr('ปฏิทิน', 'Calendar')}</p>
+          <span className='inline-flex h-6 w-6 items-center justify-center rounded-full border border-[rgba(159,195,255,0.42)] bg-[rgba(29,56,132,0.56)] shadow-[0_0_14px_rgba(98,152,255,0.25)]'>
+            <Calendar className='h-[13px] w-[13px] text-slate-100' />
+          </span>
+          <p className='line-clamp-2 text-[11px] font-semibold leading-tight text-slate-100'>{t('nav.calendar')}</p>
         </button>
       </div>
 
@@ -425,6 +456,34 @@ export default function HomePage() {
           className='h-auto w-full object-cover'
           priority={false}
         />
+      </div>
+
+      <div className='space-y-2'>
+        <div className='flex items-center justify-between gap-2'>
+          <h4 className='text-app-body font-semibold text-slate-100'>{t('home.serviceZoneTitle')}</h4>
+          <p className='text-app-micro text-slate-300'>{t('home.serviceZoneSubtitle')}</p>
+        </div>
+        <div className='grid grid-cols-3 gap-2'>
+          {serviceTiles.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className='group relative overflow-hidden rounded-[14px] border border-[rgba(143,183,255,0.36)] bg-[linear-gradient(145deg,rgba(16,34,90,0.96),rgba(12,25,69,0.98))] px-2 py-2.5 shadow-[0_0_0_1px_rgba(145,168,255,0.08),0_10px_24px_rgba(25,80,180,0.22)] transition hover:border-[rgba(165,206,255,0.55)]'
+              >
+                <span className='pointer-events-none absolute -right-7 -top-7 h-16 w-16 rounded-full bg-[radial-gradient(circle,rgba(91,160,255,0.24),transparent_70%)]' />
+                <div className='relative z-10 flex flex-col items-start gap-1.5'>
+                  <span className='inline-flex h-7 w-7 items-center justify-center rounded-xl border border-[rgba(159,195,255,0.42)] bg-[rgba(29,56,132,0.56)] shadow-[0_0_12px_rgba(98,152,255,0.24)]'>
+                    <Icon className='h-4 w-4 text-slate-100' />
+                  </span>
+                  <p className='line-clamp-2 text-[11px] font-semibold leading-tight text-slate-100'>{t(item.titleKey)}</p>
+                  <p className='line-clamp-1 text-[10px] text-slate-300'>{t(item.subtitleKey)}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {showAndroidInstallCta ? (

@@ -1744,23 +1744,23 @@ async function downloadPdf(note: NoteItem) {
  type='button'
  variant='secondary'
  size='sm'
- className='h-8 rounded-xl border border-slate-200 bg-white px-2.5 text-app-micro font-semibold text-slate-700'
+ className='h-9 rounded-full border border-[rgba(138,174,255,0.45)] bg-[rgba(24,45,105,0.84)] px-3 text-app-micro font-semibold text-slate-100'
  onClick={triggerImageOcrPicker}
  disabled={ocrRunning || ocrTranslateRunning || saving}
  >
  {ocrRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <ImageUp className='mr-1 h-3.5 w-3.5' />}
- {isTh ? 'สแกนรูปดึงข้อความ' : 'Scan image to text'}
+ {isTh ? 'พิมพ์ข้อความผ่าน OCR' : 'OCR text scan'}
  </Button>
  <Button
  type='button'
  variant='secondary'
  size='sm'
- className='h-8 rounded-xl border border-slate-200 bg-white px-2.5 text-app-micro font-semibold text-slate-700'
+ className='h-9 rounded-full border border-[rgba(138,174,255,0.45)] bg-[rgba(24,45,105,0.84)] px-3 text-app-micro font-semibold text-slate-100'
  onClick={() => void translateDraftContent()}
  disabled={ocrRunning || ocrTranslateRunning || saving}
  >
  {ocrTranslateRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <Languages className='mr-1 h-3.5 w-3.5' />}
- {isTh ? 'แปลงภาษา' : 'Translate'}
+ {isTh ? 'แปลภาษา' : 'Translate'}
  </Button>
  </div>
  </div>
