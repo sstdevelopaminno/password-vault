@@ -56,12 +56,14 @@ type SaveOverlayState = {
 
 type OcrLanguageCode = 'tha+eng' | 'tha' | 'eng';
 type DateFieldTarget = 'reminder' | 'meeting';
+type DateTimePickerStep = 'date' | 'time';
 
 type DateTimePickerState = {
- target: DateFieldTarget;
- monthCursor: Date;
- selectedDateKey: string;
- selectedTime: string;
+target: DateFieldTarget;
+monthCursor: Date;
+selectedDateKey: string;
+selectedTime: string;
+step: DateTimePickerStep;
 };
 
 function toLocalDateTimeInputValue(raw: string | null) {
@@ -724,34 +726,36 @@ useEffect(() => {
  setEditorOpen(true);
  }
 
- function fillDateTimeNow(target: DateFieldTarget) {
- const nowLocal = toLocalDateTimeInputValue(new Date().toISOString());
- if (target === 'reminder') {
- setDraftReminder(nowLocal);
- return;
- }
- setDraftMeeting(nowLocal);
- }
-
- function clearDateTime(target: DateFieldTarget) {
- if (target === 'reminder') {
- setDraftReminder('');
+function clearDateTime(target: DateFieldTarget) {
+if (target === 'reminder') {
+setDraftReminder('');
  return;
  }
  setDraftMeeting('');
  }
 
- function openDateTimePicker(target: DateFieldTarget) {
- const source = target === 'reminder' ? draftReminder : draftMeeting;
- const seeded = source ? new Date(source) : new Date();
- const base = Number.isNaN(seeded.getTime()) ? new Date() : seeded;
- setDateTimePickerState({
- target: target,
- monthCursor: new Date(base.getFullYear(), base.getMonth(), 1),
- selectedDateKey: dateKeyFromLocalDate(base),
- selectedTime: timeValueFromDate(base),
- });
- }
+function openDateTimePicker(target: DateFieldTarget) {
+const source = target === 'reminder' ? draftReminder : draftMeeting;
+const seeded = source ? new Date(source) : new Date();
+const base = Number.isNaN(seeded.getTime()) ? new Date() : seeded;
+setDateTimePickerState({
+target: target,
+monthCursor: new Date(base.getFullYear(), base.getMonth(), 1),
+selectedDateKey: dateKeyFromLocalDate(base),
+selectedTime: timeValueFromDate(base),
+step: 'date',
+});
+}
+
+function moveDateTimePickerStep(next: DateTimePickerStep) {
+setDateTimePickerState((prev) => {
+if (!prev) return prev;
+return {
+...prev,
+step: next,
+};
+});
+}
 
  function shiftDateTimePickerMonth(delta: number) {
  setDateTimePickerState((prev) => {
@@ -775,12 +779,24 @@ useEffect(() => {
  setDateTimePickerState(null);
  }
 
- function clearDateTimePickerValue() {
- const snapshot = dateTimePickerState;
- if (!snapshot) return;
- clearDateTime(snapshot.target);
- setDateTimePickerState(null);
- }
+function clearDateTimePickerValue() {
+const snapshot = dateTimePickerState;
+if (!snapshot) return;
+clearDateTime(snapshot.target);
+setDateTimePickerState(null);
+}
+
+function setDateTimePickerNow() {
+const snapshot = dateTimePickerState;
+if (!snapshot) return;
+const now = new Date();
+setDateTimePickerState({
+...snapshot,
+monthCursor: new Date(now.getFullYear(), now.getMonth(), 1),
+selectedDateKey: dateKeyFromLocalDate(now),
+selectedTime: timeValueFromDate(now),
+});
+}
 
  function showSaveSuccessOverlay(message: string) {
  setSaveOverlay({ stage: 'success', message: message });
@@ -1703,12 +1719,12 @@ async function downloadPdf(note: NoteItem) {
 
  {editorOpen ? (
  <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-[2px]'>
- <div className='mx-auto my-4 w-full max-w-[460px] max-h-[calc(100dvh-28px)] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl'>
+<div className='mx-auto my-4 w-full max-w-[620px] max-h-[calc(100dvh-28px)] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl sm:p-5'>
  <div className='mb-2 flex items-center justify-between'>
  <h2 className='text-app-h3 font-semibold text-slate-900'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
  <button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
  </div>
- <div className='space-y-2.5'>
+<div className='space-y-3'>
  <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} className='h-10 rounded-xl' />
  <div className='space-y-2 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5'>
  <div className='flex flex-wrap items-center justify-between gap-2'>
@@ -1764,7 +1780,7 @@ async function downloadPdf(note: NoteItem) {
  </Button>
  </div>
  </div>
- <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[240px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-app-body text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
+<textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-app-body text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
  {ocrRunning ? (
  <div className='rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2'>
  <p className='flex items-center gap-1 text-app-micro font-semibold text-sky-700'>
@@ -1786,43 +1802,32 @@ async function downloadPdf(note: NoteItem) {
  ) : null}
  <p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ พร้อมพรีวิว และปุ่มแปลงภาษาในเนื้อหาโน้ต' : 'Supports Thai/English OCR with preview and in-note translation.'}</p>
  </div>
- <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-2.5'>
- <div className='mb-2 flex items-center justify-between gap-2'>
- <label className='form-label text-slate-700'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</label>
- <div className='flex items-center gap-1'>
- <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-app-micro' onClick={() => fillDateTimeNow('reminder')}>{isTh ? 'ตอนนี้' : 'Now'}</Button>
- <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-app-micro' onClick={() => clearDateTime('reminder')}>{isTh ? 'ล้าง' : 'Clear'}</Button>
- </div>
- </div>
- <button
- type='button'
- onClick={() => openDateTimePicker('reminder')}
- className='flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-left text-app-body text-slate-700 transition hover:border-sky-300 hover:bg-white'
- >
- <span className='line-clamp-1'>{formatDateTimeDraftLabel(draftReminder, isTh)}</span>
- <Calendar className='h-4 w-4 text-slate-500' />
- </button>
- <p className='mt-2 text-app-micro leading-5 text-slate-500'>
- {isTh ? 'เมื่อถึงเวลา ระบบจะส่งแจ้งเตือนในแอป/พุช และอีเมล (ถ้าตั้งค่าอีเมลเซิร์ฟเวอร์ไว้)' : 'When due, the app sends in-app/push and email reminders (if email provider is configured).'}
- </p>
- </div>
- <div className='rounded-2xl border border-slate-200/90 bg-white/90 p-2.5'>
- <div className='mb-2 flex items-center justify-between gap-2'>
- <label className='form-label text-slate-700'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</label>
- <div className='flex items-center gap-1'>
- <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-app-micro' onClick={() => fillDateTimeNow('meeting')}>{isTh ? 'ตอนนี้' : 'Now'}</Button>
- <Button type='button' variant='secondary' size='sm' className='h-7 rounded-lg px-2 text-app-micro' onClick={() => clearDateTime('meeting')}>{isTh ? 'ล้าง' : 'Clear'}</Button>
- </div>
- </div>
- <button
- type='button'
- onClick={() => openDateTimePicker('meeting')}
- className='flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-left text-app-body text-slate-700 transition hover:border-violet-300 hover:bg-white'
- >
- <span className='line-clamp-1'>{formatDateTimeDraftLabel(draftMeeting, isTh)}</span>
- <Calendar className='h-4 w-4 text-slate-500' />
- </button>
- </div>
+<div className='rounded-2xl border border-slate-200/90 bg-white/90 p-3'>
+<div className='mb-2'>
+<label className='form-label text-slate-700'>{isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional schedules'}</label>
+<p className='text-app-micro leading-5 text-slate-500'>
+{isTh ? 'ซ่อนฟอร์มไว้ก่อน กดปุ่มเพื่อเปิด Popup ตั้งค่าเวลาแจ้งเตือนหรือวันเวลานัดหมาย' : 'Hidden by default. Use buttons to open popups for reminder/meeting date and time.'}
+</p>
+</div>
+<div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+<button
+type='button'
+onClick={() => openDateTimePicker('reminder')}
+className='rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-2.5 text-left transition hover:border-sky-300 hover:bg-white'
+>
+<p className='text-app-caption font-semibold text-sky-800'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</p>
+<p className='mt-1 line-clamp-1 text-app-body font-semibold text-slate-800'>{formatDateTimeDraftLabel(draftReminder, isTh)}</p>
+</button>
+<button
+type='button'
+onClick={() => openDateTimePicker('meeting')}
+className='rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-2.5 text-left transition hover:border-violet-300 hover:bg-white'
+>
+<p className='text-app-caption font-semibold text-violet-800'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</p>
+<p className='mt-1 line-clamp-1 text-app-body font-semibold text-slate-800'>{formatDateTimeDraftLabel(draftMeeting, isTh)}</p>
+</button>
+</div>
+</div>
  </div>
  <div className='mt-3 grid grid-cols-2 gap-2'>
  <Button type='button' variant='secondary' className='h-10 w-full' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
@@ -1891,44 +1896,75 @@ async function downloadPdf(note: NoteItem) {
  <div className='grid grid-cols-7 gap-1 text-center text-app-micro font-semibold text-slate-500'>
  {weekLabels.map((item, index) => <div key={item + String(index)}>{item}</div>)}
  </div>
- <div className='mt-1 grid grid-cols-7 gap-1'>
- {dateTimePickerCells.map((date, index) => {
- if (!date) return <div key={'picker-empty-' + String(index)} className='h-9 rounded-lg border border-transparent' />;
- const key = dateKeyFromLocalDate(date);
- const active = key === dateTimePickerState.selectedDateKey;
- return (
- <button
- key={key}
- type='button'
- onClick={() => setDateTimePickerState((prev) => (prev ? { ...prev, selectedDateKey: key } : prev))}
- className={
- 'h-9 rounded-lg border text-app-caption transition ' +
- (active ? 'border-sky-300 bg-sky-100 text-sky-800' : 'border-slate-200 bg-white text-slate-700 hover:border-sky-200')
- }
- >
- {date.getDate()}
- </button>
- );
- })}
- </div>
- <div className='mt-3 space-y-2'>
- <label className='form-label text-slate-600'>{isTh ? 'เวลา' : 'Time'}</label>
- <input
- type='time'
- value={dateTimePickerState.selectedTime}
- onChange={(event) => setDateTimePickerState((prev) => (prev ? { ...prev, selectedTime: event.target.value } : prev))}
- className='h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-app-body text-slate-700 outline-none focus:border-sky-300'
- />
- </div>
- </div>
- <div className='mt-3 grid grid-cols-2 gap-2'>
- <Button type='button' variant='secondary' className='w-full' onClick={clearDateTimePickerValue}>
- {isTh ? 'ล้างวันเวลา' : 'Clear'}
- </Button>
- <Button type='button' className='w-full' onClick={confirmDateTimePicker}>
- {isTh ? 'ยืนยันวันเวลา' : 'Apply'}
- </Button>
- </div>
+{dateTimePickerState.step === 'date' ? (
+<>
+<div className='mt-1 grid grid-cols-7 gap-1'>
+{dateTimePickerCells.map((date, index) => {
+if (!date) return <div key={'picker-empty-' + String(index)} className='h-9 rounded-lg border border-transparent' />;
+const key = dateKeyFromLocalDate(date);
+const active = key === dateTimePickerState.selectedDateKey;
+return (
+<button
+key={key}
+type='button'
+onClick={() => setDateTimePickerState((prev) => (prev ? { ...prev, selectedDateKey: key } : prev))}
+className={
+'h-9 rounded-lg border text-app-caption transition ' +
+(active ? 'border-sky-300 bg-sky-100 text-sky-800' : 'border-slate-200 bg-white text-slate-700 hover:border-sky-200')
+}
+>
+{date.getDate()}
+</button>
+);
+})}
+</div>
+<p className='mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-app-caption text-slate-600'>
+{isTh ? 'วันที่เลือก:' : 'Selected date:'} {dateTimePickerState.selectedDateKey}
+</p>
+</>
+) : (
+<div className='mt-2 space-y-2'>
+<p className='rounded-xl border border-slate-200 bg-white px-3 py-2 text-app-caption font-semibold text-slate-700'>
+{isTh ? 'วันที่:' : 'Date:'} {dateTimePickerState.selectedDateKey}
+</p>
+<label className='form-label text-slate-600'>{isTh ? 'เวลา' : 'Time'}</label>
+<input
+type='time'
+value={dateTimePickerState.selectedTime}
+onChange={(event) => setDateTimePickerState((prev) => (prev ? { ...prev, selectedTime: event.target.value } : prev))}
+className='h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-app-body text-slate-700 outline-none focus:border-sky-300'
+/>
+</div>
+)}
+</div>
+{dateTimePickerState.step === 'date' ? (
+<div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3'>
+<Button type='button' variant='secondary' className='w-full' onClick={() => setDateTimePickerState(null)}>
+{isTh ? 'ยกเลิก' : 'Cancel'}
+</Button>
+<Button type='button' variant='secondary' className='w-full' onClick={clearDateTimePickerValue}>
+{isTh ? 'ล้างวันเวลา' : 'Clear'}
+</Button>
+<Button type='button' className='w-full' onClick={() => moveDateTimePickerStep('time')}>
+{isTh ? 'ถัดไป: เลือกเวลา' : 'Next: pick time'}
+</Button>
+</div>
+) : (
+<div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4'>
+<Button type='button' variant='secondary' className='w-full' onClick={() => moveDateTimePickerStep('date')}>
+{isTh ? 'ย้อนกลับ' : 'Back'}
+</Button>
+<Button type='button' variant='secondary' className='w-full' onClick={setDateTimePickerNow}>
+{isTh ? 'ตอนนี้' : 'Now'}
+</Button>
+<Button type='button' variant='secondary' className='w-full' onClick={clearDateTimePickerValue}>
+{isTh ? 'ล้างวันเวลา' : 'Clear'}
+</Button>
+<Button type='button' className='w-full' onClick={confirmDateTimePicker}>
+{isTh ? 'ยืนยันวันเวลา' : 'Apply'}
+</Button>
+</div>
+)}
  </div>
  </div>
  ) : null}

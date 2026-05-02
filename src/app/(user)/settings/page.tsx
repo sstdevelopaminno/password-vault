@@ -50,6 +50,9 @@ function normalizeSpaces(value: string) {
 function mapError<T extends string>(message: unknown, t: (key: T) => string, locale: 'th' | 'en') {
   const text = String(message ?? '').toLowerCase();
   if (text.includes('token') || text.includes('invalid otp')) return t('verifyOtp.invalid' as T);
+  if (text.includes('pin verification required') || text.includes('invalid pin assertion')) {
+    return locale === 'th' ? 'การยืนยัน PIN หมดอายุ กรุณายืนยัน PIN ใหม่อีกครั้ง' : 'PIN verification expired. Please verify PIN again.';
+  }
   if (text.includes('rate limit')) {
     return locale === 'th' ? 'ขอ OTP ถี่เกินไป กรุณารอสักครู่' : 'OTP is rate limited. Please wait.';
   }
@@ -397,6 +400,17 @@ export default function SettingsPage() {
     setDeleteSubmitting(false);
 
     if (!response.ok) {
+      const rawError = String(body?.error ?? '').toLowerCase();
+      const pinAssertionFailed =
+        response.status === 403 &&
+        (rawError.includes('invalid pin assertion') || rawError.includes('pin verification required'));
+
+      if (pinAssertionFailed) {
+        setDeletePinAssertionToken(null);
+        setDeleteStep(1);
+        setDeletePinModalOpen(true);
+      }
+
       toast.showToast(mapError(body?.error ?? 'Delete account failed', t, locale), 'error');
       if (response.status === 400 && typeof body?.expectedPhrase === 'string') {
         setDeleteConfirmationText(String(body.expectedPhrase));

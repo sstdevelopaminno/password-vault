@@ -1136,7 +1136,7 @@ export default function BillingPage() {
     : '';
 
   return (
-    <section className='space-y-3 pb-20 pt-[max(10px,env(safe-area-inset-top))]'>
+    <section className='space-y-3 pb-20 pt-[max(16px,env(safe-area-inset-top))]'>
       <Card className='space-y-3 rounded-2xl border-slate-200 bg-white p-4'>
         <div className='flex items-start gap-3'>
           <div className='inline-flex rounded-xl bg-blue-50 p-2 text-blue-600'>
@@ -1193,7 +1193,7 @@ export default function BillingPage() {
       </div>
 
       {activeTab === 'documents' ? (
-        <Card className='space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
+        <div className='space-y-2 rounded-2xl bg-transparent p-0'>
           {documents.length > 0 ? (
             <div className='flex items-center justify-between gap-2'>
               <p className='text-app-caption font-semibold text-slate-500'>{tr('จัดการเอกสารที่บันทึกไว้', 'Manage saved documents')}</p>
@@ -1223,9 +1223,6 @@ export default function BillingPage() {
                       <div className='flex items-center gap-1.5'>
                         <span className={'rounded-full px-2 py-1 text-app-micro font-semibold ' + getTypeBadgeClass(document.docKind)}>
                           {document.docKind === 'receipt' ? tr('ใบเสร็จ', 'Receipt') : tr('ใบแจ้งหนี้', 'Invoice')}
-                        </span>
-                        <span className='rounded-full bg-slate-200 px-2 py-1 text-app-micro font-semibold text-slate-700'>
-                          {document.template.toUpperCase()}
                         </span>
                       </div>
                       <span className='text-app-micro text-slate-500'>{formatDateTimeDisplay(document.createdAt, locale)}</span>
@@ -1274,7 +1271,7 @@ export default function BillingPage() {
               </Button>
             </div>
           ) : null}
-        </Card>
+        </div>
       ) : (
         <Card className='space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
           {loading ? (
@@ -1371,7 +1368,7 @@ export default function BillingPage() {
 
       {editorOpen ? (
         <div className='fixed inset-0 z-[80] bg-slate-950/45 backdrop-blur-[1px] animate-overlay-in'>
-          <div className='app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-[var(--background)] animate-screen-in'>
+          <div className='app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-[var(--background)] pt-[max(8px,env(safe-area-inset-top))] animate-screen-in'>
             <div className='sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-sm'>
               <div>
                 <h2 className='text-app-h3 font-semibold text-slate-900'>{editingDocumentId ? tr('แก้ไขเอกสาร', 'Edit document') : tr('สร้างเอกสารใหม่', 'Create document')}</h2>
@@ -1725,7 +1722,7 @@ export default function BillingPage() {
             </div>
 
             <div className='flex-1 overflow-y-auto px-4 py-3 pb-20'>
-              <Card className='space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
+              <div className='space-y-3 rounded-2xl border border-slate-200 bg-white p-4'>
                 <div className='grid grid-cols-2 gap-2 text-app-body'>
                   <p><span className='text-slate-500'>{tr('วันที่', 'Date')}:</span> {formatDateDisplay(selectedDetailDocument.issueDate, locale)}</p>
                   <p><span className='text-slate-500'>{tr('ครบกำหนด', 'Due date')}:</span> {formatDateDisplay(selectedDetailDocument.dueDate, locale)}</p>
@@ -1736,10 +1733,6 @@ export default function BillingPage() {
                   <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={() => openEditDocumentModal(selectedDetailDocument)}>
                     <PenSquare className='h-3.5 w-3.5' />
                     {tr('แก้ไข', 'Edit')}
-                  </Button>
-                  <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={() => openPreview(selectedDetailDocument.id, 'a4')}>
-                    <Eye className='h-3.5 w-3.5' />
-                    {tr('พรีวิว A4', 'Preview A4')}
                   </Button>
                   <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={() => openPreview(selectedDetailDocument.id, '80mm')}>
                     <Eye className='h-3.5 w-3.5' />
@@ -1769,7 +1762,7 @@ export default function BillingPage() {
                   </p>
                 ) : null}
 
-                <div className='rounded-2xl border border-slate-200 bg-slate-50 p-3'>
+                <div className='rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
                   <p className='text-app-body font-semibold text-slate-900'>{tr('เนื้อหาเอกสารที่บันทึกไว้', 'Saved document content')}</p>
                   <p className='mt-1 text-app-caption text-slate-600'>
                     {tr('ผู้ขาย', 'Seller')}: {selectedDetailDocument.sellerName || '-'} | {tr('ลูกค้า', 'Buyer')}: {selectedDetailDocument.buyerName || '-'}
@@ -1777,7 +1770,7 @@ export default function BillingPage() {
                   {selectedDetailDocument.noteMessage ? (
                     <p className='mt-1 text-app-caption text-slate-600'>{tr('หมายเหตุ', 'Note')}: {selectedDetailDocument.noteMessage}</p>
                   ) : null}
-                  <div className='mt-2 space-y-1'>
+                  <div className='mt-2 space-y-2'>
                     {selectedDetailDocument.lines.length === 0 ? (
                       <p className='text-app-caption text-slate-500'>{tr('ยังไม่มีรายการสินค้า/บริการ', 'No items yet')}</p>
                     ) : (
@@ -1792,9 +1785,9 @@ export default function BillingPage() {
                     )}
                   </div>
                 </div>
-              </Card>
+              </div>
 
-              <Card className='mt-3 space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
+              <div className='mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-4'>
                 <h3 className='text-app-body font-semibold text-slate-900'>ส่งอีเมลถึงลูกค้า</h3>
                 <Input type='email' value={detailEmailTo} onChange={(event) => setDetailEmailTo(event.target.value)} placeholder='อีเมลลูกค้า / ผู้รับเอกสาร' />
                 <Input type='datetime-local' value={detailScheduleAt} onChange={(event) => setDetailScheduleAt(event.target.value)} />
@@ -1825,9 +1818,9 @@ export default function BillingPage() {
                     {pendingAction === 'send' ? 'กำลังส่ง...' : 'ส่งทันที'}
                   </Button>
                 </div>
-              </Card>
+              </div>
 
-              <Card className='mt-3 space-y-2 rounded-2xl border-slate-200 bg-white p-4'>
+              <div className='mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-4'>
                 <h3 className='text-app-body font-semibold text-slate-900'>คิวส่งอีเมลของรายการนี้ ({selectedDetailQueue.length})</h3>
                 {selectedDetailQueue.length === 0 ? (
                   <p className='text-app-caption text-slate-500'>ยังไม่มีคิวส่งอีเมล</p>
@@ -1848,7 +1841,7 @@ export default function BillingPage() {
                     ))}
                   </div>
                 )}
-              </Card>
+              </div>
             </div>
           </div>
         </div>
@@ -1856,12 +1849,9 @@ export default function BillingPage() {
 
       {previewOpen && previewDocumentId ? (
         <div className='fixed inset-0 z-[84] bg-slate-900/45 backdrop-blur-[1px] animate-overlay-in'>
-          <div className='preserve-white app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-white animate-screen-in'>
+          <div className='preserve-white app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-white pt-[max(8px,env(safe-area-inset-top))] animate-screen-in'>
             <div className='flex items-center justify-between border-b border-slate-200 px-3 py-2'>
               <div className='flex items-center gap-2'>
-                <Button type='button' size='sm' variant={previewTemplate === 'a4' ? 'default' : 'secondary'} onClick={() => setPreviewTemplate('a4')}>
-                  A4
-                </Button>
                 <Button type='button' size='sm' variant={previewTemplate === '80mm' ? 'default' : 'secondary'} onClick={() => setPreviewTemplate('80mm')}>
                   80mm
                 </Button>

@@ -23,7 +23,6 @@ function defaultTitle(locale: 'th' | 'en') {
 export default function DocumentScannerPage() {
   const { locale, t } = useI18n();
   const { showToast } = useToast();
-  const isThai = locale === 'th';
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [ocrLanguage, setOcrLanguage] = useState<OcrLanguage>('tha+eng');
@@ -57,7 +56,12 @@ export default function DocumentScannerPage() {
           language: ocrLanguage,
           onProgress: (value) => setProgress(value),
         });
-        setContent((prev) => (prev.trim() ? prev.trimEnd() + '\n\n' + text : text));
+        const normalized = text.trim();
+        if (!normalized) {
+          showToast(t('scanner.toastNoContent'), 'error');
+          return;
+        }
+        setContent(normalized);
         if (!title.trim()) setTitle(defaultTitle(locale));
         showToast(t('scanner.toastScanSuccess'), 'success');
       } catch {
@@ -264,4 +268,3 @@ export default function DocumentScannerPage() {
     </section>
   );
 }
-

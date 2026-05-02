@@ -1,7 +1,8 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
-const ASSERTION_TTL_MS = 2 * 60 * 1000;
+const DEFAULT_ASSERTION_TTL_MS = 2 * 60 * 1000;
+const DELETE_ACCOUNT_ASSERTION_TTL_MS = 10 * 60 * 1000;
 const BCRYPT_ROUNDS = 12;
 
 export type PinAction =
@@ -71,11 +72,12 @@ export function createPinAssertionToken(input: {
   action: PinAction;
   targetItemId?: string;
 }) {
+  const ttlMs = input.action === "delete_account" ? DELETE_ACCOUNT_ASSERTION_TTL_MS : DEFAULT_ASSERTION_TTL_MS;
   const payload: AssertionPayload = {
     userId: input.userId,
     action: input.action,
     targetItemId: input.targetItemId,
-    exp: Date.now() + ASSERTION_TTL_MS,
+    exp: Date.now() + ttlMs,
   };
   const payloadEncoded = base64url(JSON.stringify(payload));
   const signature = sign(payloadEncoded);
