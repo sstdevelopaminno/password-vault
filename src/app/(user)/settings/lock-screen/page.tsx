@@ -101,8 +101,7 @@ export default function LockScreenSettingsPage() {
     biometricStatus &&
       biometricStatus.supported &&
       biometricStatus.available &&
-      biometricStatus.enrolled &&
-      biometricStatus.android12OrNewer,
+      biometricStatus.enrolled,
   );
 
   const toggleBiometricUnlock = () => {
@@ -169,7 +168,7 @@ export default function LockScreenSettingsPage() {
             <p className="text-app-caption text-slate-300">
               {isThai
                 ? "รองรับ Android 12 ขึ้นไป หากสแกนไม่สำเร็จจะใช้ PIN แทน"
-                : "Android 12+ only. Falls back to PIN when biometric authentication fails."}
+                : "Use device biometrics. Falls back to PIN when biometric authentication fails."}
             </p>
           </div>
           <button
@@ -201,7 +200,7 @@ export default function LockScreenSettingsPage() {
               : biometricReady
                 ? isThai
                   ? "พร้อมใช้งาน (Android 12+)"
-                  : "Ready (Android 12+)"
+                  : "Ready"
                 : isThai
                   ? "ยังไม่พร้อมใช้งานบนอุปกรณ์นี้"
                   : "Not available on this device."}
@@ -247,4 +246,5 @@ export default function LockScreenSettingsPage() {
     </section>
   );
 }
+
 

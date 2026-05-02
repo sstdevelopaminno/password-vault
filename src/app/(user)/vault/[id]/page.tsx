@@ -291,15 +291,18 @@ export default function VaultDetailPage() {
   );
 
   return (
-    <section className='space-y-4 pb-20'>
-      <Card className='space-y-4 animate-slide-up'>
-        <h1 className='text-lg font-semibold'>{item?.title ?? t('vaultDetail.fallbackTitle')}</h1>
+    <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.85rem)]'>
+      <Card className='animate-slide-up space-y-4 rounded-[26px] p-4 sm:p-5'>
+        <div className='space-y-1'>
+          <h1 className='text-app-h3 font-semibold text-slate-100'>{item?.title ?? t('vaultDetail.fallbackTitle')}</h1>
+          <p className='text-app-caption text-slate-400'>{locale === 'th' ? 'ข้อมูลส่วนตัวที่เข้ารหัสไว้' : 'Your encrypted private record'}</p>
+        </div>
 
-        <div className='space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3'>
-          <div className='flex items-center justify-between gap-2'>
-            <p className='inline-flex items-center gap-2 text-sm text-slate-700'>
-              <Type className='h-4 w-4 text-slate-500' />
-              {t('addItem.fieldTitle')}: {item?.title ?? '-'}
+        <div className='divide-y divide-slate-200 rounded-[20px] border border-slate-200 bg-slate-50/80'>
+          <div className='flex items-center justify-between gap-2 px-3 py-2.5'>
+            <p className='inline-flex min-w-0 items-center gap-2 text-sm text-slate-700'>
+              <Type className='h-4 w-4 shrink-0 text-slate-500' />
+              <span className='truncate'>{t('addItem.fieldTitle')}: {item?.title ?? '-'}</span>
             </p>
             <Button
               size='sm'
@@ -321,10 +324,10 @@ export default function VaultDetailPage() {
             </Button>
           </div>
 
-          <div className='flex items-center justify-between gap-2'>
-            <p className='inline-flex items-center gap-2 text-sm text-slate-700'>
-              <UserRound className='h-4 w-4 text-slate-500' />
-              {t('vaultDetail.usernameLabel')}: {item?.username ?? '-'}
+          <div className='flex items-center justify-between gap-2 px-3 py-2.5'>
+            <p className='inline-flex min-w-0 items-center gap-2 text-sm text-slate-700'>
+              <UserRound className='h-4 w-4 shrink-0 text-slate-500' />
+              <span className='truncate'>{t('vaultDetail.usernameLabel')}: {item?.username ?? '-'}</span>
             </p>
             <Button
               size='sm'
@@ -346,10 +349,12 @@ export default function VaultDetailPage() {
             </Button>
           </div>
 
-          <div className='flex items-center justify-between gap-2'>
-            <p className='inline-flex items-center gap-2 text-sm text-slate-700'>
-              <KeyRound className='h-4 w-4 text-slate-500' />
-              {t('vaultDetail.passwordLabel')}: <span className='font-semibold'>{revealedSecret ?? item?.secretMasked ?? t('vaultDetail.masked')}</span>
+          <div className='flex items-center justify-between gap-2 px-3 py-2.5'>
+            <p className='inline-flex min-w-0 items-center gap-2 text-sm text-slate-700'>
+              <KeyRound className='h-4 w-4 shrink-0 text-slate-500' />
+              <span className='truncate'>
+                {t('vaultDetail.passwordLabel')}: <span className='font-semibold'>{revealedSecret ?? item?.secretMasked ?? t('vaultDetail.masked')}</span>
+              </span>
             </p>
             <Button
               size='sm'
@@ -370,10 +375,10 @@ export default function VaultDetailPage() {
           </div>
 
           {item?.url ? (
-            <div className='flex items-center justify-between gap-2'>
-              <p className='inline-flex items-center gap-2 text-sm text-slate-700'>
-                <LinkIcon className='h-4 w-4 text-slate-500' />
-                URL: {item.url}
+            <div className='flex items-center justify-between gap-2 px-3 py-2.5'>
+              <p className='inline-flex min-w-0 items-center gap-2 text-sm text-slate-700'>
+                <LinkIcon className='h-4 w-4 shrink-0 text-slate-500' />
+                <span className='truncate'>URL: {item.url}</span>
               </p>
               <Button
                 size='sm'
@@ -397,10 +402,10 @@ export default function VaultDetailPage() {
           ) : null}
         </div>
 
-        <div className='grid grid-cols-2 gap-2'>
+        <div className='grid grid-cols-2 gap-2 pt-1'>
           <Button
             variant='secondary'
-            className='h-11 rounded-xl'
+            className='h-11 rounded-2xl border border-slate-300 bg-white/90'
             disabled={busy}
             onClick={() => {
               void runWithPin({
@@ -417,7 +422,7 @@ export default function VaultDetailPage() {
           </Button>
           <Button
             variant='secondary'
-            className={`h-11 rounded-xl transition ${copiedRow === 'main_copy' ? 'bg-emerald-50 hover:bg-emerald-50' : ''}`}
+            className={`h-11 rounded-2xl border border-slate-300 bg-white/90 transition ${copiedRow === 'main_copy' ? 'bg-emerald-50 hover:bg-emerald-50' : ''}`}
             disabled={busy}
             onClick={() => {
               void runWithPin({
@@ -435,7 +440,7 @@ export default function VaultDetailPage() {
           </Button>
         </div>
 
-        {status ? <p className='text-xs text-slate-600'>{status}</p> : null}
+        {status ? <p className='text-app-caption text-slate-500'>{status}</p> : null}
       </Card>
 
       {pendingAction ? (

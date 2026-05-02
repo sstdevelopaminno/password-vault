@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { BellRing, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Copy, Edit3, FileText, ImageUp, Languages, Loader2, Plus, Printer, Search, Share2, Sparkles, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BellRing, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Copy, Edit3, FileText, Languages, Loader2, Plus, Printer, Search, Share2, Sparkles, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { useI18n } from '@/i18n/provider';
 import { fetchWithSessionRetry } from '@/lib/api-client';
 import { getOfflineCache, setOfflineCache } from '@/lib/offline-store';
 import { flushOfflineQueue, queueOfflineRequest } from '@/lib/offline-sync';
-import { disposeOcrWorker, recognizeImageWithOcr } from '@/lib/ocr-worker';
+import { disposeOcrWorker } from '@/lib/ocr-worker';
 import { canUseNativePrinter, loadSelectedNativePrinter, printEscPosText80mm } from '@/lib/native-thermal-printer';
 import { useOutageState } from '@/lib/outage-detector';
 import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
@@ -54,7 +54,6 @@ type SaveOverlayState = {
  message: string;
 };
 
-type OcrLanguageCode = 'tha+eng' | 'tha' | 'eng';
 type DateFieldTarget = 'reminder' | 'meeting';
 type DateTimePickerStep = 'date' | 'time';
 
@@ -257,8 +256,7 @@ export default function NotesPage() {
  const [saveOverlay, setSaveOverlay] = useState<SaveOverlayState | null>(null);
  const [ocrRunning, setOcrRunning] = useState(false);
  const [ocrProgress, setOcrProgress] = useState(0);
- const [ocrLanguage, setOcrLanguage] = useState<OcrLanguageCode>('tha+eng');
- const [ocrTranslateRunning, setOcrTranslateRunning] = useState(false);
+ const [ocrTranslateRunning] = useState(false);
  const [ocrPreviewOpen, setOcrPreviewOpen] = useState(false);
  const [ocrPreviewText, setOcrPreviewText] = useState('');
  const [dateTimePickerState, setDateTimePickerState] = useState<DateTimePickerState | null>(null);
@@ -282,7 +280,6 @@ export default function NotesPage() {
  const calendarRequestRef = useRef<AbortController | null>(null);
  const nativeReminderSyncTimerRef = useRef<number | null>(null);
  const saveOverlayTimerRef = useRef<number | null>(null);
- const imageOcrInputRef = useRef<HTMLInputElement | null>(null);
  const notesRequestVersionRef = useRef(0);
  const calendarRequestVersionRef = useRef(0);
  const backgroundCalendarRefreshTickRef = useRef(0);
@@ -813,10 +810,6 @@ selectedTime: timeValueFromDate(now),
  }, 1100);
  }
 
- function triggerImageOcrPicker() {
- imageOcrInputRef.current?.click();
- }
-
  function applyOcrPreview(mode: 'append' | 'replace') {
  const text = ocrPreviewText.trim();
  if (!text) return;
@@ -832,72 +825,6 @@ selectedTime: timeValueFromDate(now),
  setOcrPreviewOpen(false);
  setOcrPreviewText('');
  showToast(isTh ? 'เพิ่มข้อความจากภาพแล้ว' : 'Image text added', 'success');
- }
-
- async function handleImageOcrInput(event: ChangeEvent<HTMLInputElement>) {
- const file = event.target.files?.[0] ?? null;
- event.target.value = '';
- if (!file) return;
-
- setOcrRunning(true);
- setOcrProgress(0);
- try {
- const selectedLanguage = ocrLanguage === 'tha' ? 'tha' : ocrLanguage === 'eng' ? 'eng' : 'tha+eng';
- const extracted = await recognizeImageWithOcr({
- file: file,
- language: selectedLanguage,
- onProgress: (progress) => {
- setOcrProgress(progress);
- },
- });
- if (!extracted) {
- showToast(isTh ? 'ไม่พบข้อความจากภาพ' : 'No text found in image', 'error');
- return;
- }
- setOcrPreviewText(extracted);
- setOcrPreviewOpen(true);
- showToast(isTh ? 'สแกนเสร็จแล้ว ตรวจสอบข้อความก่อนบันทึก' : 'Scan complete. Review text before insert.', 'success');
- } catch {
- showToast(
- isTh ? 'สแกนรูปไม่สำเร็จ กรุณาลองใหม่ (ต้องมีอินเทอร์เน็ตครั้งแรก)' : 'Image scan failed. Please retry (first run needs internet).',
- 'error',
- );
- } finally {
- setOcrRunning(false);
- setOcrProgress(0);
- }
- }
-
- async function translateDraftContent() {
- const sourceText = draftContent.trim();
- if (!sourceText) {
- showToast(isTh ? 'ยังไม่มีข้อความให้แปลงภาษา' : 'No content to translate', 'error');
- return;
- }
-
- setOcrTranslateRunning(true);
- try {
- const res = await fetchWithSessionRetry(
- '/api/notes/translate',
- {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({ text: sourceText, mode: ocrLanguage }),
- },
- { attempts: 2, delayMs: 220 },
- );
- const body = (await res.json().catch(() => ({}))) as { error?: string; text?: string };
- if (!res.ok || !body.text) {
- showToast(body.error ?? (isTh ? 'แปลงภาษาไม่สำเร็จ' : 'Translation failed'), 'error');
- return;
- }
- setDraftContent(body.text.trim());
- showToast(isTh ? 'แปลงภาษาเรียบร้อยแล้ว' : 'Translation completed', 'success');
- } catch {
- showToast(isTh ? 'แปลงภาษาไม่สำเร็จ กรุณาลองใหม่' : 'Translation failed. Please retry.', 'error');
- } finally {
- setOcrTranslateRunning(false);
- }
  }
 
  function resetPendingPinTargets() {
@@ -1234,11 +1161,6 @@ async function downloadPdf(note: NoteItem) {
  }
 
  const weekLabels = isTh ? ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
- const ocrLanguageOptions: Array<{ code: OcrLanguageCode; label: string }> = [
- { code: 'tha+eng', label: isTh ? 'ไทย-อังกฤษ' : 'TH-EN' },
- { code: 'tha', label: isTh ? 'ไทย' : 'TH' },
- { code: 'eng', label: isTh ? 'อังกฤษ' : 'EN' },
- ];
  const activeDueNote = activeDueNotice ? allKnownNotes.get(activeDueNotice.noteId) ?? null : null;
 
  return (
@@ -1722,8 +1644,8 @@ async function downloadPdf(note: NoteItem) {
  ) : null}
 
  {editorOpen ? (
- <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur-[2px]'>
-<div className='mx-auto my-4 w-full max-w-[620px] max-h-[calc(100dvh-28px)] overflow-y-auto animate-slide-up rounded-[28px] bg-white p-4 shadow-2xl sm:p-5'>
+ <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 pt-[max(26px,env(safe-area-inset-top))] backdrop-blur-[2px]'>
+<div className='mx-auto my-8 w-full max-w-[620px] max-h-[calc(100dvh-88px)] overflow-y-auto animate-slide-up rounded-[30px] bg-white p-4 shadow-2xl sm:p-5'>
  <div className='mb-2 flex items-center justify-between'>
  <h2 className='text-app-h3 font-semibold text-slate-900'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
  <button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
@@ -1775,58 +1697,8 @@ className='min-w-0 flex-1 rounded-xl border border-violet-300/80 bg-[linear-grad
 <>
 <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} className='h-11 rounded-2xl' />
 <div className='space-y-2 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5'>
-<div className='flex flex-wrap items-center justify-between gap-2'>
+<div className='flex items-center justify-between gap-2'>
 <p className='form-label text-slate-600'>{isTh ? 'เนื้อหาแบบกระดาษ A4' : 'A4 paper content'}</p>
-<div className='flex flex-wrap items-center justify-end gap-1.5'>
-<div className='inline-flex items-center rounded-xl border border-slate-200 bg-white p-1'>
-{ocrLanguageOptions.map((option) => (
-<button
-key={option.code}
-type='button'
-className={
-'rounded-lg px-2 py-1 text-app-micro font-semibold transition ' +
-(ocrLanguage === option.code
-? 'bg-indigo-100 text-indigo-700'
-: 'text-slate-500 hover:bg-slate-100 hover:text-slate-700')
-}
-onClick={() => setOcrLanguage(option.code)}
-disabled={ocrRunning || saving}
->
-{option.label}
-</button>
-))}
-</div>
-<input
-ref={imageOcrInputRef}
-type='file'
-accept='image/*'
-capture='environment'
-className='hidden'
-onChange={handleImageOcrInput}
-/>
-<Button
-type='button'
-variant='secondary'
-size='sm'
-className='h-9 rounded-full border border-sky-300/70 bg-[linear-gradient(180deg,rgba(20,58,140,0.96),rgba(17,42,112,0.96))] px-3 text-app-micro font-semibold text-white hover:brightness-110'
-onClick={triggerImageOcrPicker}
-disabled={ocrRunning || ocrTranslateRunning || saving}
->
-{ocrRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <ImageUp className='mr-1 h-3.5 w-3.5' />}
-{isTh ? 'พิมพ์ข้อความผ่าน OCR' : 'OCR text scan'}
-</Button>
-<Button
-type='button'
-variant='secondary'
-size='sm'
-className='h-9 rounded-full border border-violet-300/70 bg-[linear-gradient(180deg,rgba(66,39,156,0.94),rgba(52,31,127,0.94))] px-3 text-app-micro font-semibold text-white hover:brightness-110'
-onClick={() => void translateDraftContent()}
-disabled={ocrRunning || ocrTranslateRunning || saving}
->
-{ocrTranslateRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <Languages className='mr-1 h-3.5 w-3.5' />}
-{isTh ? 'แปลภาษา' : 'Translate'}
-</Button>
-</div>
 </div>
 <textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-app-body text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
 {ocrRunning ? (
@@ -1848,23 +1720,7 @@ disabled={ocrRunning || ocrTranslateRunning || saving}
 </p>
 </div>
 ) : null}
-<p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ พร้อมพรีวิว และปุ่มแปลงภาษาในเนื้อหาโน้ต' : 'Supports Thai/English OCR with preview and in-note translation.'}</p>
-</div>
-<div className='rounded-2xl border border-sky-300/35 bg-[linear-gradient(180deg,rgba(18,36,95,0.9),rgba(14,28,74,0.92))] p-3'>
-<Button
-type='button'
-variant='secondary'
-className='h-11 w-full justify-start gap-2 rounded-2xl border border-sky-300/60 bg-[linear-gradient(180deg,#2f69ff,#224ec9)] px-3 font-semibold text-white hover:brightness-110'
-onClick={() => setScheduleEditorOpen(true)}
-disabled={saving}
->
-<Calendar className='h-4 w-4 text-white' />
-{isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional date/time'}
-</Button>
-<div className='mt-2 grid grid-cols-2 gap-2'>
-<p className='rounded-xl border border-sky-300/40 bg-[rgba(20,49,132,0.72)] px-2.5 py-2 text-app-micro font-semibold text-sky-100'>{isTh ? 'เตือน:' : 'Reminder:'} {formatDateTimeDraftLabel(draftReminder, isTh)}</p>
-<p className='rounded-xl border border-violet-300/40 bg-[rgba(65,42,142,0.7)] px-2.5 py-2 text-app-micro font-semibold text-violet-100'>{isTh ? 'นัดหมาย:' : 'Meeting:'} {formatDateTimeDraftLabel(draftMeeting, isTh)}</p>
-</div>
+<p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'โฟกัสการเขียนแบบกระดาษ A4 เรียบง่าย ไม่แสดงเครื่องมือเสริมที่ไม่จำเป็น' : 'Clean A4 writing mode with non-essential tools hidden.'}</p>
 </div>
 <div className='mt-3 grid grid-cols-2 gap-2'>
 <Button type='button' variant='secondary' className='h-11 w-full rounded-2xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>

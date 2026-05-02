@@ -546,7 +546,7 @@ public class VaultShieldPlugin extends Plugin {
     payload.put("apiLevel", apiLevel);
     payload.put("android12OrNewer", apiLevel >= Build.VERSION_CODES.S);
 
-    if (apiLevel < Build.VERSION_CODES.S) {
+    if (apiLevel < Build.VERSION_CODES.M) {
       payload.put("supported", false);
       payload.put("available", false);
       payload.put("enrolled", false);
@@ -602,7 +602,7 @@ public class VaultShieldPlugin extends Plugin {
     unsupportedPayload.put("success", false);
     unsupportedPayload.put("fallbackToPin", true);
 
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
       unsupportedPayload.put("status", "android_version_unsupported");
       call.resolve(unsupportedPayload);
       return;
