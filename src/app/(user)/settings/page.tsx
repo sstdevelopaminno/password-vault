@@ -15,6 +15,7 @@ import {
   Moon,
   Printer,
   QrCode,
+  Smartphone,
   Trash2,
   Sun,
   SunMoon,
@@ -30,14 +31,15 @@ import { useToast } from '@/components/ui/toast';
 import { PinModal } from '@/components/vault/pin-modal';
 import { useI18n } from '@/i18n/provider';
 import { isAdminFeaturesEnabledClient } from '@/lib/admin-feature-flags';
+import { useDisplayScale, type DisplayScaleMode } from '@/lib/display-scale';
 import { useTheme, type ThemeMode } from '@/lib/theme';
 
-type SettingsSection = '' | 'name' | 'email' | 'password' | 'pin' | 'language' | 'theme' | 'logout';
+type SettingsSection = '' | 'name' | 'email' | 'password' | 'pin' | 'language' | 'theme' | 'display' | 'logout';
 
 const SETTINGS_SECTION_QUERY = 'section';
 
 function parseSettingsSection(raw: string | null): SettingsSection {
-  if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'pin' || raw === 'language' || raw === 'theme' || raw === 'logout') {
+  if (raw === 'name' || raw === 'email' || raw === 'password' || raw === 'pin' || raw === 'language' || raw === 'theme' || raw === 'display' || raw === 'logout') {
     return raw;
   }
   return '';
@@ -62,6 +64,7 @@ function mapError<T extends string>(message: unknown, t: (key: T) => string, loc
 export default function SettingsPage() {
   const toast = useToast();
   const { t, locale, setLocale } = useI18n();
+  const { mode: displayScaleMode, setMode: setDisplayScaleMode } = useDisplayScale();
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -787,6 +790,58 @@ export default function SettingsPage() {
     </Card>
   );
 
+  const displayScaleOption = (mode: DisplayScaleMode, label: string, description: string) => (
+    <button
+      key={mode}
+      type='button'
+      onClick={() => setDisplayScaleMode(mode)}
+      className={
+        'flex min-h-[56px] items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ' +
+        (displayScaleMode === mode
+          ? 'border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-2)_84%,#4f79ff_16%)] text-slate-100 shadow-[var(--glow-soft)]'
+          : 'border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)]')
+      }
+      aria-pressed={displayScaleMode === mode}
+    >
+      <span className='min-w-0'>
+        <span className='block text-app-body font-semibold'>{label}</span>
+        <span className='block text-app-caption text-slate-300'>{description}</span>
+      </span>
+      {displayScaleMode === mode ? (
+        <span className='text-app-micro font-semibold'>
+          {locale === 'th' ? 'กำลังใช้' : 'Active'}
+        </span>
+      ) : null}
+    </button>
+  );
+
+  const displayView = (
+    <Card className='space-y-4 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
+      <p className='text-app-body text-slate-300'>
+        {locale === 'th'
+          ? 'เลือกระดับขนาดตัวอักษร ปุ่ม ไอคอน และระยะห่างทั้งแอป'
+          : 'Choose app-wide text, button, icon, and spacing scale.'}
+      </p>
+      <div className='grid gap-2'>
+        {displayScaleOption(
+          'comfort',
+          locale === 'th' ? 'Comfort (ใหญ่ อ่านง่าย)' : 'Comfort (Larger)',
+          locale === 'th' ? 'เหมาะกับการใช้งานทุกวัน ขนาดแตะง่ายที่สุด' : 'Best for readability and larger touch targets.',
+        )}
+        {displayScaleOption(
+          'compact',
+          locale === 'th' ? 'Compact (กระชับ)' : 'Compact',
+          locale === 'th' ? 'แสดงข้อมูลได้มากขึ้นในหน้าจอเดียว' : 'Fits more content on one screen.',
+        )}
+        {displayScaleOption(
+          'standard',
+          locale === 'th' ? 'Standard' : 'Standard',
+          locale === 'th' ? 'ขนาดมาตรฐานแบบสมดุล' : 'Balanced default scale.',
+        )}
+      </div>
+    </Card>
+  );
+
   const logoutView = (
     <Card className='space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4'>
       <p className='text-app-body text-slate-300'>
@@ -819,6 +874,10 @@ export default function SettingsPage() {
               ? locale === 'th'
                 ? 'ธีมแอป'
                 : 'App theme'
+            : active === 'display'
+              ? locale === 'th'
+                ? '��Ҵ����ʴ���'
+                : 'Display scale'
             : locale === 'th'
               ? 'ออกจากระบบ'
               : 'Sign out';
@@ -836,6 +895,8 @@ export default function SettingsPage() {
             ? languageView
             : active === 'theme'
               ? themeView
+            : active === 'display'
+              ? displayView
             : active === 'logout'
               ? logoutView
               : null;
@@ -871,6 +932,7 @@ export default function SettingsPage() {
         {menuBtn('pin', locale === 'th' ? 'PIN ความปลอดภัย' : 'PIN Security', KeyRound)}
         {menuBtn('language', locale === 'th' ? 'เปลี่ยนภาษา' : 'Change language', Languages)}
         {menuBtn('theme', locale === 'th' ? 'ธีมแอป' : 'App theme', SunMoon)}
+        {menuBtn('display', locale === 'th' ? '��Ҵ����ʴ���' : 'Display scale', Smartphone)}
 
         <button
           type='button'
@@ -1227,3 +1289,4 @@ export default function SettingsPage() {
     </section>
   );
 }
+

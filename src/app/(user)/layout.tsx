@@ -10,7 +10,7 @@ export default function UserLayout(props: { children: React.ReactNode }) {
     null,
     h(
       "main",
-      { className: "vault-user-theme flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+110px)]" },
+      { className: "vault-user-theme flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+122px)]" },
       h(UserAccessGate, null, props.children),
     ),
     h(BottomNav, null),

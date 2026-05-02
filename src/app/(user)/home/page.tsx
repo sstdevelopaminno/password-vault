@@ -353,15 +353,15 @@ export default function HomePage() {
   }, [syncReleaseBadge]);
 
   return (
-    <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.65rem)] sm:pt-2'>
-      <div className='flex items-start justify-between gap-3'>
-        <div className='flex min-w-0 items-start gap-3'>
+    <section className='space-y-5 pb-24 pt-[calc(env(safe-area-inset-top)+0.65rem)] sm:pt-2'>
+      <div className='flex items-start justify-between gap-3.5'>
+        <div className='flex min-w-0 items-start gap-3.5'>
           <Image
             src={BRAND_LOGO_URL}
             alt='Vault Logo'
-            width={74}
-            height={74}
-            className='h-[74px] w-[74px] rounded-[22px] object-cover shadow-[0_0_24px_rgba(112,95,255,0.25)]'
+            width={82}
+            height={82}
+            className='h-[82px] w-[82px] rounded-[24px] object-cover shadow-[0_0_24px_rgba(112,95,255,0.25)]'
             priority
           />
           <div className='min-w-0'>
@@ -377,10 +377,10 @@ export default function HomePage() {
             markReleaseNotesAsRead(appVersion);
             setShowReleaseBadge(false);
           }}
-          className='relative inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-100 shadow-[var(--glow-soft)]'
+          className='relative inline-flex h-[60px] w-[60px] items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-100 shadow-[var(--glow-soft)]'
           aria-label={showReleaseBadge ? 'Notifications (new update)' : 'Notifications'}
         >
-          <Bell className={'h-5 w-5 ' + (showReleaseBadge ? 'animate-bell-bounce' : '')} />
+          <Bell className={'h-6 w-6 ' + (showReleaseBadge ? 'animate-bell-bounce' : '')} />
           {showReleaseBadge ? (
             <span className='absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-rose-500 shadow-[0_0_12px_rgba(251,113,133,0.75)] animate-pulse' />
           ) : null}
@@ -388,24 +388,24 @@ export default function HomePage() {
       </div>
 
       <div className='flex flex-wrap items-center gap-2'>
-        <span className='neon-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-app-caption font-semibold'>
-          <ShieldCheck className='h-3.5 w-3.5' />
+        <span className='neon-chip inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-app-caption font-semibold'>
+          <ShieldCheck className='h-4 w-4' />
           {t('home.roleLabel')}: {userRole}
         </span>
-        <span className='neon-chip neon-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-app-caption font-semibold'>
-          <Activity className='h-3.5 w-3.5' />
+        <span className='neon-chip neon-chip-active inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-app-caption font-semibold'>
+          <Activity className='h-4 w-4' />
           {t('home.statusLabel')}: {userStatus}
         </span>
       </div>
 
       <div>
-        <div className='grid grid-cols-3 gap-2'>
+        <div className='grid grid-cols-3 gap-2.5'>
           {actionTiles.slice(0, 3).map((tile) => {
             const Icon = tile.icon;
             const tileBody = (
               <>
-                <Icon className='h-[22px] w-[22px] text-slate-100' />
-                <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
+                <Icon className='h-[25px] w-[25px] text-slate-100' />
+                <p className='line-clamp-2 text-[13.5px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
               </>
             );
 
@@ -415,7 +415,7 @@ export default function HomePage() {
                   key={tile.href}
                   type='button'
                   onClick={() => setPendingProtectedHref(tile.href)}
-                  className='neon-panel group flex min-h-[90px] w-full flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
+                  className='neon-panel group flex min-h-[102px] w-full flex-col items-center justify-center gap-2 rounded-[14px] px-2 py-2.5 text-center'
                 >
                   {tileBody}
                 </button>
@@ -426,7 +426,7 @@ export default function HomePage() {
               <Link
                 key={tile.href}
                 href={tile.href}
-                className='neon-panel group flex min-h-[90px] flex-col items-center justify-center gap-1.5 rounded-[12px] px-1.5 py-2 text-center'
+                className='neon-panel group flex min-h-[102px] flex-col items-center justify-center gap-2 rounded-[14px] px-2 py-2.5 text-center'
               >
                 {tileBody}
               </Link>
@@ -434,18 +434,18 @@ export default function HomePage() {
           })}
         </div>
 
-        <div className='mt-3 grid grid-cols-3 gap-2.5'>
+        <div className='mt-3 grid grid-cols-3 gap-3'>
           {actionTiles.slice(3).map((tile) => {
             const Icon = tile.icon;
             return (
               <Link
                 key={tile.href}
                 href={tile.href}
-                className='group flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[12px] text-center'
+                className='group flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-[12px] text-center'
                 aria-label={t(tile.titleKey)}
               >
-                <Icon className={'h-[22px] w-[22px] ' + tile.iconClass} />
-                <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
+                <Icon className={'h-[24px] w-[24px] ' + tile.iconClass} />
+                <p className='line-clamp-2 text-[13.5px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
               </Link>
             );
           })}
@@ -453,26 +453,26 @@ export default function HomePage() {
           <button
             type='button'
             onClick={openCalendarPopup}
-            className='group flex min-h-[62px] w-full flex-col items-center justify-center gap-1 rounded-[12px] text-center'
+            className='group flex min-h-[72px] w-full flex-col items-center justify-center gap-1.5 rounded-[12px] text-center'
             aria-label={t('nav.calendar')}
           >
-            <Calendar className='h-[22px] w-[22px] text-lime-300' />
-            <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t('nav.calendar')}</p>
+            <Calendar className='h-[24px] w-[24px] text-lime-300' />
+            <p className='line-clamp-2 text-[13.5px] font-semibold leading-tight text-slate-100'>{t('nav.calendar')}</p>
           </button>
         </div>
 
-        <div className='mt-2 grid grid-cols-3 gap-2'>
+        <div className='mt-2 grid grid-cols-3 gap-3'>
           {serviceTiles.map((tile) => {
             const Icon = tile.icon;
             return (
               <Link
                 key={tile.href}
                 href={tile.href}
-                className='group flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[12px] text-center'
+                className='group flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-[12px] text-center'
                 aria-label={t(tile.titleKey)}
               >
-                <Icon className={'h-[24px] w-[24px] ' + tile.iconClass} />
-                <p className='line-clamp-2 text-[12px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
+                <Icon className={'h-[26px] w-[26px] ' + tile.iconClass} />
+                <p className='line-clamp-2 text-[13.5px] font-semibold leading-tight text-slate-100'>{t(tile.titleKey)}</p>
               </Link>
             );
           })}

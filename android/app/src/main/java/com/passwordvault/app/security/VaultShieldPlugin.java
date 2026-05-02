@@ -26,6 +26,10 @@ import android.util.Log;
 import android.webkit.URLUtil;
 
 import androidx.annotation.NonNull;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentActivity;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -52,6 +56,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.concurrent.Executor;
 
 @CapacitorPlugin(
   name = "VaultShield",
@@ -532,6 +537,142 @@ public class VaultShieldPlugin extends Plugin {
     } catch (Exception error) {
       call.reject("Unable to read device security state: " + error.getMessage());
     }
+  }
+
+  @PluginMethod
+  public void getBiometricStatus(PluginCall call) {
+    JSObject payload = new JSObject();
+    int apiLevel = Build.VERSION.SDK_INT;
+    payload.put("apiLevel", apiLevel);
+    payload.put("android12OrNewer", apiLevel >= Build.VERSION_CODES.S);
+
+    if (apiLevel < Build.VERSION_CODES.S) {
+      payload.put("supported", false);
+      payload.put("available", false);
+      payload.put("enrolled", false);
+      payload.put("reason", "android_version_unsupported");
+      call.resolve(payload);
+      return;
+    }
+
+    try {
+      BiometricManager biometricManager = BiometricManager.from(getContext());
+      int statusCode = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
+      payload.put("supported", true);
+      payload.put("statusCode", statusCode);
+
+      if (statusCode == BiometricManager.BIOMETRIC_SUCCESS) {
+        payload.put("available", true);
+        payload.put("enrolled", true);
+        payload.put("reason", "ready");
+      } else if (statusCode == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED) {
+        payload.put("available", false);
+        payload.put("enrolled", false);
+        payload.put("reason", "none_enrolled");
+      } else if (statusCode == BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE) {
+        payload.put("available", false);
+        payload.put("enrolled", false);
+        payload.put("reason", "hardware_unavailable");
+      } else if (statusCode == BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED) {
+        payload.put("available", false);
+        payload.put("enrolled", false);
+        payload.put("reason", "security_update_required");
+      } else if (statusCode == BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE) {
+        payload.put("available", false);
+        payload.put("enrolled", false);
+        payload.put("reason", "unsupported");
+      } else {
+        payload.put("available", false);
+        payload.put("enrolled", false);
+        payload.put("reason", "unknown");
+      }
+    } catch (Exception error) {
+      payload.put("supported", false);
+      payload.put("available", false);
+      payload.put("enrolled", false);
+      payload.put("reason", "unknown");
+    }
+
+    call.resolve(payload);
+  }
+
+  @PluginMethod
+  public void authenticateBiometric(PluginCall call) {
+    JSObject unsupportedPayload = new JSObject();
+    unsupportedPayload.put("success", false);
+    unsupportedPayload.put("fallbackToPin", true);
+
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+      unsupportedPayload.put("status", "android_version_unsupported");
+      call.resolve(unsupportedPayload);
+      return;
+    }
+
+    if (!(getActivity() instanceof FragmentActivity)) {
+      unsupportedPayload.put("status", "unsupported");
+      call.resolve(unsupportedPayload);
+      return;
+    }
+
+    BiometricManager biometricManager = BiometricManager.from(getContext());
+    int statusCode = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
+    if (statusCode != BiometricManager.BIOMETRIC_SUCCESS) {
+      unsupportedPayload.put("status", mapBiometricAvailabilityStatus(statusCode));
+      unsupportedPayload.put("errorCode", statusCode);
+      call.resolve(unsupportedPayload);
+      return;
+    }
+
+    FragmentActivity activity = (FragmentActivity) getActivity();
+    Executor executor = ContextCompat.getMainExecutor(activity);
+    String title = String.valueOf(call.getString("title", "Verify identity")).trim();
+    String subtitle = String.valueOf(call.getString("subtitle", "")).trim();
+    String negativeButtonText = String.valueOf(call.getString("negativeButtonText", "Use PIN")).trim();
+
+    final boolean[] completed = new boolean[] { false };
+    BiometricPrompt.AuthenticationCallback callback = new BiometricPrompt.AuthenticationCallback() {
+      @Override
+      public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+        if (completed[0]) return;
+        completed[0] = true;
+        JSObject payload = new JSObject();
+        payload.put("success", false);
+        payload.put("status", mapBiometricErrorStatus(errorCode));
+        payload.put("errorCode", errorCode);
+        payload.put("errorMessage", String.valueOf(errString));
+        payload.put("fallbackToPin", true);
+        call.resolve(payload);
+      }
+
+      @Override
+      public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+        if (completed[0]) return;
+        completed[0] = true;
+        JSObject payload = new JSObject();
+        payload.put("success", true);
+        payload.put("status", "authenticated");
+        payload.put("fallbackToPin", false);
+        call.resolve(payload);
+      }
+
+      @Override
+      public void onAuthenticationFailed() {
+        super.onAuthenticationFailed();
+      }
+    };
+
+    BiometricPrompt biometricPrompt = new BiometricPrompt(activity, executor, callback);
+
+    BiometricPrompt.PromptInfo.Builder promptBuilder = new BiometricPrompt.PromptInfo.Builder()
+      .setTitle(title.isEmpty() ? "Verify identity" : title)
+      .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+      .setNegativeButtonText(negativeButtonText.isEmpty() ? "Use PIN" : negativeButtonText);
+
+    if (!subtitle.isEmpty()) {
+      promptBuilder.setSubtitle(subtitle);
+    }
+
+    biometricPrompt.authenticate(promptBuilder.build());
   }
 
   @PluginMethod
@@ -1289,6 +1430,52 @@ public class VaultShieldPlugin extends Plugin {
     } catch (Exception ignored) {
       return false;
     }
+  }
+
+  @NonNull
+  private String mapBiometricAvailabilityStatus(int statusCode) {
+    if (statusCode == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED) {
+      return "none_enrolled";
+    }
+    if (statusCode == BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE) {
+      return "hardware_unavailable";
+    }
+    if (statusCode == BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE) {
+      return "unsupported";
+    }
+    if (statusCode == BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED) {
+      return "unsupported";
+    }
+    return "unsupported";
+  }
+
+  @NonNull
+  private String mapBiometricErrorStatus(int errorCode) {
+    if (
+      errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
+      errorCode == BiometricPrompt.ERROR_CANCELED
+    ) {
+      return "user_cancel";
+    }
+    if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+      return "negative_button";
+    }
+    if (errorCode == BiometricPrompt.ERROR_TIMEOUT) {
+      return "timeout";
+    }
+    if (errorCode == BiometricPrompt.ERROR_LOCKOUT) {
+      return "lockout";
+    }
+    if (errorCode == BiometricPrompt.ERROR_LOCKOUT_PERMANENT) {
+      return "lockout_permanent";
+    }
+    if (errorCode == BiometricPrompt.ERROR_HW_UNAVAILABLE) {
+      return "hardware_unavailable";
+    }
+    if (errorCode == BiometricPrompt.ERROR_NO_BIOMETRICS) {
+      return "none_enrolled";
+    }
+    return "error";
   }
 
   private boolean isDebuggable(Context context) {

@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Lock, TimerReset } from "lucide-react";
+import { ChevronLeft, Fingerprint, Lock, TimerReset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
+import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
 import {
   DEFAULT_SCREEN_LOCK_SETTINGS,
   SCREEN_LOCK_SETTINGS_KEY,
@@ -15,6 +16,7 @@ import {
   normalizeScreenLockSettings,
   type ScreenLockSettings,
 } from "@/lib/screen-lock";
+import { readVaultShieldBiometricStatus, type VaultShieldBiometricStatus } from "@/lib/vault-shield";
 
 function formatTimeoutLabel(valueSec: number, locale: "th" | "en") {
   if (valueSec < 60) {
@@ -42,7 +44,10 @@ export default function LockScreenSettingsPage() {
 
   const [hasPin, setHasPin] = useState(false);
   const [settings, setSettings] = useState<ScreenLockSettings>(() => readScreenLockSettingsFromStorage());
+  const [biometricStatus, setBiometricStatus] = useState<VaultShieldBiometricStatus | null>(null);
+  const [biometricLoading, setBiometricLoading] = useState(false);
   const timeoutOptions = useMemo(() => [...SCREEN_LOCK_TIMEOUT_OPTIONS_SEC], []);
+  const runtime = useMemo(() => detectRuntimeCapabilities(), []);
 
   useEffect(() => {
     void fetch("/api/profile/me", { cache: "no-store" })
@@ -50,6 +55,29 @@ export default function LockScreenSettingsPage() {
       .then((body) => setHasPin(Boolean(body?.hasPin)))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!runtime.isCapacitorNative || !runtime.isAndroid) {
+      setBiometricStatus(null);
+      return;
+    }
+
+    setBiometricLoading(true);
+    void readVaultShieldBiometricStatus()
+      .then((result) => {
+        if (!mounted) return;
+        setBiometricStatus(result);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setBiometricLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [runtime.isAndroid, runtime.isCapacitorNative]);
 
   const persist = (next: ScreenLockSettings) => {
     setSettings(next);
@@ -69,6 +97,33 @@ export default function LockScreenSettingsPage() {
     persist({ ...settings, enabled: !settings.enabled });
   };
 
+  const biometricReady = Boolean(
+    biometricStatus &&
+      biometricStatus.supported &&
+      biometricStatus.available &&
+      biometricStatus.enrolled &&
+      biometricStatus.android12OrNewer,
+  );
+
+  const toggleBiometricUnlock = () => {
+    if (!hasPin) {
+      showToast(isThai ? "กรุณาตั้งค่า PIN ก่อนเปิดใช้งานไบโอเมตริกซ์" : "Please set PIN before enabling biometrics.", "error");
+      return;
+    }
+    if (!biometricReady) {
+      showToast(
+        isThai
+          ? "อุปกรณ์ยังไม่พร้อมใช้ Touch ID / Face ID สำหรับแอปนี้"
+          : "Touch ID / Face ID is not ready on this device.",
+        "error",
+      );
+      return;
+    }
+
+    const nextMethod = settings.unlockMethod === "biometric_or_pin" ? "pin_only" : "biometric_or_pin";
+    persist({ ...settings, unlockMethod: nextMethod });
+  };
+
   return (
     <section className="space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]">
       <div className="flex items-center gap-2">
@@ -86,7 +141,7 @@ export default function LockScreenSettingsPage() {
           <div className="min-w-0">
             <p className="text-app-body font-semibold text-slate-100">{isThai ? "เปิดใช้ล็อคหน้าจอด้วย PIN" : "Enable PIN screen lock"}</p>
             <p className="text-app-caption text-slate-300">
-              {isThai ? "เมื่อไม่มีการเคลื่อนไหวตามเวลาที่ตั้ง ระบบจะล็อคหน้าจออัตโนมัติ" : "Auto lock when no activity for the selected timeout."}
+              {isThai ? "เมื่อไม่มีการใช้งานตามเวลาที่ตั้ง ระบบจะล็อคหน้าจออัตโนมัติ" : "Auto lock when no activity for the selected timeout."}
             </p>
           </div>
           <button
@@ -103,6 +158,55 @@ export default function LockScreenSettingsPage() {
             {isThai ? "ยังไม่ได้ตั้ง PIN กรุณาไปที่เมนู PIN ความปลอดภัยก่อน" : "PIN is not set. Please configure PIN Security first."}
           </div>
         ) : null}
+      </Card>
+
+      <Card className="space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-app-body font-semibold text-slate-100">
+              {isThai ? "ปลดล็อคด้วย Touch ID / Face ID" : "Unlock with Touch ID / Face ID"}
+            </p>
+            <p className="text-app-caption text-slate-300">
+              {isThai
+                ? "รองรับ Android 12 ขึ้นไป หากสแกนไม่สำเร็จจะใช้ PIN แทน"
+                : "Android 12+ only. Falls back to PIN when biometric authentication fails."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleBiometricUnlock}
+            disabled={!hasPin || !biometricReady || biometricLoading}
+            className={
+              "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 " +
+              (settings.unlockMethod === "biometric_or_pin" ? "bg-blue-600" : "bg-slate-500")
+            }
+            aria-pressed={settings.unlockMethod === "biometric_or_pin"}
+          >
+            <span
+              className={
+                "inline-block h-6 w-6 transform rounded-full bg-white transition " +
+                (settings.unlockMethod === "biometric_or_pin" ? "translate-x-6" : "translate-x-1")
+              }
+            />
+          </button>
+        </div>
+
+        <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-app-caption text-slate-200">
+          <span className="inline-flex items-center gap-2">
+            <Fingerprint className="h-4 w-4 text-sky-300" />
+            {biometricLoading
+              ? isThai
+                ? "กำลังตรวจสอบสถานะไบโอเมตริกซ์..."
+                : "Checking biometric status..."
+              : biometricReady
+                ? isThai
+                  ? "พร้อมใช้งาน (Android 12+)"
+                  : "Ready (Android 12+)"
+                : isThai
+                  ? "ยังไม่พร้อมใช้งานบนอุปกรณ์นี้"
+                  : "Not available on this device."}
+          </span>
+        </div>
       </Card>
 
       <Card className="space-y-3 rounded-[24px] border border-[var(--border-soft)] bg-[var(--surface-2)] p-4">
@@ -127,8 +231,8 @@ export default function LockScreenSettingsPage() {
         </div>
         <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-app-caption text-slate-200">
           {isThai
-            ? `ค่าปัจจุบัน: ${settings.enabled ? "เปิดใช้งาน" : "ปิดใช้งาน"} / ${formatTimeoutLabel(settings.timeoutSec, locale)}`
-            : `Current: ${settings.enabled ? "Enabled" : "Disabled"} / ${formatTimeoutLabel(settings.timeoutSec, locale)}`}
+            ? `ค่าปัจจุบัน: ${settings.enabled ? "เปิดใช้งาน" : "ปิดใช้งาน"} / ${formatTimeoutLabel(settings.timeoutSec, locale)} / ${settings.unlockMethod === "biometric_or_pin" ? "Biometric + PIN" : "PIN only"}`
+            : `Current: ${settings.enabled ? "Enabled" : "Disabled"} / ${formatTimeoutLabel(settings.timeoutSec, locale)} / ${settings.unlockMethod === "biometric_or_pin" ? "Biometric + PIN" : "PIN only"}`}
         </div>
       </Card>
 
@@ -143,3 +247,4 @@ export default function LockScreenSettingsPage() {
     </section>
   );
 }
+

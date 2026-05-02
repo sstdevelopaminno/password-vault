@@ -49,9 +49,9 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
   const items = admin ? adminItems : userItems;
 
   return (
-    <nav className='bottom-nav-root pointer-events-none absolute inset-x-0 bottom-0 z-50 w-full px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 will-change-transform'>
-      <div className='pointer-events-auto relative rounded-[30px] bg-[linear-gradient(110deg,rgba(40,230,255,0.7)_0%,rgba(96,127,255,0.62)_46%,rgba(235,82,255,0.78)_100%)] p-[1.5px] shadow-[0_0_0_1px_rgba(170,203,255,0.18),0_0_26px_rgba(100,117,255,0.4),0_0_38px_rgba(211,87,255,0.24)]'>
-        <div className='rounded-[28px] border border-[rgba(171,193,255,0.26)] bg-[linear-gradient(180deg,rgba(20,35,88,0.94),rgba(11,23,65,0.96))] p-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl'>
+    <nav className='bottom-nav-root pointer-events-none absolute inset-x-0 bottom-0 z-50 w-full px-3.5 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-2 will-change-transform'>
+      <div className='pointer-events-auto relative rounded-[32px] bg-[linear-gradient(110deg,rgba(40,230,255,0.7)_0%,rgba(96,127,255,0.62)_46%,rgba(235,82,255,0.78)_100%)] p-[1.5px] shadow-[0_0_0_1px_rgba(170,203,255,0.18),0_0_26px_rgba(100,117,255,0.4),0_0_38px_rgba(211,87,255,0.24)]'>
+        <div className='rounded-[30px] border border-[rgba(171,193,255,0.26)] bg-[linear-gradient(180deg,rgba(20,35,88,0.94),rgba(11,23,65,0.96))] p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl'>
           <ul className='grid gap-1.5' style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
           {items.map((item) => {
             const active = isActivePath(pathname, item.href);
@@ -64,12 +64,12 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                 <Link
                   href={item.href}
                   className={
-                    'group flex w-full select-none touch-manipulation flex-col items-center justify-center px-1.5 py-1 text-[11px] font-semibold transition-[transform,box-shadow,background,color] duration-200 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
+                    'group flex w-full select-none touch-manipulation flex-col items-center justify-center px-1.5 py-1.5 text-[12.5px] font-semibold transition-[transform,box-shadow,background,color] duration-200 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
                     (homeActive
-                      ? 'min-h-[64px] gap-1 rounded-[18px] bg-[linear-gradient(140deg,rgba(88,155,255,0.48),rgba(170,83,255,0.42))] text-[#eef6ff] shadow-[0_0_16px_rgba(80,145,255,0.3),0_0_24px_rgba(198,81,255,0.18)]'
+                      ? 'min-h-[72px] gap-1.5 rounded-[20px] bg-[linear-gradient(140deg,rgba(88,155,255,0.48),rgba(170,83,255,0.42))] text-[#eef6ff] shadow-[0_0_16px_rgba(80,145,255,0.3),0_0_24px_rgba(198,81,255,0.18)]'
                       : active
-                        ? 'min-h-[64px] gap-1 rounded-[18px] bg-[linear-gradient(140deg,rgba(88,155,255,0.48),rgba(170,83,255,0.42))] text-[#eef6ff] shadow-[0_0_16px_rgba(80,145,255,0.3),0_0_24px_rgba(198,81,255,0.18)]'
-                        : 'min-h-[64px] gap-1 rounded-[18px] text-[#b8c8e8] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#eff5ff]')
+                        ? 'min-h-[72px] gap-1.5 rounded-[20px] bg-[linear-gradient(140deg,rgba(88,155,255,0.48),rgba(170,83,255,0.42))] text-[#eef6ff] shadow-[0_0_16px_rgba(80,145,255,0.3),0_0_24px_rgba(198,81,255,0.18)]'
+                        : 'min-h-[72px] gap-1.5 rounded-[20px] text-[#b8c8e8] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#eff5ff]')
                   }
                   aria-current={active ? 'page' : undefined}
                 >
@@ -78,10 +78,10 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                       className={
                         'inline-flex items-center justify-center ' +
                         (homeActive
-                          ? 'h-[24px] w-[24px] rounded-[7px] bg-[linear-gradient(145deg,rgba(73,222,255,0.26),rgba(66,110,255,0.14))] shadow-[0_0_10px_rgba(70,199,255,0.28)]'
+                          ? 'h-[30px] w-[30px] rounded-[9px] bg-[linear-gradient(145deg,rgba(73,222,255,0.26),rgba(66,110,255,0.14))] shadow-[0_0_10px_rgba(70,199,255,0.28)]'
                           : active
-                            ? 'h-[24px] w-[24px] rounded-[7px] bg-[radial-gradient(circle,rgba(73,222,255,0.3),rgba(66,110,255,0.14))] shadow-[0_0_10px_rgba(70,199,255,0.28)]'
-                            : 'h-[24px] w-[24px] rounded-[7px] bg-[rgba(255,255,255,0.03)]')
+                            ? 'h-[30px] w-[30px] rounded-[9px] bg-[radial-gradient(circle,rgba(73,222,255,0.3),rgba(66,110,255,0.14))] shadow-[0_0_10px_rgba(70,199,255,0.28)]'
+                            : 'h-[30px] w-[30px] rounded-[9px] bg-[rgba(255,255,255,0.03)]')
                       }
                     >
                       <Image
@@ -91,17 +91,17 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                         height={32}
                         className={
                           'rounded-[8px] object-cover ' +
-                          'h-[22px] w-[22px]' +
+                          'h-[26px] w-[26px]' +
                           (active ? '' : ' opacity-90 group-hover:opacity-100')
                         }
                         priority={false}
                       />
                     </span>
                   ) : (
-                    <Icon className={'h-[22px] w-[22px] ' + (active ? 'text-[#9ce8ff]' : 'text-[#a9badc] group-hover:text-[#eef5ff]')} />
+                    <Icon className={'h-[24px] w-[24px] ' + (active ? 'text-[#9ce8ff]' : 'text-[#a9badc] group-hover:text-[#eef5ff]')} />
                   )}
                   <span
-                    className='line-clamp-2 min-h-[21px] px-0.5 text-center text-[11px] leading-tight'
+                    className='line-clamp-2 min-h-[24px] px-0.5 text-center text-[12.5px] leading-tight'
                   >
                     {item.label}
                   </span>

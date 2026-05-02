@@ -147,6 +147,42 @@ export type VaultShieldDeviceSecurityState = {
   hasTestKeys: boolean;
 };
 
+export type VaultShieldBiometricStatus = {
+  supported: boolean;
+  available: boolean;
+  enrolled: boolean;
+  android12OrNewer: boolean;
+  apiLevel: number;
+  statusCode?: number;
+  reason?:
+    | "ready"
+    | "android_version_unsupported"
+    | "hardware_unavailable"
+    | "none_enrolled"
+    | "security_update_required"
+    | "unsupported"
+    | "unknown";
+};
+
+export type VaultShieldBiometricAuthResult = {
+  success: boolean;
+  status:
+    | "authenticated"
+    | "unsupported"
+    | "hardware_unavailable"
+    | "none_enrolled"
+    | "user_cancel"
+    | "negative_button"
+    | "lockout"
+    | "lockout_permanent"
+    | "timeout"
+    | "error"
+    | "android_version_unsupported";
+  errorCode?: number;
+  errorMessage?: string;
+  fallbackToPin?: boolean;
+};
+
 type VaultShieldPlugin = {
   collectSignals(options?: VaultShieldCollectOptions): Promise<VaultShieldSignals>;
   installApkUpdate(options: VaultShieldInstallApkOptions): Promise<VaultShieldInstallApkResult>;
@@ -157,6 +193,12 @@ type VaultShieldPlugin = {
   getDeviceContacts(options?: { limit?: number }): Promise<VaultShieldDeviceContactsResult>;
   scanInstalledApps(options?: { limit?: number }): Promise<VaultShieldAppScanResult>;
   getDeviceSecurityState(): Promise<VaultShieldDeviceSecurityState>;
+  getBiometricStatus(): Promise<VaultShieldBiometricStatus>;
+  authenticateBiometric(options?: {
+    title?: string;
+    subtitle?: string;
+    negativeButtonText?: string;
+  }): Promise<VaultShieldBiometricAuthResult>;
   openAppSettings(): Promise<{ opened?: boolean }>;
   addListener(
     eventName: "apkInstallState",
@@ -406,6 +448,38 @@ export async function readVaultShieldDeviceSecurityState(): Promise<VaultShieldD
     return await nativePlugin.getDeviceSecurityState();
   } catch (error) {
     console.error("VaultShield getDeviceSecurityState failed:", error);
+    return null;
+  }
+}
+
+export async function readVaultShieldBiometricStatus(): Promise<VaultShieldBiometricStatus | null> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return null;
+  }
+
+  try {
+    return await nativePlugin.getBiometricStatus();
+  } catch (error) {
+    console.error("VaultShield getBiometricStatus failed:", error);
+    return null;
+  }
+}
+
+export async function authenticateVaultShieldBiometric(options?: {
+  title?: string;
+  subtitle?: string;
+  negativeButtonText?: string;
+}): Promise<VaultShieldBiometricAuthResult | null> {
+  const capabilities = detectRuntimeCapabilities();
+  if (!capabilities.isCapacitorNative || !capabilities.isAndroid) {
+    return null;
+  }
+
+  try {
+    return await nativePlugin.authenticateBiometric(options);
+  } catch (error) {
+    console.error("VaultShield authenticateBiometric failed:", error);
     return null;
   }
 }

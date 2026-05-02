@@ -4,6 +4,7 @@ export const SCREEN_LOCK_SETTINGS_UPDATED_EVENT = "pv:screen-lock-settings-updat
 export type ScreenLockSettings = {
   enabled: boolean;
   timeoutSec: number;
+  unlockMethod: "pin_only" | "biometric_or_pin";
 };
 
 export const SCREEN_LOCK_TIMEOUT_OPTIONS_SEC = [5, 10, 15, 20, 30, 60, 120, 180, 300, 600, 900] as const;
@@ -11,6 +12,7 @@ export const SCREEN_LOCK_TIMEOUT_OPTIONS_SEC = [5, 10, 15, 20, 30, 60, 120, 180,
 export const DEFAULT_SCREEN_LOCK_SETTINGS: ScreenLockSettings = {
   enabled: false,
   timeoutSec: 60,
+  unlockMethod: "pin_only",
 };
 
 export function clampScreenLockTimeoutSec(value: unknown) {
@@ -27,8 +29,10 @@ export function clampScreenLockTimeoutSec(value: unknown) {
 
 export function normalizeScreenLockSettings(input: unknown): ScreenLockSettings {
   const source = (input ?? {}) as Partial<ScreenLockSettings>;
+  const unlockMethod = source.unlockMethod === "biometric_or_pin" ? "biometric_or_pin" : "pin_only";
   return {
     enabled: Boolean(source.enabled),
     timeoutSec: clampScreenLockTimeoutSec(source.timeoutSec),
+    unlockMethod: unlockMethod,
   };
 }

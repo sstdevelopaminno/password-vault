@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { PinModal } from "@/components/vault/pin-modal";
+import { useI18n } from "@/i18n/provider";
 import {
   DEFAULT_SCREEN_LOCK_SETTINGS,
   SCREEN_LOCK_SETTINGS_KEY,
@@ -9,7 +10,7 @@ import {
   normalizeScreenLockSettings,
   type ScreenLockSettings,
 } from "@/lib/screen-lock";
-import { useI18n } from "@/i18n/provider";
+import { authenticateVaultShieldBiometric } from "@/lib/vault-shield";
 
 type ScreenLockGuardProps = {
   children: ReactNode;
@@ -33,7 +34,9 @@ export function ScreenLockGuard({ children, hasPin }: ScreenLockGuardProps) {
 
   const [settings, setSettings] = useState<ScreenLockSettings>(() => readSettings());
   const [locked, setLocked] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
   const timerRef = useRef<number | null>(null);
+  const biometricInFlightRef = useRef(false);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -75,6 +78,7 @@ export function ScreenLockGuard({ children, hasPin }: ScreenLockGuardProps) {
   useEffect(() => {
     if (!hasPin || !settings.enabled) {
       clearTimer();
+      setShowPinModal(false);
       if (locked) {
         const unlockId = window.setTimeout(() => {
           setLocked(false);
@@ -110,17 +114,56 @@ export function ScreenLockGuard({ children, hasPin }: ScreenLockGuardProps) {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [markActivity]);
 
+  useEffect(() => {
+    if (!locked || !hasPin) return;
+
+    if (settings.unlockMethod !== "biometric_or_pin") {
+      setShowPinModal(true);
+      return;
+    }
+
+    if (biometricInFlightRef.current) return;
+    biometricInFlightRef.current = true;
+    setShowPinModal(false);
+
+    const title = isThai ? "ยืนยันตัวตนเพื่อปลดล็อค" : "Verify to unlock";
+    const subtitle = isThai ? "ใช้สแกนนิ้วหรือใบหน้า" : "Use fingerprint or face";
+    const negative = isThai ? "ใช้ PIN แทน" : "Use PIN";
+
+    void authenticateVaultShieldBiometric({
+      title,
+      subtitle,
+      negativeButtonText: negative,
+    })
+      .then((result) => {
+        if (result?.success) {
+          setLocked(false);
+          setShowPinModal(false);
+          scheduleLock();
+          return;
+        }
+        setShowPinModal(true);
+      })
+      .catch(() => {
+        setShowPinModal(true);
+      })
+      .finally(() => {
+        biometricInFlightRef.current = false;
+      });
+  }, [hasPin, isThai, locked, scheduleLock, settings.unlockMethod]);
+
   return (
     <>
       {children}
 
-      {locked ? (
+      {locked && showPinModal ? (
         <PinModal
           action="unlock_app"
           actionLabel={isThai ? "ปลดล็อคหน้าจอ" : "Unlock screen"}
           onClose={() => undefined}
           onVerified={() => {
             setLocked(false);
+            setShowPinModal(false);
             scheduleLock();
           }}
         />
