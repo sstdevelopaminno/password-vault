@@ -1731,15 +1731,15 @@ async function downloadPdf(note: NoteItem) {
 <div className='space-y-3'>
 {scheduleEditorOpen ? (
 <div className='space-y-3'>
-<div className='rounded-2xl border border-slate-200 bg-slate-50/90 p-3'>
+<div className='rounded-2xl border border-sky-300/40 bg-[linear-gradient(180deg,rgba(20,41,105,0.94),rgba(17,30,83,0.96))] p-3'>
 <div className='flex items-start justify-between gap-2'>
 <div>
-<label className='form-label text-slate-800'>{isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional schedules'}</label>
-<p className='text-app-micro leading-5 text-slate-600'>
+<label className='form-label text-sky-100'>{isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional schedules'}</label>
+<p className='text-app-micro leading-5 text-sky-200/90'>
 {isTh ? 'กำหนดเวลาแจ้งเตือนหรือวันเวลานัดหมายผ่าน Popup ได้จากปุ่มด้านล่าง' : 'Set reminder or meeting schedule by opening the popup from cards below.'}
 </p>
 </div>
-<Button type='button' variant='secondary' size='sm' className='h-8 rounded-lg px-2.5' onClick={() => setScheduleEditorOpen(false)}>
+<Button type='button' variant='secondary' size='sm' className='h-8 rounded-lg border-sky-300/50 bg-[rgba(16,31,84,0.86)] px-2.5 text-sky-100 hover:bg-[rgba(26,47,117,0.95)]' onClick={() => setScheduleEditorOpen(false)}>
 <ChevronLeft className='mr-1 h-3.5 w-3.5' />
 {isTh ? 'กลับ' : 'Back'}
 </Button>
@@ -1748,26 +1748,26 @@ async function downloadPdf(note: NoteItem) {
 <button
 type='button'
 onClick={() => openDateTimePicker('reminder')}
-className='min-w-0 flex-1 rounded-xl border border-sky-300 bg-[#dbeafe] px-3 py-2.5 text-left transition hover:border-sky-400 hover:bg-[#cfe8ff]'
+className='min-w-0 flex-1 rounded-xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(168,219,255,0.95),rgba(141,206,255,0.96))] px-3 py-2.5 text-left transition hover:border-sky-200 hover:brightness-105'
 >
-<p className='line-clamp-1 text-app-caption font-semibold text-sky-900'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</p>
-<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftReminder ? 'text-slate-900' : 'text-slate-600')}>
+<p className='line-clamp-1 text-app-caption font-semibold text-sky-950'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</p>
+<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftReminder ? 'text-slate-900' : 'text-slate-700')}>
 {formatDateTimeDraftLabel(draftReminder, isTh)}
 </p>
 </button>
 <button
 type='button'
 onClick={() => openDateTimePicker('meeting')}
-className='min-w-0 flex-1 rounded-xl border border-violet-300 bg-[#ede9fe] px-3 py-2.5 text-left transition hover:border-violet-400 hover:bg-[#e3dcff]'
+className='min-w-0 flex-1 rounded-xl border border-violet-300/80 bg-[linear-gradient(180deg,rgba(232,224,255,0.98),rgba(219,207,255,0.98))] px-3 py-2.5 text-left transition hover:border-violet-200 hover:brightness-105'
 >
-<p className='line-clamp-1 text-app-caption font-semibold text-violet-900'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</p>
-<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftMeeting ? 'text-slate-900' : 'text-slate-600')}>
+<p className='line-clamp-1 text-app-caption font-semibold text-violet-950'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</p>
+<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftMeeting ? 'text-slate-900' : 'text-slate-700')}>
 {formatDateTimeDraftLabel(draftMeeting, isTh)}
 </p>
 </button>
 </div>
 </div>
-<Button type='button' className='h-10 w-full rounded-2xl bg-[linear-gradient(180deg,#1f5fff,#1a47c7)] text-white hover:brightness-110' onClick={() => setScheduleEditorOpen(false)}>
+<Button type='button' className='h-10 w-full rounded-2xl bg-[linear-gradient(180deg,#2e6bff,#224ecb)] text-white hover:brightness-110' onClick={() => setScheduleEditorOpen(false)}>
 {isTh ? 'กลับไปหน้าฟอร์ม' : 'Back to form'}
 </Button>
 </div>
@@ -1850,20 +1850,20 @@ disabled={ocrRunning || ocrTranslateRunning || saving}
 ) : null}
 <p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ พร้อมพรีวิว และปุ่มแปลงภาษาในเนื้อหาโน้ต' : 'Supports Thai/English OCR with preview and in-note translation.'}</p>
 </div>
-<div className='rounded-2xl border border-slate-200 bg-white p-3'>
+<div className='rounded-2xl border border-sky-300/35 bg-[linear-gradient(180deg,rgba(18,36,95,0.9),rgba(14,28,74,0.92))] p-3'>
 <Button
 type='button'
 variant='secondary'
-className='h-11 w-full rounded-2xl border border-slate-300 bg-[linear-gradient(180deg,#f8fafc,#edf2ff)] font-semibold text-slate-800 hover:border-sky-300 hover:bg-white'
+className='h-11 w-full justify-start gap-2 rounded-2xl border border-sky-300/60 bg-[linear-gradient(180deg,#2f69ff,#224ec9)] px-3 font-semibold text-white hover:brightness-110'
 onClick={() => setScheduleEditorOpen(true)}
 disabled={saving}
 >
-<Calendar className='mr-2 h-4 w-4 text-sky-700' />
+<Calendar className='h-4 w-4 text-white' />
 {isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional date/time'}
 </Button>
 <div className='mt-2 grid grid-cols-2 gap-2'>
-<p className='rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-app-micro font-semibold text-slate-700'>{isTh ? 'เตือน:' : 'Reminder:'} {formatDateTimeDraftLabel(draftReminder, isTh)}</p>
-<p className='rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-app-micro font-semibold text-slate-700'>{isTh ? 'นัดหมาย:' : 'Meeting:'} {formatDateTimeDraftLabel(draftMeeting, isTh)}</p>
+<p className='rounded-xl border border-sky-300/40 bg-[rgba(20,49,132,0.72)] px-2.5 py-2 text-app-micro font-semibold text-sky-100'>{isTh ? 'เตือน:' : 'Reminder:'} {formatDateTimeDraftLabel(draftReminder, isTh)}</p>
+<p className='rounded-xl border border-violet-300/40 bg-[rgba(65,42,142,0.7)] px-2.5 py-2 text-app-micro font-semibold text-violet-100'>{isTh ? 'นัดหมาย:' : 'Meeting:'} {formatDateTimeDraftLabel(draftMeeting, isTh)}</p>
 </div>
 </div>
 <div className='mt-3 grid grid-cols-2 gap-2'>

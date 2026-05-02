@@ -1705,7 +1705,7 @@ export default function BillingPage() {
 
       {selectedDetailDocument ? (
         <div className='fixed inset-0 z-[82] bg-white animate-overlay-in'>
-          <div className='app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-[var(--background)] animate-screen-in'>
+          <div className='app-shell mx-auto flex h-full w-full max-w-[460px] flex-col bg-[var(--background)] pt-[max(10px,env(safe-area-inset-top))] animate-screen-in'>
             <div className='flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3'>
               <div>
                 <div className='flex items-center gap-2'>
@@ -1721,9 +1721,9 @@ export default function BillingPage() {
               </Button>
             </div>
 
-            <div className='flex-1 overflow-y-auto px-4 py-3 pb-20'>
-              <div className='space-y-3 rounded-2xl border border-slate-200 bg-white p-4'>
-                <div className='grid grid-cols-2 gap-2 text-app-body'>
+            <div className='flex-1 overflow-y-auto px-4 py-4 pb-20'>
+              <div className='space-y-3'>
+                <div className='grid grid-cols-2 gap-2 rounded-2xl bg-white/95 p-3 text-app-body shadow-[0_8px_20px_rgba(15,23,42,0.08)]'>
                   <p><span className='text-slate-500'>{tr('วันที่', 'Date')}:</span> {formatDateDisplay(selectedDetailDocument.issueDate, locale)}</p>
                   <p><span className='text-slate-500'>{tr('ครบกำหนด', 'Due date')}:</span> {formatDateDisplay(selectedDetailDocument.dueDate, locale)}</p>
                   <p><span className='text-slate-500'>{tr('ลูกค้า', 'Buyer')}:</span> {selectedDetailDocument.buyerName || '-'}</p>
@@ -1762,7 +1762,7 @@ export default function BillingPage() {
                   </p>
                 ) : null}
 
-                <div className='rounded-2xl border border-slate-200 bg-slate-50/80 p-3'>
+                <div className='rounded-2xl bg-slate-50/85 p-3'>
                   <p className='text-app-body font-semibold text-slate-900'>{tr('เนื้อหาเอกสารที่บันทึกไว้', 'Saved document content')}</p>
                   <p className='mt-1 text-app-caption text-slate-600'>
                     {tr('ผู้ขาย', 'Seller')}: {selectedDetailDocument.sellerName || '-'} | {tr('ลูกค้า', 'Buyer')}: {selectedDetailDocument.buyerName || '-'}
@@ -1770,24 +1770,26 @@ export default function BillingPage() {
                   {selectedDetailDocument.noteMessage ? (
                     <p className='mt-1 text-app-caption text-slate-600'>{tr('หมายเหตุ', 'Note')}: {selectedDetailDocument.noteMessage}</p>
                   ) : null}
-                  <div className='mt-2 space-y-2'>
+                  <div className='mt-2 rounded-xl bg-white/80 px-2'>
                     {selectedDetailDocument.lines.length === 0 ? (
-                      <p className='text-app-caption text-slate-500'>{tr('ยังไม่มีรายการสินค้า/บริการ', 'No items yet')}</p>
+                      <p className='py-2 text-app-caption text-slate-500'>{tr('ยังไม่มีรายการสินค้า/บริการ', 'No items yet')}</p>
                     ) : (
-                      selectedDetailDocument.lines.map((line, index) => (
-                        <div key={selectedDetailDocument.id + '-line-' + index} className='rounded-xl border border-slate-200 bg-white px-3 py-2 text-app-caption'>
+                      <div className='divide-y divide-slate-200/90'>
+                        {selectedDetailDocument.lines.map((line, index) => (
+                        <div key={selectedDetailDocument.id + '-line-' + index} className='px-1 py-2 text-app-caption'>
                           <p className='font-semibold text-slate-900'>{line.description || 'รายการสินค้า/บริการ'}</p>
                           <p className='text-slate-600'>
                             จำนวน {line.qty} x {formatCurrency(line.unitPrice)} = {formatCurrency(line.qty * line.unitPrice)} {selectedDetailDocument.currency}
                           </p>
                         </div>
-                      ))
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className='mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-4'>
+              <div className='mt-3 space-y-2 rounded-2xl bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.08)]'>
                 <h3 className='text-app-body font-semibold text-slate-900'>ส่งอีเมลถึงลูกค้า</h3>
                 <Input type='email' value={detailEmailTo} onChange={(event) => setDetailEmailTo(event.target.value)} placeholder='อีเมลลูกค้า / ผู้รับเอกสาร' />
                 <Input type='datetime-local' value={detailScheduleAt} onChange={(event) => setDetailScheduleAt(event.target.value)} />
@@ -1820,14 +1822,14 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              <div className='mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-4'>
+              <div className='mt-3 space-y-2 rounded-2xl bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.08)]'>
                 <h3 className='text-app-body font-semibold text-slate-900'>คิวส่งอีเมลของรายการนี้ ({selectedDetailQueue.length})</h3>
                 {selectedDetailQueue.length === 0 ? (
                   <p className='text-app-caption text-slate-500'>ยังไม่มีคิวส่งอีเมล</p>
                 ) : (
                   <div className='space-y-2'>
                     {selectedDetailQueue.map((queue) => (
-                        <div key={queue.id} className='rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-app-caption'>
+                        <div key={queue.id} className='rounded-xl bg-slate-50 px-3 py-2 text-app-caption'>
                           <div className='flex items-center justify-between gap-2'>
                             <p className='font-semibold text-slate-900'>{queue.toEmail}</p>
                             <span className={'rounded-full px-2 py-1 font-semibold ' + getQueueStatusBadgeClass(queue.status)}>
