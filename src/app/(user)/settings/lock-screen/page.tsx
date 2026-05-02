@@ -125,7 +125,7 @@ export default function LockScreenSettingsPage() {
   };
 
   return (
-    <section className="space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]">
+    <section className="space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+18px)]">
       <div className="flex items-center gap-2">
         <Link
           href="/settings"

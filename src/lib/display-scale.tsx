@@ -14,12 +14,12 @@ type DisplayScaleContextValue = {
 const DisplayScaleContext = createContext<DisplayScaleContextValue | null>(null);
 
 function getInitialMode(): DisplayScaleMode {
-  if (typeof window === "undefined") return "comfort";
+  if (typeof window === "undefined") return "standard";
   const saved = window.localStorage.getItem(DISPLAY_SCALE_STORAGE_KEY);
   if (saved === "standard" || saved === "comfort" || saved === "compact") {
     return saved;
   }
-  return "comfort";
+  return "standard";
 }
 
 export function DisplayScaleProvider(props: { children: ReactNode }) {
