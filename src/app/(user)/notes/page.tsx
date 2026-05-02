@@ -247,6 +247,7 @@ export default function NotesPage() {
  const [selectedDateKey, setSelectedDateKey] = useState(() => dateKeyFromIso(new Date().toISOString()) ?? '');
 
  const [editorOpen, setEditorOpen] = useState(false);
+ const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
  const [editingId, setEditingId] = useState<string | null>(null);
  const [draftTitle, setDraftTitle] = useState('');
  const [draftContent, setDraftContent] = useState('');
@@ -302,6 +303,7 @@ useEffect(() => {
  if (editorOpen) return;
  setOcrPreviewOpen(false);
  setDateTimePickerState(null);
+ setScheduleEditorOpen(false);
  }, [editorOpen]);
 
  const loadNotes = useCallback(
@@ -708,6 +710,7 @@ useEffect(() => {
  setOcrPreviewOpen(false);
  setOcrPreviewText('');
  setDateTimePickerState(null);
+ setScheduleEditorOpen(false);
  setEditorOpen(true);
  }
 
@@ -723,6 +726,7 @@ useEffect(() => {
  setOcrPreviewOpen(false);
  setOcrPreviewText('');
  setDateTimePickerState(null);
+ setScheduleEditorOpen(false);
  setEditorOpen(true);
  }
 
@@ -1708,8 +1712,8 @@ async function downloadPdf(note: NoteItem) {
  <span className='mt-1 block truncate font-semibold text-slate-800'>{deleteTarget.title}</span>
  </p>
  <div className='mt-4 grid grid-cols-2 gap-2'>
- <Button type='button' variant='secondary' className='w-full' onClick={() => setDeleteTarget(null)} disabled={deleting}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
- <Button type='button' className='w-full bg-rose-600 hover:bg-rose-700' onClick={() => void confirmDeleteNote()} disabled={deleting}>
+ <Button type='button' variant='secondary' className='h-11 w-full rounded-2xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' onClick={() => setDeleteTarget(null)} disabled={deleting}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
+ <Button type='button' className='h-11 w-full rounded-2xl bg-[linear-gradient(180deg,#ef4444,#dc2626)] text-white shadow-[0_10px_22px_rgba(220,38,38,0.3)] hover:brightness-110' onClick={() => void confirmDeleteNote()} disabled={deleting}>
  {deleting ? (isTh ? 'กำลังลบ...' : 'Deleting...') : isTh ? 'ลบโน้ต' : 'Delete Note'}
  </Button>
  </div>
@@ -1725,113 +1729,149 @@ async function downloadPdf(note: NoteItem) {
  <button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
  </div>
 <div className='space-y-3'>
- <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} className='h-10 rounded-xl' />
- <div className='space-y-2 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5'>
- <div className='flex flex-wrap items-center justify-between gap-2'>
- <p className='form-label text-slate-600'>{isTh ? 'เนื้อหาแบบกระดาษ A4' : 'A4 paper content'}</p>
- <div className='flex flex-wrap items-center justify-end gap-1.5'>
- <div className='inline-flex items-center rounded-xl border border-slate-200 bg-white p-1'>
- {ocrLanguageOptions.map((option) => (
- <button
- key={option.code}
- type='button'
- className={
- 'rounded-lg px-2 py-1 text-app-micro font-semibold transition ' +
- (ocrLanguage === option.code
- ? 'bg-indigo-100 text-indigo-700'
- : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700')
- }
- onClick={() => setOcrLanguage(option.code)}
- disabled={ocrRunning || saving}
- >
- {option.label}
- </button>
- ))}
- </div>
- <input
- ref={imageOcrInputRef}
- type='file'
- accept='image/*'
- capture='environment'
- className='hidden'
- onChange={handleImageOcrInput}
- />
- <Button
- type='button'
- variant='secondary'
- size='sm'
- className='h-9 rounded-full border border-[rgba(138,174,255,0.45)] bg-[rgba(24,45,105,0.84)] px-3 text-app-micro font-semibold text-slate-100'
- onClick={triggerImageOcrPicker}
- disabled={ocrRunning || ocrTranslateRunning || saving}
- >
- {ocrRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <ImageUp className='mr-1 h-3.5 w-3.5' />}
- {isTh ? 'พิมพ์ข้อความผ่าน OCR' : 'OCR text scan'}
- </Button>
- <Button
- type='button'
- variant='secondary'
- size='sm'
- className='h-9 rounded-full border border-[rgba(138,174,255,0.45)] bg-[rgba(24,45,105,0.84)] px-3 text-app-micro font-semibold text-slate-100'
- onClick={() => void translateDraftContent()}
- disabled={ocrRunning || ocrTranslateRunning || saving}
- >
- {ocrTranslateRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <Languages className='mr-1 h-3.5 w-3.5' />}
- {isTh ? 'แปลภาษา' : 'Translate'}
- </Button>
- </div>
- </div>
-<textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-app-body text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
- {ocrRunning ? (
- <div className='rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2'>
- <p className='flex items-center gap-1 text-app-micro font-semibold text-sky-700'>
- <Sparkles className='h-3.5 w-3.5' />
- {isTh ? 'กำลังสแกนข้อความจากภาพ...' : 'Extracting text from image...'}
- </p>
- <div className='mt-2 h-1.5 w-full rounded-full bg-sky-100'>
- <div className='h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 transition-all duration-300' style={{ width: Math.max(6, Math.round(ocrProgress * 100)) + '%' }} />
- </div>
- </div>
- ) : null}
- {ocrTranslateRunning ? (
- <div className='rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2'>
- <p className='flex items-center gap-1 text-app-micro font-semibold text-violet-700'>
- <Languages className='h-3.5 w-3.5' />
- {isTh ? 'กำลังแปลงภาษาในเนื้อหา...' : 'Translating content...'}
- </p>
- </div>
- ) : null}
- <p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ พร้อมพรีวิว และปุ่มแปลงภาษาในเนื้อหาโน้ต' : 'Supports Thai/English OCR with preview and in-note translation.'}</p>
- </div>
-<div className='rounded-2xl border border-slate-200/90 bg-white/90 p-3'>
-<div className='mb-2'>
-<label className='form-label text-slate-700'>{isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional schedules'}</label>
-<p className='text-app-micro leading-5 text-slate-500'>
-{isTh ? 'ซ่อนฟอร์มไว้ก่อน กดปุ่มเพื่อเปิด Popup ตั้งค่าเวลาแจ้งเตือนหรือวันเวลานัดหมาย' : 'Hidden by default. Use buttons to open popups for reminder/meeting date and time.'}
+{scheduleEditorOpen ? (
+<div className='space-y-3'>
+<div className='rounded-2xl border border-slate-200 bg-slate-50/90 p-3'>
+<div className='flex items-start justify-between gap-2'>
+<div>
+<label className='form-label text-slate-800'>{isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional schedules'}</label>
+<p className='text-app-micro leading-5 text-slate-600'>
+{isTh ? 'กำหนดเวลาแจ้งเตือนหรือวันเวลานัดหมายผ่าน Popup ได้จากปุ่มด้านล่าง' : 'Set reminder or meeting schedule by opening the popup from cards below.'}
 </p>
 </div>
-<div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+<Button type='button' variant='secondary' size='sm' className='h-8 rounded-lg px-2.5' onClick={() => setScheduleEditorOpen(false)}>
+<ChevronLeft className='mr-1 h-3.5 w-3.5' />
+{isTh ? 'กลับ' : 'Back'}
+</Button>
+</div>
+<div className='mt-3 flex items-stretch gap-2'>
 <button
 type='button'
 onClick={() => openDateTimePicker('reminder')}
-className='rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-2.5 text-left transition hover:border-sky-300 hover:bg-white'
+className='min-w-0 flex-1 rounded-xl border border-sky-300 bg-[#dbeafe] px-3 py-2.5 text-left transition hover:border-sky-400 hover:bg-[#cfe8ff]'
 >
-<p className='text-app-caption font-semibold text-sky-800'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</p>
-<p className='mt-1 line-clamp-1 text-app-body font-semibold text-slate-800'>{formatDateTimeDraftLabel(draftReminder, isTh)}</p>
+<p className='line-clamp-1 text-app-caption font-semibold text-sky-900'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</p>
+<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftReminder ? 'text-slate-900' : 'text-slate-600')}>
+{formatDateTimeDraftLabel(draftReminder, isTh)}
+</p>
 </button>
 <button
 type='button'
 onClick={() => openDateTimePicker('meeting')}
-className='rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-2.5 text-left transition hover:border-violet-300 hover:bg-white'
+className='min-w-0 flex-1 rounded-xl border border-violet-300 bg-[#ede9fe] px-3 py-2.5 text-left transition hover:border-violet-400 hover:bg-[#e3dcff]'
 >
-<p className='text-app-caption font-semibold text-violet-800'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</p>
-<p className='mt-1 line-clamp-1 text-app-body font-semibold text-slate-800'>{formatDateTimeDraftLabel(draftMeeting, isTh)}</p>
+<p className='line-clamp-1 text-app-caption font-semibold text-violet-900'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</p>
+<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftMeeting ? 'text-slate-900' : 'text-slate-600')}>
+{formatDateTimeDraftLabel(draftMeeting, isTh)}
+</p>
 </button>
 </div>
 </div>
- </div>
- <div className='mt-3 grid grid-cols-2 gap-2'>
- <Button type='button' variant='secondary' className='h-10 w-full' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
- <Button type='button' className='h-10 w-full' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
+<Button type='button' className='h-10 w-full rounded-2xl bg-[linear-gradient(180deg,#1f5fff,#1a47c7)] text-white hover:brightness-110' onClick={() => setScheduleEditorOpen(false)}>
+{isTh ? 'กลับไปหน้าฟอร์ม' : 'Back to form'}
+</Button>
+</div>
+) : (
+<>
+<Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} className='h-11 rounded-2xl' />
+<div className='space-y-2 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5'>
+<div className='flex flex-wrap items-center justify-between gap-2'>
+<p className='form-label text-slate-600'>{isTh ? 'เนื้อหาแบบกระดาษ A4' : 'A4 paper content'}</p>
+<div className='flex flex-wrap items-center justify-end gap-1.5'>
+<div className='inline-flex items-center rounded-xl border border-slate-200 bg-white p-1'>
+{ocrLanguageOptions.map((option) => (
+<button
+key={option.code}
+type='button'
+className={
+'rounded-lg px-2 py-1 text-app-micro font-semibold transition ' +
+(ocrLanguage === option.code
+? 'bg-indigo-100 text-indigo-700'
+: 'text-slate-500 hover:bg-slate-100 hover:text-slate-700')
+}
+onClick={() => setOcrLanguage(option.code)}
+disabled={ocrRunning || saving}
+>
+{option.label}
+</button>
+))}
+</div>
+<input
+ref={imageOcrInputRef}
+type='file'
+accept='image/*'
+capture='environment'
+className='hidden'
+onChange={handleImageOcrInput}
+/>
+<Button
+type='button'
+variant='secondary'
+size='sm'
+className='h-9 rounded-full border border-sky-300/70 bg-[linear-gradient(180deg,rgba(20,58,140,0.96),rgba(17,42,112,0.96))] px-3 text-app-micro font-semibold text-white hover:brightness-110'
+onClick={triggerImageOcrPicker}
+disabled={ocrRunning || ocrTranslateRunning || saving}
+>
+{ocrRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <ImageUp className='mr-1 h-3.5 w-3.5' />}
+{isTh ? 'พิมพ์ข้อความผ่าน OCR' : 'OCR text scan'}
+</Button>
+<Button
+type='button'
+variant='secondary'
+size='sm'
+className='h-9 rounded-full border border-violet-300/70 bg-[linear-gradient(180deg,rgba(66,39,156,0.94),rgba(52,31,127,0.94))] px-3 text-app-micro font-semibold text-white hover:brightness-110'
+onClick={() => void translateDraftContent()}
+disabled={ocrRunning || ocrTranslateRunning || saving}
+>
+{ocrTranslateRunning ? <Loader2 className='mr-1 h-3.5 w-3.5 animate-spin' /> : <Languages className='mr-1 h-3.5 w-3.5' />}
+{isTh ? 'แปลภาษา' : 'Translate'}
+</Button>
+</div>
+</div>
+<textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-app-body text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
+{ocrRunning ? (
+<div className='rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2'>
+<p className='flex items-center gap-1 text-app-micro font-semibold text-sky-700'>
+<Sparkles className='h-3.5 w-3.5' />
+{isTh ? 'กำลังสแกนข้อความจากภาพ...' : 'Extracting text from image...'}
+</p>
+<div className='mt-2 h-1.5 w-full rounded-full bg-sky-100'>
+<div className='h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-500 transition-all duration-300' style={{ width: Math.max(6, Math.round(ocrProgress * 100)) + '%' }} />
+</div>
+</div>
+) : null}
+{ocrTranslateRunning ? (
+<div className='rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2'>
+<p className='flex items-center gap-1 text-app-micro font-semibold text-violet-700'>
+<Languages className='h-3.5 w-3.5' />
+{isTh ? 'กำลังแปลงภาษาในเนื้อหา...' : 'Translating content...'}
+</p>
+</div>
+) : null}
+<p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'รองรับ OCR ภาษาไทย/อังกฤษ พร้อมพรีวิว และปุ่มแปลงภาษาในเนื้อหาโน้ต' : 'Supports Thai/English OCR with preview and in-note translation.'}</p>
+</div>
+<div className='rounded-2xl border border-slate-200 bg-white p-3'>
+<Button
+type='button'
+variant='secondary'
+className='h-11 w-full rounded-2xl border border-slate-300 bg-[linear-gradient(180deg,#f8fafc,#edf2ff)] font-semibold text-slate-800 hover:border-sky-300 hover:bg-white'
+onClick={() => setScheduleEditorOpen(true)}
+disabled={saving}
+>
+<Calendar className='mr-2 h-4 w-4 text-sky-700' />
+{isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional date/time'}
+</Button>
+<div className='mt-2 grid grid-cols-2 gap-2'>
+<p className='rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-app-micro font-semibold text-slate-700'>{isTh ? 'เตือน:' : 'Reminder:'} {formatDateTimeDraftLabel(draftReminder, isTh)}</p>
+<p className='rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-app-micro font-semibold text-slate-700'>{isTh ? 'นัดหมาย:' : 'Meeting:'} {formatDateTimeDraftLabel(draftMeeting, isTh)}</p>
+</div>
+</div>
+<div className='mt-3 grid grid-cols-2 gap-2'>
+<Button type='button' variant='secondary' className='h-11 w-full rounded-2xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
+<Button type='button' className='h-11 w-full rounded-2xl bg-[linear-gradient(180deg,#1f5fff,#1a47c7)] text-white shadow-[0_10px_22px_rgba(31,95,255,0.28)] hover:brightness-110' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
+</div>
+</>
+)}
  </div>
  </div>
  </div>
@@ -1939,28 +1979,28 @@ className='h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-app
 </div>
 {dateTimePickerState.step === 'date' ? (
 <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3'>
-<Button type='button' variant='secondary' className='w-full' onClick={() => setDateTimePickerState(null)}>
+<Button type='button' variant='secondary' className='h-10 w-full rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' onClick={() => setDateTimePickerState(null)}>
 {isTh ? 'ยกเลิก' : 'Cancel'}
 </Button>
-<Button type='button' variant='secondary' className='w-full' onClick={clearDateTimePickerValue}>
+<Button type='button' variant='secondary' className='h-10 w-full rounded-xl border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100' onClick={clearDateTimePickerValue}>
 {isTh ? 'ล้างวันเวลา' : 'Clear'}
 </Button>
-<Button type='button' className='w-full' onClick={() => moveDateTimePickerStep('time')}>
+<Button type='button' className='h-10 w-full rounded-xl bg-[linear-gradient(180deg,#1f5fff,#1a47c7)] text-white hover:brightness-110' onClick={() => moveDateTimePickerStep('time')}>
 {isTh ? 'ถัดไป: เลือกเวลา' : 'Next: pick time'}
 </Button>
 </div>
 ) : (
 <div className='mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4'>
-<Button type='button' variant='secondary' className='w-full' onClick={() => moveDateTimePickerStep('date')}>
+<Button type='button' variant='secondary' className='h-10 w-full rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' onClick={() => moveDateTimePickerStep('date')}>
 {isTh ? 'ย้อนกลับ' : 'Back'}
 </Button>
-<Button type='button' variant='secondary' className='w-full' onClick={setDateTimePickerNow}>
+<Button type='button' variant='secondary' className='h-10 w-full rounded-xl border border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100' onClick={setDateTimePickerNow}>
 {isTh ? 'ตอนนี้' : 'Now'}
 </Button>
-<Button type='button' variant='secondary' className='w-full' onClick={clearDateTimePickerValue}>
+<Button type='button' variant='secondary' className='h-10 w-full rounded-xl border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100' onClick={clearDateTimePickerValue}>
 {isTh ? 'ล้างวันเวลา' : 'Clear'}
 </Button>
-<Button type='button' className='w-full' onClick={confirmDateTimePicker}>
+<Button type='button' className='h-10 w-full rounded-xl bg-[linear-gradient(180deg,#1f5fff,#1a47c7)] text-white hover:brightness-110' onClick={confirmDateTimePicker}>
 {isTh ? 'ยืนยันวันเวลา' : 'Apply'}
 </Button>
 </div>
