@@ -192,7 +192,7 @@ export default function NotificationSettingsPage() {
         refreshedState === "granted"
           ? (isThai ? "เปิด Exact alarm แล้ว" : "Exact alarm enabled.")
           : (isThai ? "ยังไม่ได้เปิด Exact alarm อาจทำให้แจ้งเตือนดีเลย์" : "Exact alarm is still disabled. Reminders may be delayed."),
-        refreshedState === "granted" ? "success" : "warning",
+        refreshedState === "granted" ? "success" : "error",
       );
     } catch {
       showToast(isThai ? "เปิดหน้าตั้งค่า Exact alarm ไม่สำเร็จ" : "Unable to open exact alarm settings.", "error");

@@ -426,7 +426,7 @@ useEffect(() => {
  isTh
  ? 'Android ตั้งค่าเตือนแบบตรงเวลา (Exact alarm) ยังไม่เปิด อาจทำให้แจ้งเตือนดีเลย์'
  : 'Exact alarm is disabled on Android. Scheduled reminders may be delayed.',
- 'warning',
+ 'error',
  );
  }
  }
