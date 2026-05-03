@@ -1016,7 +1016,8 @@ const method = editingId ? 'PATCH' : 'POST';
  setEditorOpen(false);
  setEditingId(null);
  await loadNotes(pagination.page, searchDebounced);
- if (viewMode === 'calendar') await loadCalendarNotes(searchDebounced);
+ // Always refresh calendar snapshot so native reminder sync can schedule immediately.
+ await loadCalendarNotes(searchDebounced);
  } catch {
  setSaving(false);
  setSaveOverlay(null);
@@ -1701,29 +1702,29 @@ async function downloadPdf(note: NoteItem) {
 ) : null}
 <p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'โฟกัสการเขียนแบบกระดาษ A4 เรียบง่าย ไม่แสดงเครื่องมือเสริมที่ไม่จำเป็น' : 'Clean A4 writing mode with non-essential tools hidden.'}</p>
 </div>
-<div className='rounded-2xl border border-sky-200/70 bg-[linear-gradient(180deg,rgba(239,247,255,0.95),rgba(233,243,255,0.95))] p-3'>
-<label className='form-label text-slate-700'>{isTh ? 'ตั้งวันที่ เวลา แจ้งเตือน (ไม่บังคับ)' : 'Reminder schedule (optional)'}</label>
-<p className='text-app-micro leading-5 text-slate-600'>
+<div className='rounded-2xl border border-sky-300 bg-[#dbeafe] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]'>
+<label className='form-label font-semibold text-[#0b2158]'>{isTh ? 'ตั้งวันที่ เวลา แจ้งเตือน (ไม่บังคับ)' : 'Reminder schedule (optional)'}</label>
+<p className='text-app-micro leading-5 text-[#1d3f86]'>
 {isTh ? 'ตั้งเวลาแจ้งเตือนและวันเวลานัดหมายได้จากปุ่มด้านล่าง' : 'Set reminder time and meeting date/time from the cards below.'}
 </p>
 <div className='mt-3 flex items-stretch gap-2'>
 <button
 type='button'
 onClick={() => openDateTimePicker('reminder')}
-className='min-w-0 flex-1 rounded-xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(168,219,255,0.95),rgba(141,206,255,0.96))] px-3 py-2.5 text-left transition hover:border-sky-200 hover:brightness-105'
+className='min-w-0 flex-1 rounded-xl border border-[#7ab8eb] bg-[linear-gradient(180deg,#9cd7ff,#7fc8ff)] px-3 py-2.5 text-left transition hover:border-[#5aa4df] hover:brightness-105'
 >
 <p className='line-clamp-1 text-app-caption font-semibold text-sky-950'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</p>
-<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftReminder ? 'text-slate-900' : 'text-slate-700')}>
+<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftReminder ? 'text-slate-900' : 'text-[#1d4f7f]')}>
 {formatDateTimeDraftLabel(draftReminder, isTh)}
 </p>
 </button>
 <button
 type='button'
 onClick={() => openDateTimePicker('meeting')}
-className='min-w-0 flex-1 rounded-xl border border-violet-300/80 bg-[linear-gradient(180deg,rgba(232,224,255,0.98),rgba(219,207,255,0.98))] px-3 py-2.5 text-left transition hover:border-violet-200 hover:brightness-105'
+className='min-w-0 flex-1 rounded-xl border border-[#b7a4ef] bg-[linear-gradient(180deg,#e6ddff,#d7c8ff)] px-3 py-2.5 text-left transition hover:border-[#9e85e6] hover:brightness-105'
 >
 <p className='line-clamp-1 text-app-caption font-semibold text-violet-950'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</p>
-<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftMeeting ? 'text-slate-900' : 'text-slate-700')}>
+<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftMeeting ? 'text-slate-900' : 'text-[#5a4b8e]')}>
 {formatDateTimeDraftLabel(draftMeeting, isTh)}
 </p>
 </button>
