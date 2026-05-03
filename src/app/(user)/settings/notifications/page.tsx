@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Bell, ChevronLeft } from "lucide-react";
 import { useHeadsUpNotifications } from "@/components/notifications/heads-up-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/i18n/provider";
+import { detectRuntimeCapabilities } from "@/lib/pwa-runtime";
 import {
   UPDATE_DETAILS_PATH,
   getReleaseUpdateDetail,
@@ -63,7 +64,9 @@ export default function NotificationSettingsPage() {
   } = useHeadsUpNotifications();
 
   const isThai = locale === "th";
+  const runtimeCapabilities = useMemo(() => detectRuntimeCapabilities(), []);
   const [pushTestLoading, setPushTestLoading] = useState(false);
+  const [exactAlarmLoading, setExactAlarmLoading] = useState(false);
 
   const permissionLabel =
     browserPermission === "unsupported"
@@ -160,6 +163,44 @@ export default function NotificationSettingsPage() {
     }
   }
 
+  async function handleExactAlarmSettings() {
+    if (!runtimeCapabilities.isCapacitorNative || !runtimeCapabilities.isAndroid) return;
+    if (exactAlarmLoading) return;
+
+    setExactAlarmLoading(true);
+    try {
+      const plugin = await import("@capacitor/local-notifications");
+      if (typeof plugin.LocalNotifications.checkExactNotificationSetting !== "function") {
+        showToast(isThai ? "อุปกรณ์ไม่รองรับการตั้งค่า Exact alarm" : "Exact alarm settings are not supported on this device.", "error");
+        return;
+      }
+
+      const current = await plugin.LocalNotifications.checkExactNotificationSetting();
+      const state = String(current.exact_alarm ?? "").toLowerCase();
+      if (state === "granted") {
+        showToast(isThai ? "เปิด Exact alarm อยู่แล้ว" : "Exact alarm is already enabled.", "success");
+        return;
+      }
+
+      if (typeof plugin.LocalNotifications.changeExactNotificationSetting === "function") {
+        await plugin.LocalNotifications.changeExactNotificationSetting();
+      }
+
+      const refreshed = await plugin.LocalNotifications.checkExactNotificationSetting();
+      const refreshedState = String(refreshed.exact_alarm ?? "").toLowerCase();
+      showToast(
+        refreshedState === "granted"
+          ? (isThai ? "เปิด Exact alarm แล้ว" : "Exact alarm enabled.")
+          : (isThai ? "ยังไม่ได้เปิด Exact alarm อาจทำให้แจ้งเตือนดีเลย์" : "Exact alarm is still disabled. Reminders may be delayed."),
+        refreshedState === "granted" ? "success" : "warning",
+      );
+    } catch {
+      showToast(isThai ? "เปิดหน้าตั้งค่า Exact alarm ไม่สำเร็จ" : "Unable to open exact alarm settings.", "error");
+    } finally {
+      setExactAlarmLoading(false);
+    }
+  }
+
   return (
     <section className="space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]">
       <div className="flex items-center gap-2">
@@ -212,6 +253,18 @@ export default function NotificationSettingsPage() {
           >
             {permissionActionLabel}
           </Button>
+          {runtimeCapabilities.isCapacitorNative && runtimeCapabilities.isAndroid ? (
+            <Button
+              className="mt-2 w-full"
+              variant="secondary"
+              onClick={() => void handleExactAlarmSettings()}
+              disabled={exactAlarmLoading}
+            >
+              {exactAlarmLoading
+                ? (isThai ? "กำลังเปิดหน้าตั้งค่า..." : "Opening settings...")
+                : (isThai ? "ตั้งค่าเตือนตรงเวลา (Exact alarm)" : "Configure exact alarm timing")}
+            </Button>
+          ) : null}
         </div>
       </Card>
 

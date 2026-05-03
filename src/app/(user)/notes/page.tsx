@@ -139,6 +139,7 @@ function notesCalendarCacheKey(q: string) {
 }
 
 const NATIVE_NOTE_REMINDER_STORAGE_KEY = 'pv_native_note_reminders_v1';
+const NATIVE_NOTE_EXACT_ALARM_NOTICE_KEY = 'pv_native_note_exact_alarm_notice_v1';
 const NATIVE_NOTE_REMINDER_MAX = 240;
 const NATIVE_NOTE_REMINDER_HORIZON_MS = 365 * 24 * 60 * 60 * 1000;
 
@@ -246,7 +247,6 @@ export default function NotesPage() {
  const [selectedDateKey, setSelectedDateKey] = useState(() => dateKeyFromIso(new Date().toISOString()) ?? '');
 
  const [editorOpen, setEditorOpen] = useState(false);
- const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
  const [editingId, setEditingId] = useState<string | null>(null);
  const [draftTitle, setDraftTitle] = useState('');
  const [draftContent, setDraftContent] = useState('');
@@ -300,7 +300,6 @@ useEffect(() => {
  if (editorOpen) return;
  setOcrPreviewOpen(false);
  setDateTimePickerState(null);
- setScheduleEditorOpen(false);
  }, [editorOpen]);
 
  const loadNotes = useCallback(
@@ -407,9 +406,34 @@ useEffect(() => {
  const plans = buildNativeReminderPlans(sourceNotes);
  try {
  const plugin = await import('@capacitor/local-notifications');
- const permission = await plugin.LocalNotifications.checkPermissions();
- const display = String(permission.display ?? '').toLowerCase();
+ let permission = await plugin.LocalNotifications.checkPermissions();
+ let display = String(permission.display ?? '').toLowerCase();
+ if (display === 'prompt' || display === 'prompt-with-rationale' || display === 'default') {
+ permission = await plugin.LocalNotifications.requestPermissions();
+ display = String(permission.display ?? '').toLowerCase();
+ }
  if (display !== 'granted') return;
+
+ if (runtimeCapabilities.isAndroid && typeof plugin.LocalNotifications.checkExactNotificationSetting === 'function') {
+ try {
+ const exactPermission = await plugin.LocalNotifications.checkExactNotificationSetting();
+ const exactState = String(exactPermission.exact_alarm ?? '').toLowerCase();
+ if (exactState && exactState !== 'granted') {
+ const seen = window.localStorage.getItem(NATIVE_NOTE_EXACT_ALARM_NOTICE_KEY);
+ if (seen !== '1') {
+ window.localStorage.setItem(NATIVE_NOTE_EXACT_ALARM_NOTICE_KEY, '1');
+ showToast(
+ isTh
+ ? 'Android ตั้งค่าเตือนแบบตรงเวลา (Exact alarm) ยังไม่เปิด อาจทำให้แจ้งเตือนดีเลย์'
+ : 'Exact alarm is disabled on Android. Scheduled reminders may be delayed.',
+ 'warning',
+ );
+ }
+ }
+ } catch {
+ // ignore exact-alarm probe failures
+ }
+ }
 
  const previousMap = readNativeReminderMap();
  const nextMap: Record<string, string> = {};
@@ -461,7 +485,7 @@ useEffect(() => {
  // ignore native scheduling failures
  }
  },
- [isNativeApp, isTh],
+ [isNativeApp, isTh, runtimeCapabilities.isAndroid, showToast],
  );
 
  useEffect(() => {
@@ -707,7 +731,6 @@ useEffect(() => {
  setOcrPreviewOpen(false);
  setOcrPreviewText('');
  setDateTimePickerState(null);
- setScheduleEditorOpen(false);
  setEditorOpen(true);
  }
 
@@ -723,7 +746,6 @@ useEffect(() => {
  setOcrPreviewOpen(false);
  setOcrPreviewText('');
  setDateTimePickerState(null);
- setScheduleEditorOpen(false);
  setEditorOpen(true);
  }
 
@@ -1646,54 +1668,11 @@ async function downloadPdf(note: NoteItem) {
  {editorOpen ? (
  <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 pt-[max(26px,env(safe-area-inset-top))] backdrop-blur-[2px]'>
 <div className='mx-auto my-8 w-full max-w-[620px] max-h-[calc(100dvh-88px)] overflow-y-auto animate-slide-up rounded-[30px] bg-white p-4 shadow-2xl sm:p-5'>
- <div className='mb-2 flex items-center justify-between'>
- <h2 className='text-app-h3 font-semibold text-slate-900'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
- <button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
- </div>
+<div className='mb-2 flex items-center justify-between'>
+<h2 className='text-app-h3 font-semibold text-slate-900'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
+<button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
+</div>
 <div className='space-y-3'>
-{scheduleEditorOpen ? (
-<div className='space-y-3'>
-<div className='rounded-2xl border border-sky-300/40 bg-[linear-gradient(180deg,rgba(20,41,105,0.94),rgba(17,30,83,0.96))] p-3'>
-<div className='flex items-start justify-between gap-2'>
-<div>
-<label className='form-label text-sky-100'>{isTh ? 'วันเวลาเพิ่มเติม (ไม่บังคับ)' : 'Optional schedules'}</label>
-<p className='text-app-micro leading-5 text-sky-200/90'>
-{isTh ? 'กำหนดเวลาแจ้งเตือนหรือวันเวลานัดหมายผ่าน Popup ได้จากปุ่มด้านล่าง' : 'Set reminder or meeting schedule by opening the popup from cards below.'}
-</p>
-</div>
-<Button type='button' variant='secondary' size='sm' className='h-8 rounded-lg border-sky-300/50 bg-[rgba(16,31,84,0.86)] px-2.5 text-sky-100 hover:bg-[rgba(26,47,117,0.95)]' onClick={() => setScheduleEditorOpen(false)}>
-<ChevronLeft className='mr-1 h-3.5 w-3.5' />
-{isTh ? 'กลับ' : 'Back'}
-</Button>
-</div>
-<div className='mt-3 flex items-stretch gap-2'>
-<button
-type='button'
-onClick={() => openDateTimePicker('reminder')}
-className='min-w-0 flex-1 rounded-xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(168,219,255,0.95),rgba(141,206,255,0.96))] px-3 py-2.5 text-left transition hover:border-sky-200 hover:brightness-105'
->
-<p className='line-clamp-1 text-app-caption font-semibold text-sky-950'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</p>
-<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftReminder ? 'text-slate-900' : 'text-slate-700')}>
-{formatDateTimeDraftLabel(draftReminder, isTh)}
-</p>
-</button>
-<button
-type='button'
-onClick={() => openDateTimePicker('meeting')}
-className='min-w-0 flex-1 rounded-xl border border-violet-300/80 bg-[linear-gradient(180deg,rgba(232,224,255,0.98),rgba(219,207,255,0.98))] px-3 py-2.5 text-left transition hover:border-violet-200 hover:brightness-105'
->
-<p className='line-clamp-1 text-app-caption font-semibold text-violet-950'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</p>
-<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftMeeting ? 'text-slate-900' : 'text-slate-700')}>
-{formatDateTimeDraftLabel(draftMeeting, isTh)}
-</p>
-</button>
-</div>
-</div>
-<Button type='button' className='h-10 w-full rounded-2xl bg-[linear-gradient(180deg,#2e6bff,#224ecb)] text-white hover:brightness-110' onClick={() => setScheduleEditorOpen(false)}>
-{isTh ? 'กลับไปหน้าฟอร์ม' : 'Back to form'}
-</Button>
-</div>
-) : (
 <>
 <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder={isTh ? 'ชื่อโน้ต' : 'Note title'} maxLength={140} className='h-11 rounded-2xl' />
 <div className='space-y-2 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-2.5'>
@@ -1722,12 +1701,39 @@ className='min-w-0 flex-1 rounded-xl border border-violet-300/80 bg-[linear-grad
 ) : null}
 <p className='text-app-micro leading-5 text-slate-500'>{isTh ? 'โฟกัสการเขียนแบบกระดาษ A4 เรียบง่าย ไม่แสดงเครื่องมือเสริมที่ไม่จำเป็น' : 'Clean A4 writing mode with non-essential tools hidden.'}</p>
 </div>
+<div className='rounded-2xl border border-sky-200/70 bg-[linear-gradient(180deg,rgba(239,247,255,0.95),rgba(233,243,255,0.95))] p-3'>
+<label className='form-label text-slate-700'>{isTh ? 'ตั้งวันที่ เวลา แจ้งเตือน (ไม่บังคับ)' : 'Reminder schedule (optional)'}</label>
+<p className='text-app-micro leading-5 text-slate-600'>
+{isTh ? 'ตั้งเวลาแจ้งเตือนและวันเวลานัดหมายได้จากปุ่มด้านล่าง' : 'Set reminder time and meeting date/time from the cards below.'}
+</p>
+<div className='mt-3 flex items-stretch gap-2'>
+<button
+type='button'
+onClick={() => openDateTimePicker('reminder')}
+className='min-w-0 flex-1 rounded-xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(168,219,255,0.95),rgba(141,206,255,0.96))] px-3 py-2.5 text-left transition hover:border-sky-200 hover:brightness-105'
+>
+<p className='line-clamp-1 text-app-caption font-semibold text-sky-950'>{isTh ? 'เวลาแจ้งเตือน (ไม่บังคับ)' : 'Reminder time (optional)'}</p>
+<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftReminder ? 'text-slate-900' : 'text-slate-700')}>
+{formatDateTimeDraftLabel(draftReminder, isTh)}
+</p>
+</button>
+<button
+type='button'
+onClick={() => openDateTimePicker('meeting')}
+className='min-w-0 flex-1 rounded-xl border border-violet-300/80 bg-[linear-gradient(180deg,rgba(232,224,255,0.98),rgba(219,207,255,0.98))] px-3 py-2.5 text-left transition hover:border-violet-200 hover:brightness-105'
+>
+<p className='line-clamp-1 text-app-caption font-semibold text-violet-950'>{isTh ? 'วันเวลานัดหมาย (ไม่บังคับ)' : 'Meeting date/time (optional)'}</p>
+<p className={'mt-1 line-clamp-1 text-app-body font-semibold ' + (draftMeeting ? 'text-slate-900' : 'text-slate-700')}>
+{formatDateTimeDraftLabel(draftMeeting, isTh)}
+</p>
+</button>
+</div>
+</div>
 <div className='mt-3 grid grid-cols-2 gap-2'>
 <Button type='button' variant='secondary' className='h-11 w-full rounded-2xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
 <Button type='button' className='h-11 w-full rounded-2xl bg-[linear-gradient(180deg,#1f5fff,#1a47c7)] text-white shadow-[0_10px_22px_rgba(31,95,255,0.28)] hover:brightness-110' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
 </div>
 </>
-)}
  </div>
  </div>
  </div>

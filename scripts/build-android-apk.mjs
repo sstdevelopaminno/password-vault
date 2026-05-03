@@ -87,12 +87,46 @@ function findAndroidSdkRoot() {
   return candidates.find(Boolean) || "";
 }
 
+function resolveNpmCommand() {
+  if (process.platform !== "win32") return "npm";
+  const candidates = [
+    process.env.NPM_CMD_PATH ? String(process.env.NPM_CMD_PATH) : "",
+    "C:\\Progra~1\\nodejs\\npm.cmd",
+    "C:\\Program Files\\nodejs\\npm.cmd",
+    "C:\\Program Files (x86)\\nodejs\\npm.cmd",
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const normalized = toFsPath(candidate);
+    if (existsSync(normalized)) return normalized;
+  }
+
+  return "npm.cmd";
+}
+
 function runStep(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    stdio: "inherit",
-    shell: process.platform === "win32",
-    ...options,
-  });
+  const isWindowsCmdScript =
+    process.platform === "win32" &&
+    (String(command).toLowerCase().endsWith(".cmd") || String(command).toLowerCase().endsWith(".bat"));
+  const result = isWindowsCmdScript
+    ? spawnSync(
+        "C:\\Windows\\System32\\cmd.exe",
+        [
+          "/d",
+          "/c",
+          ((command.includes(" ") ? `"${command}"` : command) + " " + args.map((arg) => String(arg)).join(" ")).trim(),
+        ],
+        {
+          stdio: "inherit",
+          shell: false,
+          ...options,
+        },
+      )
+    : spawnSync(command, args, {
+        stdio: "inherit",
+        shell: false,
+        ...options,
+      });
   if (typeof result.status === "number" && result.status !== 0) {
     process.exit(result.status);
   }
@@ -120,6 +154,13 @@ function loadLocalEnvFile() {
     }
     process.env[key] = value;
   }
+}
+
+function isPlaceholderWebShell() {
+  const indexPath = path.join(projectRoot, "www", "index.html");
+  if (!existsSync(indexPath)) return false;
+  const content = readFileSync(indexPath, "utf8");
+  return content.includes("Capacitor shell placeholder");
 }
 
 function findBuildToolsExecutable(androidSdkRoot, executableName) {
@@ -186,6 +227,15 @@ function getAndroidVersionFromPackage() {
 }
 
 loadLocalEnvFile();
+const capacitorServerUrl = String(process.env.CAPACITOR_SERVER_URL ?? "").trim();
+if (capacitorServerUrl) {
+  console.log("CAPACITOR_SERVER_URL is set. APK will load runtime from remote URL:", capacitorServerUrl);
+} else if (isPlaceholderWebShell()) {
+  console.error("CAPACITOR_SERVER_URL is empty but www/index.html is still a placeholder shell.");
+  console.error("Provide CAPACITOR_SERVER_URL or build/copy real web assets into ./www before building APK.");
+  process.exit(1);
+}
+
 const javaHome = findJavaHome();
 if (!javaHome) {
   console.error("JDK 21 not found. Install JDK 21 or place it under tools/jdk21.");
@@ -199,7 +249,7 @@ if (!androidSdkRoot) {
 }
 
 const javaBin = path.join(javaHome, "bin");
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const npmCommand = resolveNpmCommand();
 const gradleCommand = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
 const gradleUserHome = process.env.GRADLE_USER_HOME
   ? path.resolve(projectRoot, process.env.GRADLE_USER_HOME)
@@ -220,7 +270,7 @@ const env = {
   USERPROFILE: androidUserHome,
   HOME: androidUserHome,
   GRADLE_USER_HOME: gradleUserHome,
-  PATH: `${javaBin}${path.delimiter}${process.env.PATH ?? ""}`,
+  PATH: `${javaBin}${path.delimiter}${path.dirname(npmCommand)}${path.delimiter}${process.env.PATH ?? ""}`,
 };
 
 console.log(`Using JAVA_HOME=${javaHome}`);

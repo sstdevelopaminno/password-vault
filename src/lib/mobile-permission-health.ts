@@ -42,19 +42,36 @@ async function queryWebPermission(name: 'camera' | 'notifications'): Promise<Mob
   }
 }
 
+async function queryNativeNotificationPermission() {
+  try {
+    const plugin = await import('@capacitor/local-notifications');
+    const permission = await plugin.LocalNotifications.checkPermissions();
+    const display = String(permission.display ?? '').toLowerCase();
+    if (display === 'granted') return 'granted' as const;
+    if (display === 'denied') return 'denied' as const;
+    if (display === 'prompt' || display === 'prompt-with-rationale' || display === 'default') return 'prompt' as const;
+    return 'unknown' as const;
+  } catch {
+    return 'unavailable' as const;
+  }
+}
+
 export async function readMobilePermissionHealthReport(options?: {
   requestNativeCameraPermission?: boolean;
 }): Promise<MobilePermissionHealthReport> {
   const runtime = detectRuntimeCapabilities();
 
-  const notification: MobilePermissionState =
-    typeof Notification === 'undefined'
-      ? 'unavailable'
-      : Notification.permission === 'granted'
-        ? 'granted'
-        : Notification.permission === 'denied'
-          ? 'denied'
-          : 'prompt';
+  const notification: MobilePermissionState = runtime.isCapacitorNative
+    ? await queryNativeNotificationPermission()
+    : (
+      typeof Notification === 'undefined'
+        ? 'unavailable'
+        : Notification.permission === 'granted'
+          ? 'granted'
+          : Notification.permission === 'denied'
+            ? 'denied'
+            : 'prompt'
+    );
 
   let camera: MobilePermissionState = await queryWebPermission('camera');
   if (runtime.isCapacitorNative && runtime.isAndroid && options?.requestNativeCameraPermission) {
