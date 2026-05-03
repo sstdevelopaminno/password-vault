@@ -1668,7 +1668,7 @@ async function downloadPdf(note: NoteItem) {
 
  {editorOpen ? (
  <div className='fixed inset-0 z-[75] overflow-y-auto bg-slate-950/45 p-3 pt-[max(26px,env(safe-area-inset-top))] backdrop-blur-[2px]'>
-<div className='mx-auto my-8 w-full max-w-[620px] max-h-[calc(100dvh-88px)] overflow-y-auto animate-slide-up rounded-[30px] bg-white p-4 shadow-2xl sm:p-5'>
+<div className='mx-auto my-8 w-full max-w-[620px] max-h-[calc(100dvh-104px)] overflow-y-auto animate-slide-up rounded-[30px] bg-white p-4 shadow-2xl sm:p-5'>
 <div className='mb-2 flex items-center justify-between'>
 <h2 className='text-app-h3 font-semibold text-slate-900'>{editingId ? (isTh ? 'แก้ไขโน้ต' : 'Edit Note') : isTh ? 'สร้างโน้ตใหม่' : 'Create Note'}</h2>
 <button type='button' onClick={() => setEditorOpen(false)} disabled={saving} className='rounded-full p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'><X className='h-5 w-5' /></button>
@@ -1680,7 +1680,7 @@ async function downloadPdf(note: NoteItem) {
 <div className='flex items-center justify-between gap-2'>
 <p className='form-label text-slate-600'>{isTh ? 'เนื้อหาแบบกระดาษ A4' : 'A4 paper content'}</p>
 </div>
-<textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='min-h-[280px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-app-body text-slate-800 outline-none ring-0 focus:border-[var(--border-strong)]' />
+<textarea value={draftContent} onChange={(e) => setDraftContent(e.target.value)} placeholder={isTh ? 'ข้อความโน้ต (กระดาษ A4)' : 'Note content (A4 paper)'} className='h-[34dvh] min-h-[220px] max-h-[420px] w-full resize-y rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-3 text-app-body leading-7 text-slate-800 outline-none ring-0 placeholder:text-slate-400 focus:border-[var(--border-strong)]' />
 {ocrRunning ? (
 <div className='rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2'>
 <p className='flex items-center gap-1 text-app-micro font-semibold text-sky-700'>
@@ -1731,8 +1731,8 @@ className='min-w-0 flex-1 rounded-xl border border-[#b7a4ef] bg-[linear-gradient
 </div>
 </div>
 <div className='mt-3 grid grid-cols-2 gap-2'>
-<Button type='button' variant='secondary' className='h-11 w-full rounded-2xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
-<Button type='button' className='h-11 w-full rounded-2xl bg-[linear-gradient(180deg,#1f5fff,#1a47c7)] text-white shadow-[0_10px_22px_rgba(31,95,255,0.28)] hover:brightness-110' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
+<Button type='button' variant='secondary' className='h-12 w-full rounded-2xl border border-slate-400 bg-slate-100 text-[15px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] hover:bg-slate-200' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
+<Button type='button' className='h-12 w-full rounded-2xl bg-[linear-gradient(180deg,#2b6dff,#1842bf)] text-[15px] font-semibold text-white shadow-[0_10px_22px_rgba(24,66,191,0.34)] hover:brightness-110' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
 </div>
 </>
  </div>

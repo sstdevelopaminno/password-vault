@@ -61,6 +61,11 @@ type HomeCalendarNote = {
   updatedAt?: string;
 };
 
+type HomeCalendarDayPopup = {
+  dateKey: string;
+  notes: HomeCalendarNote[];
+};
+
 function dateKeyFromIso(raw: string | null | undefined) {
   if (!raw) return null;
   const date = new Date(raw);
@@ -147,6 +152,7 @@ export default function HomePage() {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarLoadError, setCalendarLoadError] = useState('');
   const [showReleaseBadge, setShowReleaseBadge] = useState(false);
+  const [calendarDayPopup, setCalendarDayPopup] = useState<HomeCalendarDayPopup | null>(null);
   const [calendarMonthCursor, setCalendarMonthCursor] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -215,8 +221,6 @@ export default function HomePage() {
     return normalized;
   }, [calendarNotes]);
 
-  const selectedDateNotes = useMemo(() => notesByDate.get(calendarSelectedDateKey) ?? [], [calendarSelectedDateKey, notesByDate]);
-
   const loadCalendarNotes = useCallback(async () => {
     setCalendarLoading(true);
     setCalendarLoadError('');
@@ -239,9 +243,21 @@ export default function HomePage() {
   }, [tr]);
 
   function openCalendarPopup() {
+    setCalendarDayPopup(null);
     setShowCalendarPopup(true);
     void loadCalendarNotes();
   }
+
+  const handleCalendarDateClick = useCallback(
+    (dateKey: string) => {
+      setCalendarSelectedDateKey(dateKey);
+      setCalendarDayPopup({
+        dateKey,
+        notes: notesByDate.get(dateKey) ?? [],
+      });
+    },
+    [notesByDate],
+  );
 
   const syncReleaseBadge = useCallback(() => {
     setShowReleaseBadge(shouldShowReleaseNotesBadge(appVersion));
@@ -603,7 +619,7 @@ export default function HomePage() {
                   <button
                     key={key}
                     type='button'
-                    onClick={() => setCalendarSelectedDateKey(key)}
+                    onClick={() => handleCalendarDateClick(key)}
                     className={
                       'relative h-11 rounded-xl border text-app-caption transition ' +
                       (active
@@ -622,28 +638,63 @@ export default function HomePage() {
               })}
             </div>
 
-            <div className='mt-3 rounded-2xl border border-[var(--border-soft)] bg-[rgba(10,24,71,0.65)] p-2.5'>
-              <p className='text-app-micro font-semibold text-slate-300'>
-                {tr('รายการจากโน้ตวันที่', 'Notes on')} {calendarSelectedDateKey || '-'}
-              </p>
-              {calendarLoading ? <p className='mt-1 text-app-caption text-slate-300'>{tr('กำลังโหลด...', 'Loading...')}</p> : null}
-              {!calendarLoading && calendarLoadError ? <p className='mt-1 text-app-caption text-rose-200'>{calendarLoadError}</p> : null}
-              {!calendarLoading && !calendarLoadError && selectedDateNotes.length === 0 ? (
-                <p className='mt-1 text-app-caption text-slate-300'>{tr('ไม่มีรายการนัด/เตือนในวันนี้', 'No note reminders on this date')}</p>
-              ) : null}
-              {!calendarLoading && !calendarLoadError && selectedDateNotes.length > 0 ? (
-                <ul className='mt-1.5 space-y-1'>
-                  {selectedDateNotes.slice(0, 4).map((note) => (
-                    <li key={note.id} className='line-clamp-1 text-app-caption text-slate-100'>
-                      • {note.title || tr('โน้ตไม่มีชื่อ', 'Untitled note')}
-                    </li>
+            {calendarLoading ? (
+              <p className='mt-3 text-app-caption text-slate-300'>{tr('กำลังโหลด...', 'Loading...')}</p>
+            ) : null}
+            {!calendarLoading && calendarLoadError ? (
+              <p className='mt-3 text-app-caption text-rose-200'>{calendarLoadError}</p>
+            ) : null}
+
+            <div className='mt-3 flex justify-end'>
+              <Button type='button' variant='secondary' className='h-10 rounded-xl px-4 text-app-caption' onClick={() => { setCalendarDayPopup(null); setShowCalendarPopup(false); }}>
+                {tr('ปิด', 'Close')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {calendarDayPopup ? (
+        <div className='fixed inset-0 z-[131] flex items-center justify-center bg-slate-950/58 p-3 backdrop-blur-[2px]'>
+          <div className='w-full max-w-[560px] animate-slide-up rounded-[22px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(23,55,120,0.72)_0%,rgba(9,20,70,0.96)_72%)] p-4 shadow-[0_24px_60px_rgba(4,10,38,0.72)]'>
+            <div className='flex items-start justify-between gap-2'>
+              <div>
+                <p className='text-app-caption font-semibold uppercase tracking-[0.11em] text-slate-300'>{tr('รายการวันที่เลือก', 'Selected date notes')}</p>
+                <h3 className='mt-1 text-app-h3 font-semibold text-slate-100'>{calendarDayPopup.dateKey}</h3>
+              </div>
+              <button
+                type='button'
+                onClick={() => setCalendarDayPopup(null)}
+                className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'
+                aria-label={tr('ปิดรายการวันที่เลือก', 'Close selected date notes')}
+              >
+                <X className='h-4 w-4' />
+              </button>
+            </div>
+
+            <p className='mt-1 text-app-caption text-slate-300'>
+              {tr('ทั้งหมด', 'Total')} {calendarDayPopup.notes.length} {tr('รายการ', 'item(s)')}
+            </p>
+
+            <div className='mt-3 max-h-[52dvh] overflow-y-auto pr-1'>
+              {calendarDayPopup.notes.length === 0 ? (
+                <div className='rounded-2xl border border-[var(--border-soft)] bg-[rgba(10,24,71,0.6)] px-3 py-3'>
+                  <p className='text-app-caption text-slate-300'>{tr('ไม่มีรายการนัด/เตือนในวันนี้', 'No note reminders on this date')}</p>
+                </div>
+              ) : (
+                <div className='space-y-2'>
+                  {calendarDayPopup.notes.map((note, index) => (
+                    <div key={note.id} className='rounded-2xl border border-[rgba(129,170,255,0.42)] bg-[rgba(16,36,95,0.66)] px-3 py-2.5'>
+                      <p className='line-clamp-1 text-app-body font-semibold text-slate-100'>{index + 1}. {note.title || tr('โน้ตไม่มีชื่อ', 'Untitled note')}</p>
+                      <p className='mt-1 line-clamp-2 text-app-caption text-slate-300'>{note.content?.trim() ? note.content : tr('แตะเมนูโน้ตเพื่อดูรายละเอียดเต็ม', 'Open Notes menu for full detail')}</p>
+                    </div>
                   ))}
-                </ul>
-              ) : null}
+                </div>
+              )}
             </div>
 
             <div className='mt-3 flex justify-end'>
-              <Button type='button' variant='secondary' className='h-10 rounded-xl px-4 text-app-caption' onClick={() => setShowCalendarPopup(false)}>
+              <Button type='button' variant='secondary' className='h-10 rounded-xl px-4 text-app-caption' onClick={() => setCalendarDayPopup(null)}>
                 {tr('ปิด', 'Close')}
               </Button>
             </div>
@@ -666,3 +717,4 @@ export default function HomePage() {
     </section>
   );
 }
+
