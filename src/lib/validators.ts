@@ -133,6 +133,25 @@ export const billingEmailQueueCreateSchema = z.object({
  message: z.string().trim().max(1000).optional().or(z.literal('')),
 });
 
+export const packageCheckoutSchema = z.object({
+ planId: z.enum(['free_starter', 'free_pro_trial', 'lite', 'pro', 'business']),
+ cycle: z.enum(['monthly', 'yearly']).default('monthly'),
+ locale: z.enum(['th', 'en']).optional(),
+});
+
+export const packageSlipVerifySchema = z.object({
+ orderId: z.uuid(),
+ provider: z.string().trim().min(1).max(40).default('manual'),
+ slipImageUrl: z.string().url().optional().nullable(),
+ reference: z.string().trim().max(120).optional().nullable(),
+ amountThb: z.coerce.number().min(0).max(1_000_000).optional().nullable(),
+ receiverAccount: z.string().trim().max(40).optional().nullable(),
+ payerAccount: z.string().trim().max(40).optional().nullable(),
+ payerName: z.string().trim().max(120).optional().nullable(),
+ transferredAt: z.string().datetime({ offset: true }).optional().nullable(),
+ rawPayload: z.unknown().optional(),
+});
+
 export const supportTicketCreateSchema = z.object({
  category: z.enum(['general', 'account', 'security', 'team']).default('general'),
  priority: z.enum(['low', 'normal', 'high']).default('normal'),

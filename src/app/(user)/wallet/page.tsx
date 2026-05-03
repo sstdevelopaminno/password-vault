@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { ArrowDownCircle, ArrowUpCircle, BanknoteArrowUp, CircleDollarSign, CreditCard } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
@@ -12,7 +12,6 @@ const sampleTransactions = [
 
 export default function WalletPage() {
   const { locale, t } = useI18n();
-  const isThai = locale === 'th';
   const balance = 1280;
 
   return (
@@ -26,7 +25,7 @@ export default function WalletPage() {
         <span className='absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(120,215,255,0.32),transparent_70%)]' />
         <div className='relative z-10'>
           <p className='text-app-caption text-slate-300'>{t('packages.balanceLabel')}</p>
-          <p className='mt-1 text-[34px] font-semibold leading-none text-cyan-100'>฿{balance.toLocaleString()}</p>
+          <p className='mt-1 text-[34px] font-semibold leading-none text-cyan-100'>{t('packages.baht')} {balance.toLocaleString(locale === 'th' ? 'th-TH' : 'en-US')}</p>
           <div className='mt-3 grid grid-cols-2 gap-2'>
             <Button type='button' className='h-10 w-full rounded-xl text-app-caption'>
               <BanknoteArrowUp className='mr-1 h-4 w-4' />
@@ -54,7 +53,7 @@ export default function WalletPage() {
                   </div>
                   <p className={'inline-flex items-center gap-1 text-app-caption font-semibold ' + (incoming ? 'text-emerald-200' : 'text-rose-200')}>
                     {incoming ? <ArrowDownCircle className='h-3.5 w-3.5' /> : <ArrowUpCircle className='h-3.5 w-3.5' />}
-                    {(incoming ? '+' : '-') + '฿' + Math.abs(item.amount).toLocaleString()}
+                    {(incoming ? '+' : '-') + t('packages.baht') + ' ' + Math.abs(item.amount).toLocaleString(locale === 'th' ? 'th-TH' : 'en-US')}
                   </p>
                 </div>
               </article>
@@ -63,10 +62,11 @@ export default function WalletPage() {
         </div>
         <p className='mt-2 text-app-micro text-slate-300'>
           <CircleDollarSign className='mr-1 inline h-3.5 w-3.5 align-[-1px]' />
-          {isThai ? 'หน้ากระเป๋าเงินพร้อมเชื่อมต่อระบบชำระเงินในขั้นถัดไป' : 'Wallet screen is ready for payment gateway integration in the next step.'}
+          {t('packages.walletIntegrationHint')}
         </p>
       </section>
     </section>
   );
 }
+
 

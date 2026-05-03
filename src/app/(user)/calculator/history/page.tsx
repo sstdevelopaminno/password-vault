@@ -20,6 +20,42 @@ type PinPolicy = {
   delete_calculator_history?: boolean;
 };
 
+function formatNumericStringForDisplay(raw: string, locale: string) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return raw || '0.00';
+  const isWholeNumber = Number.isInteger(parsed);
+  return new Intl.NumberFormat(locale === 'th' ? 'th-TH' : 'en-US', {
+    minimumFractionDigits: isWholeNumber ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(parsed);
+}
+
+function formatExpressionForDisplay(raw: string, locale: string) {
+  if (!raw.trim()) return '0.00';
+  let output = '';
+  let i = 0;
+  while (i < raw.length) {
+    const ch = raw[i];
+    if (/[\d.]/.test(ch)) {
+      let token = ch;
+      i += 1;
+      while (i < raw.length && /[\d.]/.test(raw[i])) {
+        token += raw[i];
+        i += 1;
+      }
+      if (/^\d+(\.\d+)?$/.test(token)) {
+        output += formatNumericStringForDisplay(token, locale);
+      } else {
+        output += token;
+      }
+      continue;
+    }
+    output += ch;
+    i += 1;
+  }
+  return output || '0.00';
+}
+
 function readHistoryFromStorage() {
   if (typeof window === 'undefined') return [] as HistoryItem[];
   try {
@@ -159,7 +195,7 @@ export default function CalculatorHistoryPage() {
               }
             >
               <p className='line-clamp-1 font-mono text-app-caption font-semibold text-slate-100'>
-                {item.expression} = {item.result}
+                {formatExpressionForDisplay(item.expression, locale)} = {formatNumericStringForDisplay(item.result, locale)}
               </p>
               <p className='mt-1 text-[11px] text-slate-300'>
                 <History className='mr-1 inline h-3.5 w-3.5' />

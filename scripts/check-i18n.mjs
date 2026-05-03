@@ -7,6 +7,11 @@ const projectRoot = process.cwd();
 const messagesPath = path.join(projectRoot, "src", "i18n", "messages.ts");
 const scanRoot = path.join(projectRoot, "src");
 const scanExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".md"]);
+const packageUiFiles = [
+  "src/app/(user)/our-packages/page.tsx",
+  "src/app/(user)/package-check/page.tsx",
+  "src/app/(user)/wallet/page.tsx",
+];
 
 function flattenKeys(value, prefix = "") {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -98,6 +103,19 @@ function run() {
     failures.push(
       `Found possible encoding corruption in ${invalidTextFiles.length} file(s): ${invalidTextFiles.join(", ")}`,
     );
+  }
+
+  for (const relPath of packageUiFiles) {
+    const fullPath = path.join(projectRoot, relPath);
+    if (!fs.existsSync(fullPath)) continue;
+    const text = fs.readFileSync(fullPath, "utf8");
+
+    if (/[\u0E00-\u0E7F]/u.test(text)) {
+      failures.push(`Package UI file contains hardcoded Thai text. Use i18n keys instead: ${relPath}`);
+    }
+    if (!text.includes("t('packages.") && !text.includes('t("packages.')) {
+      failures.push(`Package UI file does not appear to use package i18n keys: ${relPath}`);
+    }
   }
 
   if (failures.length > 0) {

@@ -136,6 +136,42 @@ function formatResult(value: number) {
   return String(rounded);
 }
 
+function formatNumericStringForDisplay(raw: string, locale: string) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return raw || '0.00';
+  const isWholeNumber = Number.isInteger(parsed);
+  return new Intl.NumberFormat(locale === 'th' ? 'th-TH' : 'en-US', {
+    minimumFractionDigits: isWholeNumber ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(parsed);
+}
+
+function formatExpressionForDisplay(raw: string, locale: string) {
+  if (!raw.trim()) return '0.00';
+  let output = '';
+  let i = 0;
+  while (i < raw.length) {
+    const ch = raw[i];
+    if (/[\d.]/.test(ch)) {
+      let token = ch;
+      i += 1;
+      while (i < raw.length && /[\d.]/.test(raw[i])) {
+        token += raw[i];
+        i += 1;
+      }
+      if (/^\d+(\.\d+)?$/.test(token)) {
+        output += formatNumericStringForDisplay(token, locale);
+      } else {
+        output += token;
+      }
+      continue;
+    }
+    output += ch;
+    i += 1;
+  }
+  return output || '0.00';
+}
+
 function readHistoryFromStorage() {
   if (typeof window === 'undefined') return [] as HistoryItem[];
   try {
@@ -183,6 +219,8 @@ export default function CalculatorPage() {
   }, [searchParams]);
 
   const summaryLabel = useMemo(() => (isThai ? 'ผลลัพธ์ล่าสุด' : 'Latest result'), [isThai]);
+  const displayExpression = useMemo(() => formatExpressionForDisplay(expression || '0', locale), [expression, locale]);
+  const displayResult = useMemo(() => formatNumericStringForDisplay(result, locale), [locale, result]);
 
   const appendToken = useCallback((token: string) => {
     setError('');
@@ -287,7 +325,7 @@ export default function CalculatorPage() {
             </span>
             <div>
               <h1 className='text-app-h3 font-semibold text-slate-100'>{isThai ? 'เครื่องคิดเลข' : 'Calculator'}</h1>
-              <p className='text-app-caption text-slate-300'>{summaryLabel}: {result}</p>
+              <p className='text-app-caption text-slate-300'>{summaryLabel}: {displayResult}</p>
             </div>
           </div>
           <Button type='button' variant='secondary' size='sm' className='h-10 rounded-xl px-3 text-app-caption' onClick={clearAll}>
@@ -297,8 +335,8 @@ export default function CalculatorPage() {
         </div>
 
         <div className='rounded-2xl border border-[var(--border-soft)] bg-[rgba(13,25,68,0.82)] p-3.5'>
-          <p className='min-h-[34px] break-all text-right font-mono text-[18px] leading-tight text-slate-200'>{expression || '0'}</p>
-          <p className='mt-1 min-h-[44px] break-all text-right font-mono text-[34px] font-semibold leading-tight text-cyan-200'>{result}</p>
+          <p className='min-h-[34px] break-all text-right font-mono text-[18px] leading-tight text-slate-200'>{displayExpression}</p>
+          <p className='mt-1 min-h-[44px] break-all text-right font-mono text-[34px] font-semibold leading-tight text-cyan-200'>{displayResult}</p>
           {error ? <p className='mt-1 text-right text-app-caption text-rose-200'>{error}</p> : <div className='h-[22px]' />}
         </div>
 
@@ -351,8 +389,8 @@ export default function CalculatorPage() {
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-[3px]'>
           <div className='w-full max-w-[420px] rounded-[24px] border border-cyan-300/40 bg-[linear-gradient(165deg,rgba(18,39,98,0.98),rgba(20,31,76,0.98))] p-4 shadow-[0_24px_52px_rgba(8,22,66,0.55)]'>
             <p className='text-app-caption text-cyan-100'>{isThai ? 'ผลลัพธ์ล่าสุด' : 'Latest Result'}</p>
-            <p className='mt-2 break-all text-right font-mono text-[16px] text-slate-200'>{resultPopup.expression}</p>
-            <p className='mt-1 break-all text-right font-mono text-[34px] font-semibold text-cyan-100'>= {resultPopup.result}</p>
+            <p className='mt-2 break-all text-right font-mono text-[16px] text-slate-200'>{formatExpressionForDisplay(resultPopup.expression, locale)}</p>
+            <p className='mt-1 break-all text-right font-mono text-[34px] font-semibold text-cyan-100'>= {formatNumericStringForDisplay(resultPopup.result, locale)}</p>
             <div className='mt-4 flex justify-end'>
               <Button type='button' className='h-10 rounded-xl px-5' onClick={() => setResultPopup(null)}>
                 {isThai ? 'ปิด' : 'Close'}

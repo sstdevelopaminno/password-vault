@@ -2,11 +2,66 @@
 
 import Link from 'next/link';
 import { BadgeCheck, Boxes, CircleHelp, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n/provider';
 import { Button } from '@/components/ui/button';
 
+type CurrentPackagePayload = {
+  subscription: {
+    id: string;
+    status: 'active' | 'trialing' | 'expired' | 'canceled';
+    cycle: 'monthly' | 'yearly' | null;
+    startsAt: string;
+    endsAt: string | null;
+  };
+  plan: {
+    id: string;
+    name: string;
+    summary: string;
+    maxMembers: number;
+    storageGb: number;
+  };
+  usage: {
+    vaultItems: number;
+    notes: number;
+    filesGb: number;
+    lastUpdatedAt: string | null;
+  };
+};
+
 export default function PackageCheckPage() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const [payload, setPayload] = useState<CurrentPackagePayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadCurrentPackage() {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await fetch(`/api/packages/current?locale=${locale}`, { cache: 'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(typeof data.error === 'string' ? data.error : t('packages.loadFailed'));
+        }
+        if (!mounted) return;
+        setPayload(data as CurrentPackagePayload);
+      } catch (loadError) {
+        if (!mounted) return;
+        setError(loadError instanceof Error ? loadError.message : t('packages.loadFailed'));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    void loadCurrentPackage();
+    return () => {
+      mounted = false;
+    };
+  }, [locale, t]);
 
   return (
     <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.4rem)] animate-screen-in'>
@@ -15,6 +70,10 @@ export default function PackageCheckPage() {
         <h1 className='mt-1 text-app-h3 font-semibold text-slate-100'>{t('packages.checkTitle')}</h1>
       </header>
 
+      {error ? (
+        <p className='rounded-2xl border border-rose-300/50 bg-rose-400/10 px-3 py-2 text-app-caption text-rose-100'>{error}</p>
+      ) : null}
+
       <article className='relative overflow-hidden rounded-[22px] border border-[rgba(139,186,255,0.38)] bg-[linear-gradient(150deg,rgba(21,42,111,0.93),rgba(11,24,70,0.97))] p-4 shadow-[0_16px_34px_rgba(14,46,120,0.35)]'>
         <span className='absolute -right-10 -top-12 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(72,196,255,0.35),transparent_72%)]' />
         <div className='relative z-10 space-y-3'>
@@ -22,22 +81,55 @@ export default function PackageCheckPage() {
             <BadgeCheck className='h-3.5 w-3.5' />
             {t('packages.activeBadge')}
           </span>
-          <h2 className='text-2xl font-semibold text-slate-50'>{t('packages.activeName')}</h2>
-          <p className='text-app-caption leading-relaxed text-slate-200'>{t('packages.activeDesc')}</p>
+
+          <h2 className='text-2xl font-semibold text-slate-50'>{payload?.plan.name ?? t('packages.activeName')}</h2>
+          <p className='text-app-caption leading-relaxed text-slate-200'>{payload?.plan.summary ?? t('packages.activeDesc')}</p>
+
+          {payload?.subscription.status === 'trialing' ? (
+            <p className='text-app-micro text-cyan-100'>{t('packages.trialing')}</p>
+          ) : null}
+
+          {payload?.subscription.endsAt ? (
+            <p className='text-app-micro text-slate-200'>
+              {t('packages.activeUntil')}: {new Date(payload.subscription.endsAt).toLocaleDateString(locale === 'th' ? 'th-TH' : 'en-US')}
+            </p>
+          ) : null}
+
           <div className='grid grid-cols-3 gap-2'>
             <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
-              <p className='text-[10px] text-slate-300'>{t('packages.statWorkspace')}</p>
-              <p className='mt-1 text-app-body font-semibold text-slate-100'>{t('packages.statWorkspaceValue')}</p>
+              <p className='text-[10px] text-slate-300'>{t('packages.statMembers')}</p>
+              <p className='mt-1 text-app-body font-semibold text-slate-100'>{payload?.plan.maxMembers ?? 1}</p>
             </div>
             <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
-              <p className='text-[10px] text-slate-300'>{t('packages.statMembers')}</p>
-              <p className='mt-1 text-app-body font-semibold text-slate-100'>{t('packages.statMembersValue')}</p>
+              <p className='text-[10px] text-slate-300'>{t('packages.statVaultItems')}</p>
+              <p className='mt-1 text-app-body font-semibold text-slate-100'>{payload?.usage.vaultItems ?? 0}</p>
+            </div>
+            <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
+              <p className='text-[10px] text-slate-300'>{t('packages.statFiles')}</p>
+              <p className='mt-1 text-app-body font-semibold text-slate-100'>{(payload?.usage.filesGb ?? 0).toLocaleString(locale === 'th' ? 'th-TH' : 'en-US')} GB</p>
+            </div>
+          </div>
+
+          <div className='grid grid-cols-3 gap-2'>
+            <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
+              <p className='text-[10px] text-slate-300'>{t('packages.statNotes')}</p>
+              <p className='mt-1 text-app-body font-semibold text-slate-100'>{payload?.usage.notes ?? 0}</p>
             </div>
             <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
               <p className='text-[10px] text-slate-300'>{t('packages.statSupport')}</p>
               <p className='mt-1 text-app-body font-semibold text-slate-100'>{t('packages.statSupportValue')}</p>
             </div>
+            <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
+              <p className='text-[10px] text-slate-300'>{t('packages.usageUpdatedAt')}</p>
+              <p className='mt-1 text-app-body font-semibold text-slate-100'>
+                {payload?.usage.lastUpdatedAt
+                  ? new Date(payload.usage.lastUpdatedAt).toLocaleDateString(locale === 'th' ? 'th-TH' : 'en-US')
+                  : '-'}
+              </p>
+            </div>
           </div>
+
+          {loading ? <p className='text-app-caption text-slate-300'>{t('common.loading')}</p> : null}
         </div>
       </article>
 
@@ -64,4 +156,3 @@ export default function PackageCheckPage() {
     </section>
   );
 }
-
