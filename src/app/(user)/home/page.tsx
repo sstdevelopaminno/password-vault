@@ -151,8 +151,11 @@ export default function HomePage() {
   const [calendarNotes, setCalendarNotes] = useState<HomeCalendarNote[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarLoadError, setCalendarLoadError] = useState('');
+  const [calendarLoadedAt, setCalendarLoadedAt] = useState<number | null>(null);
   const [showReleaseBadge, setShowReleaseBadge] = useState(false);
   const [calendarDayPopup, setCalendarDayPopup] = useState<HomeCalendarDayPopup | null>(null);
+  const [pendingCalendarNotePin, setPendingCalendarNotePin] = useState<HomeCalendarNote | null>(null);
+  const [calendarNoteDetail, setCalendarNoteDetail] = useState<HomeCalendarNote | null>(null);
   const [calendarMonthCursor, setCalendarMonthCursor] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -234,6 +237,7 @@ export default function HomePage() {
         return;
       }
       setCalendarNotes(Array.isArray(body.notes) ? body.notes : []);
+      setCalendarLoadedAt(Date.now());
     } catch {
       setCalendarLoadError(tr('โหลดปฏิทินไม่สำเร็จ', 'Failed to load calendar'));
       setCalendarNotes([]);
@@ -244,13 +248,19 @@ export default function HomePage() {
 
   function openCalendarPopup() {
     setCalendarDayPopup(null);
+    setCalendarNoteDetail(null);
+    setPendingCalendarNotePin(null);
     setShowCalendarPopup(true);
-    void loadCalendarNotes();
+    const isCacheFresh = typeof calendarLoadedAt === 'number' && Date.now() - calendarLoadedAt < 60_000;
+    if (!isCacheFresh) {
+      void loadCalendarNotes();
+    }
   }
 
   const handleCalendarDateClick = useCallback(
     (dateKey: string) => {
       setCalendarSelectedDateKey(dateKey);
+      setCalendarNoteDetail(null);
       setCalendarDayPopup({
         dateKey,
         notes: notesByDate.get(dateKey) ?? [],
@@ -646,7 +656,7 @@ export default function HomePage() {
             ) : null}
 
             <div className='mt-3 flex justify-end'>
-              <Button type='button' variant='secondary' className='h-10 rounded-xl px-4 text-app-caption' onClick={() => { setCalendarDayPopup(null); setShowCalendarPopup(false); }}>
+              <Button type='button' variant='secondary' className='h-10 rounded-xl px-4 text-app-caption' onClick={() => { setPendingCalendarNotePin(null); setCalendarNoteDetail(null); setCalendarDayPopup(null); setShowCalendarPopup(false); }}>
                 {tr('ปิด', 'Close')}
               </Button>
             </div>
@@ -664,7 +674,7 @@ export default function HomePage() {
               </div>
               <button
                 type='button'
-                onClick={() => setCalendarDayPopup(null)}
+                onClick={() => { setPendingCalendarNotePin(null); setCalendarNoteDetail(null); setCalendarDayPopup(null); }}
                 className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'
                 aria-label={tr('ปิดรายการวันที่เลือก', 'Close selected date notes')}
               >
@@ -684,17 +694,22 @@ export default function HomePage() {
               ) : (
                 <div className='space-y-2'>
                   {calendarDayPopup.notes.map((note, index) => (
-                    <div key={note.id} className='rounded-2xl border border-[rgba(129,170,255,0.42)] bg-[rgba(16,36,95,0.66)] px-3 py-2.5'>
+                    <button
+                      key={note.id}
+                      type='button'
+                      onClick={() => setPendingCalendarNotePin(note)}
+                      className='w-full rounded-2xl border border-[rgba(129,170,255,0.42)] bg-[rgba(16,36,95,0.66)] px-3 py-2.5 text-left transition hover:border-sky-300'
+                    >
                       <p className='line-clamp-1 text-app-body font-semibold text-slate-100'>{index + 1}. {note.title || tr('โน้ตไม่มีชื่อ', 'Untitled note')}</p>
-                      <p className='mt-1 line-clamp-2 text-app-caption text-slate-300'>{note.content?.trim() ? note.content : tr('แตะเมนูโน้ตเพื่อดูรายละเอียดเต็ม', 'Open Notes menu for full detail')}</p>
-                    </div>
+                      <p className='mt-1 line-clamp-2 text-app-caption text-slate-300'>{tr('แตะเพื่อดูเนื้อหา (ยืนยัน PIN)', 'Tap to view content (PIN required)')}</p>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
 
             <div className='mt-3 flex justify-end'>
-              <Button type='button' variant='secondary' className='h-10 rounded-xl px-4 text-app-caption' onClick={() => setCalendarDayPopup(null)}>
+              <Button type='button' variant='secondary' className='h-10 rounded-xl px-4 text-app-caption' onClick={() => { setPendingCalendarNotePin(null); setCalendarNoteDetail(null); setCalendarDayPopup(null); }}>
                 {tr('ปิด', 'Close')}
               </Button>
             </div>
@@ -702,6 +717,58 @@ export default function HomePage() {
         </div>
       ) : null}
 
+
+      {calendarNoteDetail ? (
+        <div className='fixed inset-0 z-[132] flex items-center justify-center bg-slate-950/62 p-3 backdrop-blur-[3px]'>
+          <div className='w-full max-w-[560px] animate-slide-up rounded-[22px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(23,55,120,0.78)_0%,rgba(9,20,70,0.98)_72%)] p-4 shadow-[0_24px_60px_rgba(4,10,38,0.78)]'>
+            <div className='flex items-start justify-between gap-2'>
+              <div>
+                <p className='text-app-caption font-semibold uppercase tracking-[0.11em] text-slate-300'>{tr('เนื้อหาโน้ต', 'Note content')}</p>
+                <h3 className='mt-1 text-app-h3 font-semibold text-slate-100'>{calendarNoteDetail.title || tr('โน้ตไม่มีชื่อ', 'Untitled note')}</h3>
+              </div>
+              <button
+                type='button'
+                onClick={() => setCalendarNoteDetail(null)}
+                className='inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'
+                aria-label={tr('ปิดเนื้อหาโน้ต', 'Close note content')}
+              >
+                <X className='h-4 w-4' />
+              </button>
+            </div>
+
+            <div className='mt-3 flex flex-wrap gap-2 text-app-micro text-slate-300'>
+              <p>{tr('เตือน', 'Reminder')}: {calendarNoteDetail.reminderAt ? new Date(calendarNoteDetail.reminderAt).toLocaleString(isThai ? 'th-TH' : 'en-US') : '-'}</p>
+              <p>{tr('นัดหมาย', 'Meeting')}: {calendarNoteDetail.meetingAt ? new Date(calendarNoteDetail.meetingAt).toLocaleString(isThai ? 'th-TH' : 'en-US') : '-'}</p>
+            </div>
+
+            <div className='mt-3 max-h-[48dvh] overflow-y-auto rounded-2xl border border-[rgba(129,170,255,0.42)] bg-[rgba(12,28,78,0.72)] px-3 py-3'>
+              <p className='whitespace-pre-wrap break-words text-app-body leading-6 text-slate-100'>
+                {calendarNoteDetail.content?.trim() || tr('ไม่มีเนื้อหา', 'No content')}
+              </p>
+            </div>
+
+            <div className='mt-3 flex justify-end'>
+              <Button type='button' variant='secondary' className='h-10 rounded-xl px-4 text-app-caption' onClick={() => setCalendarNoteDetail(null)}>
+                {tr('ปิด', 'Close')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingCalendarNotePin ? (
+        <PinModal
+          action='view_secret'
+          actionLabel={tr('เปิดดูเนื้อหาโน้ตในปฏิทิน', 'View calendar note content')}
+          targetItemId={pendingCalendarNotePin.id}
+          onVerified={() => {
+            const target = pendingCalendarNotePin;
+            setPendingCalendarNotePin(null);
+            if (target) setCalendarNoteDetail(target);
+          }}
+          onClose={() => setPendingCalendarNotePin(null)}
+        />
+      ) : null}
       {pendingProtectedHref ? (
         <PinModal
           action='unlock_app'
@@ -717,4 +784,3 @@ export default function HomePage() {
     </section>
   );
 }
-

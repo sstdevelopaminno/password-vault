@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import Image from 'next/image';
 import {
   ArrowLeft,
   CloudUpload,
   Download,
+  Eye,
   File,
   FileArchive,
   FileImage,
@@ -21,6 +23,7 @@ import {
   Share2,
   Trash2,
   Video,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
@@ -96,6 +99,15 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function isInlinePreviewable(fileItem: WorkspaceFileItem) {
+  const mime = String(fileItem.mimeType ?? '').toLowerCase();
+  const name = String(fileItem.name ?? '').toLowerCase();
+  if (mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/')) return true;
+  if (mime.startsWith('text/') || mime.includes('json')) return true;
+  if (mime.includes('pdf')) return true;
+  return name.endsWith('.pdf') || name.endsWith('.txt') || name.endsWith('.csv') || name.endsWith('.json');
+}
+
 export default function WorkspaceCloudPage() {
   const { locale } = useI18n();
   const { showToast } = useToast();
@@ -130,6 +142,7 @@ export default function WorkspaceCloudPage() {
   const [pinDeleteFileModalOpen, setPinDeleteFileModalOpen] = useState(false);
   const [pendingDeleteFile, setPendingDeleteFile] = useState<WorkspaceFileItem | null>(null);
   const [pinPolicy, setPinPolicy] = useState<PinPolicy | null>(null);
+  const [previewingFile, setPreviewingFile] = useState<WorkspaceFileItem | null>(null);
 
   const activeFolder = useMemo(() => folders.find((item) => item.id === activeFolderId) ?? null, [folders, activeFolderId]);
   const requirePinToOpenFolder = pinPolicy?.open_workspace_folder !== false;
@@ -462,6 +475,22 @@ export default function WorkspaceCloudPage() {
     [handleDeleteFileWithAssertion, requirePinToDeleteFile],
   );
 
+  const openPreview = useCallback(
+    (fileItem: WorkspaceFileItem) => {
+      if (isInlinePreviewable(fileItem)) {
+        setPreviewingFile(fileItem);
+        return;
+      }
+      window.open(fileItem.previewUrl, '_blank', 'noopener,noreferrer');
+      showToast(isThai ? 'ไฟล์นี้เปิดดูในแอปไม่ได้ จึงเปิดในแท็บใหม่ให้แล้ว' : 'This file opens in a new tab for preview', 'success');
+    },
+    [isThai, showToast],
+  );
+
+  const closePreview = useCallback(() => {
+    setPreviewingFile(null);
+  }, []);
+
   return (
     <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.4rem)] animate-screen-in'>
       <div className='neon-panel rounded-[22px] p-4'>
@@ -691,6 +720,7 @@ export default function WorkspaceCloudPage() {
                   const Icon = chooseFileIcon(fileItem.mimeType);
                   const deleting = deletingPath === fileItem.path;
                   const isImage = String(fileItem.mimeType ?? '').toLowerCase().startsWith('image/');
+                  const thumbSize = fileView === 'list' ? 64 : 80;
 
                   return (
                     <article
@@ -703,14 +733,13 @@ export default function WorkspaceCloudPage() {
                     >
                       <div className='flex items-center gap-2.5'>
                         {isImage ? (
-                          <img
+                          <Image
                             src={fileItem.previewUrl}
                             alt={fileItem.name}
-                            className={
-                              (fileView === 'list' ? 'h-16 w-16' : 'h-20 w-20') +
-                              ' shrink-0 rounded-xl border border-[var(--border-soft)] object-cover'
-                            }
-                            loading='lazy'
+                            width={thumbSize}
+                            height={thumbSize}
+                            sizes={fileView === 'list' ? '64px' : '80px'}
+                            className='shrink-0 rounded-xl border border-[var(--border-soft)] object-cover'
                           />
                         ) : (
                           <div
@@ -731,6 +760,18 @@ export default function WorkspaceCloudPage() {
                       </div>
 
                       <div className={fileView === 'list' ? 'mt-2 flex items-center justify-end gap-2' : 'mt-2.5 flex items-center gap-2'}>
+                        <button
+                          type='button'
+                          onClick={() => openPreview(fileItem)}
+                          className={
+                            fileView === 'list'
+                              ? 'inline-flex h-8 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 text-slate-100'
+                              : 'inline-flex h-8 flex-1 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'
+                          }
+                        >
+                          <Eye className='mr-1 h-4 w-4' />
+                          <span className='text-[11px] font-semibold'>{isThai ? 'ดูไฟล์' : 'Preview'}</span>
+                        </button>
                         <a
                           href={fileItem.downloadUrl}
                           target='_blank'
@@ -853,6 +894,59 @@ export default function WorkspaceCloudPage() {
             openFolderDirect(folder.id);
           }}
         />
+      ) : null}
+
+      {previewingFile ? (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-[rgba(4,10,31,0.78)] p-3'>
+          <div className='w-full max-w-[980px] rounded-[20px] border border-[rgba(139,171,255,0.35)] bg-[linear-gradient(160deg,rgba(18,38,94,0.98),rgba(18,29,74,0.98))] p-3 shadow-[0_18px_44px_rgba(10,26,78,0.45)]'>
+            <div className='mb-3 flex items-start justify-between gap-2'>
+              <div className='min-w-0'>
+                <p className='line-clamp-1 text-app-caption font-semibold text-slate-100'>{previewingFile.name}</p>
+                <p className='text-[11px] text-slate-300'>
+                  {formatBytes(previewingFile.size)} | {new Date(previewingFile.updatedAt).toLocaleDateString(isThai ? 'th-TH' : 'en-US')}
+                </p>
+              </div>
+              <div className='flex items-center gap-2'>
+                <a
+                  href={previewingFile.previewUrl}
+                  target='_blank'
+                  rel='noreferrer'
+                  className='inline-flex h-8 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 text-slate-100'
+                >
+                  <Eye className='mr-1 h-4 w-4' />
+                  <span className='text-[11px] font-semibold'>{isThai ? 'เปิดแท็บใหม่' : 'Open Tab'}</span>
+                </a>
+                <button
+                  type='button'
+                  onClick={closePreview}
+                  className='inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] text-slate-100'
+                  aria-label={isThai ? 'ปิดหน้าต่างดูไฟล์' : 'Close preview'}
+                >
+                  <X className='h-4 w-4' />
+                </button>
+              </div>
+            </div>
+
+            {String(previewingFile.mimeType ?? '').toLowerCase().startsWith('image/') ? (
+              <div className='relative h-[68vh] w-full overflow-hidden rounded-xl border border-[var(--border-soft)]'>
+                <Image src={previewingFile.previewUrl} alt={previewingFile.name} fill sizes='100vw' className='object-contain' />
+              </div>
+            ) : String(previewingFile.mimeType ?? '').toLowerCase().startsWith('video/') ? (
+              <video src={previewingFile.previewUrl} controls className='h-[68vh] w-full rounded-xl border border-[var(--border-soft)] bg-black object-contain' />
+            ) : String(previewingFile.mimeType ?? '').toLowerCase().startsWith('audio/') ? (
+              <div className='flex h-[34vh] items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[rgba(9,20,56,0.8)]'>
+                <audio src={previewingFile.previewUrl} controls className='w-[92%]' />
+              </div>
+            ) : (
+              <iframe
+                src={previewingFile.previewUrl}
+                title={previewingFile.name}
+                className='h-[68vh] w-full rounded-xl border border-[var(--border-soft)] bg-white'
+                loading='lazy'
+              />
+            )}
+          </div>
+        </div>
       ) : null}
     </section>
   );

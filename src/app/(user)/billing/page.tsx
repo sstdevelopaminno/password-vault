@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Download,
   Eye,
   FileText,
   ImageUp,
@@ -274,6 +275,15 @@ function createDocumentNo(prefix: 'RE' | 'INV') {
   return prefix + datePart + randomPart;
 }
 
+function isLikelyMobileClient() {
+  if (typeof window === 'undefined') return false;
+  const ua = typeof navigator !== 'undefined' ? String(navigator.userAgent ?? '') : '';
+  const mobileUa = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const coarsePointer = typeof window.matchMedia === 'function' ? window.matchMedia('(pointer: coarse)').matches : false;
+  const narrowViewport = typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 900px)').matches : false;
+  return mobileUa || (coarsePointer && narrowViewport);
+}
+
 function getQueueStatusBadgeClass(status: BillingQueueStatus) {
   if (status === 'sent') return 'bg-emerald-100 text-emerald-700';
   if (status === 'failed') return 'bg-rose-100 text-rose-700';
@@ -415,6 +425,7 @@ export default function BillingPage() {
   const [lineOcrPreviewOpen, setLineOcrPreviewOpen] = useState(false);
   const [lineOcrPreviewText, setLineOcrPreviewText] = useState('');
   const lineOcrInputRef = useRef<HTMLInputElement | null>(null);
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   const queueCountByDocument = useMemo(() => {
     const map = new Map<string, number>();
@@ -1083,6 +1094,13 @@ export default function BillingPage() {
       encodeURIComponent(record.template) +
       '&print=1&locale=' +
       encodeURIComponent(printLocale);
+    const pdfUrl =
+      '/api/billing/documents/' +
+      encodeURIComponent(record.id) +
+      '/export?template=' +
+      encodeURIComponent(record.template) +
+      '&format=pdf&locale=' +
+      encodeURIComponent(printLocale);
 
     let nativeAvailable = nativePrinterReady || canUseNativePrinter();
     if (!nativeAvailable) {
@@ -1116,13 +1134,14 @@ export default function BillingPage() {
       return;
     }
 
+    const targetUrl = isLikelyMobileClient() ? pdfUrl : printUrl;
     try {
-      const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
+      const popup = window.open(targetUrl, '_blank', 'noopener,noreferrer');
       if (!popup) {
-        window.location.href = printUrl;
+        window.location.href = targetUrl;
       }
     } catch {
-      window.location.href = printUrl;
+      window.location.href = targetUrl;
     }
   }
 
@@ -1134,6 +1153,53 @@ export default function BillingPage() {
       '&locale=' +
       encodeURIComponent(locale === 'th' ? 'th-TH' : 'en-US')
     : '';
+  const previewPrintUrl = previewUrl ? previewUrl + '&print=1' : '';
+  const previewPdfUrl = previewUrl ? previewUrl + '&format=pdf' : '';
+
+  const openPreviewPdf = useCallback(() => {
+    if (!previewPdfUrl) return;
+    try {
+      const popup = window.open(previewPdfUrl, '_blank', 'noopener,noreferrer');
+      if (!popup) {
+        window.location.href = previewPdfUrl;
+      }
+    } catch {
+      window.location.href = previewPdfUrl;
+    }
+  }, [previewPdfUrl]);
+
+  const printOrSavePreview = useCallback(() => {
+    if (isLikelyMobileClient()) {
+      openPreviewPdf();
+      return;
+    }
+
+    try {
+      const frameWindow = previewFrameRef.current?.contentWindow ?? null;
+      if (frameWindow && typeof frameWindow.print === 'function') {
+        frameWindow.focus();
+        frameWindow.print();
+        return;
+      }
+    } catch {
+      // fallback below
+    }
+
+    if (previewPrintUrl) {
+      try {
+        const popup = window.open(previewPrintUrl, '_blank', 'noopener,noreferrer');
+        if (!popup) {
+          window.location.href = previewPrintUrl;
+        }
+        return;
+      } catch {
+        window.location.href = previewPrintUrl;
+        return;
+      }
+    }
+
+    openPreviewPdf();
+  }, [openPreviewPdf, previewPrintUrl]);
 
   return (
     <section className='space-y-3 pb-20 pt-[max(16px,env(safe-area-inset-top))]'>
@@ -1857,13 +1923,21 @@ export default function BillingPage() {
                 <Button type='button' size='sm' variant={previewTemplate === '80mm' ? 'default' : 'secondary'} onClick={() => setPreviewTemplate('80mm')}>
                   80mm
                 </Button>
+                <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={printOrSavePreview}>
+                  <Printer className='h-3.5 w-3.5' />
+                  {tr('พิมพ์ / บันทึก PDF', 'Print / Save PDF')}
+                </Button>
+                <Button type='button' size='sm' variant='secondary' className='gap-1' onClick={openPreviewPdf}>
+                  <Download className='h-3.5 w-3.5' />
+                  PDF
+                </Button>
               </div>
               <Button type='button' size='sm' variant='secondary' className='h-9 w-9 px-0' onClick={closePreview}>
                 <X className='h-4 w-4' />
               </Button>
             </div>
             <div className='flex-1 bg-slate-100'>
-              <iframe title='Billing Preview' src={previewUrl} className='preserve-white h-full w-full border-0 bg-white' />
+              <iframe ref={previewFrameRef} title='Billing Preview' src={previewUrl} className='preserve-white h-full w-full border-0 bg-white' />
             </div>
           </div>
         </div>
