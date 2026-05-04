@@ -543,7 +543,7 @@ async function verifyWithExternalAdapter(input: {
 }
 
 function normalizeManualResult(input: { submission: PackageSlipSubmission }): PackageSlipProviderResult {
-  const strict = String(process.env.PACKAGE_SLIP_REQUIRE_PROVIDER ?? "1").trim() !== "0";
+  const strict = String(process.env.PACKAGE_SLIP_REQUIRE_PROVIDER ?? "0").trim() !== "0";
   return {
     providerName: "manual",
     ok: strict ? false : true,

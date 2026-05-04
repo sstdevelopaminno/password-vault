@@ -111,8 +111,13 @@ export default function VaultPage() {
  const { t, locale } = useI18n();
  const { showToast } = useToast();
  const { isOfflineMode } = useOutageState();
- const { restrictions } = usePackageRestrictions();
- const interactionLocked = restrictions.interactiveLocked;
+ const { restrictions, entitlements } = usePackageRestrictions();
+ const vaultLimit = useMemo(() => {
+ const parsed = Number(entitlements?.vaultItemsLimit ?? 0);
+ if (!Number.isFinite(parsed) || parsed <= 0) return Number.MAX_SAFE_INTEGER;
+ return Math.floor(parsed);
+ }, [entitlements?.vaultItemsLimit]);
+ const hasOverQuotaItems = Number(restrictions.overLimit.vaultItems ?? 0) > 0;
 
  const [items, setItems] = useState<VaultItem[]>([]);
  const [search, setSearch] = useState('');
@@ -481,6 +486,17 @@ export default function VaultPage() {
  );
 
  const pageNumbers = useMemo(() => buildPageNumbers(page, totalPages), [page, totalPages]);
+ const pageStartIndex = useMemo(() => Math.max(0, (page - 1) * PAGE_SIZE), [page]);
+ const canCreateVaultItem = useMemo(() => totalItems < vaultLimit, [totalItems, vaultLimit]);
+
+ const showLockedRowToast = useCallback(() => {
+ showToast(
+ locale === 'th'
+ ? 'รายการนี้เกินโควตาแพ็กเกจปัจจุบัน จึงยังดูได้แต่กดใช้งานไม่ได้'
+ : 'This row is over the current package quota. It is visible, but actions are locked.',
+ 'error',
+ );
+ }, [locale, showToast]);
 
  return (
  <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.7rem)] sm:pt-2'>
@@ -503,14 +519,16 @@ export default function VaultPage() {
  className='h-[50px] rounded-[18px] border-transparent bg-transparent pl-11 text-[15px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0'
  />
  </div>
- {interactionLocked ? (
+ {hasOverQuotaItems ? (
  <p className='rounded-2xl border border-amber-300/50 bg-amber-400/10 px-3 py-2 text-app-caption text-amber-100'>
- {locale === 'th' ? 'รายการเกินสิทธิ์แพ็กเกจปัจจุบัน แสดงข้อมูลได้แต่ปิดการกดแก้ไข/เพิ่มชั่วคราว' : 'Usage exceeds current package limits. You can view items, but create/edit actions are temporarily locked.'}
+ {locale === 'th' ? 'มีบางรายการเกินโควตา: ยังแสดงรายการได้ แต่แถวที่เกินจะถูกล็อกการกดใช้งาน' : 'Some rows are over quota. Rows stay visible, but over-quota actions are locked.'}
  </p>
  ) : null}
 
  <div className='grid gap-3'>
- {items.map((item) => (
+ {items.map((item, index) => {
+ const itemLocked = pageStartIndex + index >= vaultLimit;
+ return (
  <VaultCard
  key={item.id}
  id={item.id}
@@ -520,18 +538,28 @@ export default function VaultPage() {
  category={item.category}
  sharedToTeamCount={item.sharedToTeamCount}
  pending={item.pending}
+ locked={itemLocked}
  onOpen={(id) => {
- if (interactionLocked) return;
+ if (itemLocked) {
+ showLockedRowToast();
+ return;
+ }
  router.push('/vault/' + encodeURIComponent(id));
  }}
  onEdit={(id) => {
- if (interactionLocked) return;
+ if (itemLocked) {
+ showLockedRowToast();
+ return;
+ }
  if (mutating) return;
  const found = items.find((it) => it.id === id);
  if (found) setEditingItem(found);
  }}
  onDelete={(id) => {
- if (interactionLocked) return;
+ if (itemLocked) {
+ showLockedRowToast();
+ return;
+ }
  if (mutating) return;
  const cached = getCachedAssertion('delete_secret');
  if (cached) {
@@ -541,15 +569,23 @@ export default function VaultPage() {
  setPendingDeleteId(id);
  }}
  onShare={(id) => {
- if (interactionLocked) return;
+ if (itemLocked) {
+ showLockedRowToast();
+ return;
+ }
  const found = items.find((it) => it.id === id);
  if (found) setSharingItem(found);
  }}
  onUnshare={(id) => {
+ if (itemLocked) {
+ showLockedRowToast();
+ return;
+ }
  void unshareItemFromTeams(id);
  }}
  />
- ))}
+ );
+ })}
  </div>
 
  {loadingPage && items.length === 0 ? <p className='text-center text-sm text-[#9eb2da]'>{t('common.loading')}</p> : null}
@@ -616,7 +652,7 @@ export default function VaultPage() {
  ) : null}
 
  <AddVaultItemSheet
- disabled={interactionLocked}
+ disabled={!canCreateVaultItem}
  onCreated={(created) => {
  if (isOfflineMode) {
  const pending: VaultItem = {

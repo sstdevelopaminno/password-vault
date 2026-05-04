@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { PinModal } from '@/components/vault/pin-modal';
 import { useI18n } from '@/i18n/provider';
+import { usePackageRestrictions } from '@/lib/use-package-restrictions';
 
 type WorkspaceFileItem = {
   id: string;
@@ -112,6 +113,18 @@ export default function WorkspaceCloudPage() {
   const { locale } = useI18n();
   const { showToast } = useToast();
   const isThai = locale === 'th';
+  const { restrictions, entitlements, usage } = usePackageRestrictions();
+  const storageLimitBytes = useMemo(() => {
+    const parsed = Number(entitlements?.storageLimitBytes ?? 0);
+    if (!Number.isFinite(parsed) || parsed <= 0) return Number.MAX_SAFE_INTEGER;
+    return Math.floor(parsed);
+  }, [entitlements?.storageLimitBytes]);
+  const usedStorageBytes = useMemo(() => {
+    const parsed = Number(usage?.fileBytes ?? 0);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+  }, [usage?.fileBytes]);
+  const hasOverQuotaFiles = Number(restrictions.overLimit.filesBytes ?? 0) > 0;
 
   const [folders, setFolders] = useState<WorkspaceFolderItem[]>([]);
   const [activeFolderId, setActiveFolderId] = useState('');
@@ -167,6 +180,27 @@ export default function WorkspaceCloudPage() {
 
     return list;
   }, [fileQuery, fileSort, files, isThai]);
+  const lockedFilePathSet = useMemo(() => {
+    const set = new Set<string>();
+    let runningBytes = 0;
+    for (const fileItem of files) {
+      runningBytes += Math.max(0, Number(fileItem.size ?? 0));
+      if (runningBytes > storageLimitBytes) {
+        set.add(fileItem.path);
+      }
+    }
+    return set;
+  }, [files, storageLimitBytes]);
+  const canUploadIntoStorage = useMemo(() => usedStorageBytes < storageLimitBytes, [storageLimitBytes, usedStorageBytes]);
+
+  const showLockedFileToast = useCallback(() => {
+    showToast(
+      isThai
+        ? 'ไฟล์รายการนี้เกินโควตาพื้นที่แพ็กเกจปัจจุบัน จึงยังดูได้แต่กดใช้งานไม่ได้'
+        : 'This file row is over your current storage quota. It is visible, but actions are locked.',
+      'error',
+    );
+  }, [isThai, showToast]);
 
   const loadFolders = useCallback(async () => {
     setLoadingFolders(true);
@@ -410,6 +444,15 @@ export default function WorkspaceCloudPage() {
       const selectedFiles = Array.from(event.target.files ?? []);
       event.target.value = '';
       if (!folderId || selectedFiles.length === 0) return;
+      if (!canUploadIntoStorage) {
+        showToast(
+          isThai
+            ? 'พื้นที่แพ็กเกจเต็มแล้ว กรุณาลบไฟล์หรืออัปเกรดแพ็กเกจก่อนอัปโหลดเพิ่ม'
+            : 'Storage quota is full. Delete files or upgrade package before uploading.',
+          'error',
+        );
+        return;
+      }
 
       setUploading(true);
       try {
@@ -435,7 +478,7 @@ export default function WorkspaceCloudPage() {
         setUploading(false);
       }
     },
-    [activeFolderId, isThai, loadFiles, showToast],
+    [activeFolderId, canUploadIntoStorage, isThai, loadFiles, showToast],
   );
 
   const handleDeleteFileWithAssertion = useCallback(
@@ -465,6 +508,10 @@ export default function WorkspaceCloudPage() {
 
   const requestDeleteFile = useCallback(
     (target: WorkspaceFileItem) => {
+      if (lockedFilePathSet.has(target.path)) {
+        showLockedFileToast();
+        return;
+      }
       if (!requirePinToDeleteFile) {
         void handleDeleteFileWithAssertion(target, '');
         return;
@@ -472,11 +519,15 @@ export default function WorkspaceCloudPage() {
       setPendingDeleteFile(target);
       setPinDeleteFileModalOpen(true);
     },
-    [handleDeleteFileWithAssertion, requirePinToDeleteFile],
+    [handleDeleteFileWithAssertion, lockedFilePathSet, requirePinToDeleteFile, showLockedFileToast],
   );
 
   const openPreview = useCallback(
     (fileItem: WorkspaceFileItem) => {
+      if (lockedFilePathSet.has(fileItem.path)) {
+        showLockedFileToast();
+        return;
+      }
       if (isInlinePreviewable(fileItem)) {
         setPreviewingFile(fileItem);
         return;
@@ -484,7 +535,7 @@ export default function WorkspaceCloudPage() {
       window.open(fileItem.previewUrl, '_blank', 'noopener,noreferrer');
       showToast(isThai ? 'ไฟล์นี้เปิดดูในแอปไม่ได้ จึงเปิดในแท็บใหม่ให้แล้ว' : 'This file opens in a new tab for preview', 'success');
     },
-    [isThai, showToast],
+    [isThai, lockedFilePathSet, showLockedFileToast, showToast],
   );
 
   const closePreview = useCallback(() => {
@@ -530,6 +581,14 @@ export default function WorkspaceCloudPage() {
           </div>
         ) : null}
       </div>
+
+      {hasOverQuotaFiles ? (
+        <p className='rounded-2xl border border-amber-300/55 bg-amber-400/10 px-3 py-2 text-app-caption text-amber-100'>
+          {isThai
+            ? 'มีบางไฟล์เกินโควตาพื้นที่แพ็กเกจ: ยังเห็นไฟล์ได้ แต่แถวที่เกินจะถูกล็อกการกดใช้งาน'
+            : 'Some files are over storage quota. Rows remain visible, but over-quota actions are locked.'}
+        </p>
+      ) : null}
 
       {!activeFolderId ? (
         <div className='space-y-2'>
@@ -691,8 +750,8 @@ export default function WorkspaceCloudPage() {
           </div>
 
           <div className='neon-soft-panel rounded-[20px] p-3'>
-            <label className='flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-[rgba(122,175,255,0.62)] bg-[rgba(22,42,104,0.52)] px-3 py-3 text-center transition hover:bg-[rgba(34,57,134,0.58)]'>
-              <input type='file' multiple className='hidden' onChange={handleUpload} />
+            <label className={'flex items-center justify-center gap-2 rounded-2xl border border-dashed border-[rgba(122,175,255,0.62)] bg-[rgba(22,42,104,0.52)] px-3 py-3 text-center transition hover:bg-[rgba(34,57,134,0.58)] ' + (canUploadIntoStorage ? 'cursor-pointer' : 'cursor-not-allowed opacity-55')}>
+              <input type='file' multiple className='hidden' onChange={handleUpload} disabled={!canUploadIntoStorage || uploading} />
               {uploading ? <Loader2 className='h-4 w-4 animate-spin text-cyan-100' /> : <CloudUpload className='h-4 w-4 text-cyan-100' />}
               <span className='text-app-caption font-semibold text-slate-100'>
                 {uploading ? (isThai ? 'กำลังอัปโหลด...' : 'Uploading...') : isThai ? 'อัปโหลดไฟล์หรือรูปภาพเข้าโฟลเดอร์นี้' : 'Upload files or images to this folder'}
@@ -719,6 +778,7 @@ export default function WorkspaceCloudPage() {
                 {filteredFiles.map((fileItem) => {
                   const Icon = chooseFileIcon(fileItem.mimeType);
                   const deleting = deletingPath === fileItem.path;
+                  const fileLocked = lockedFilePathSet.has(fileItem.path);
                   const isImage = String(fileItem.mimeType ?? '').toLowerCase().startsWith('image/');
                   const thumbSize = fileView === 'list' ? 64 : 80;
 
@@ -726,9 +786,10 @@ export default function WorkspaceCloudPage() {
                     <article
                       key={fileItem.path}
                       className={
-                        fileView === 'list'
+                        (fileView === 'list'
                           ? 'border-b border-[rgba(139,171,255,0.2)] px-1.5 py-2.5 last:border-b-0'
-                          : 'rounded-[16px] border border-[rgba(139,171,255,0.28)] bg-[rgba(17,33,84,0.56)] p-2.5'
+                          : 'rounded-[16px] border border-[rgba(139,171,255,0.28)] bg-[rgba(17,33,84,0.56)] p-2.5') +
+                        (fileLocked ? ' opacity-60' : '')
                       }
                     >
                       <div className='flex items-center gap-2.5'>
@@ -762,6 +823,7 @@ export default function WorkspaceCloudPage() {
                       <div className={fileView === 'list' ? 'mt-2 flex items-center justify-end gap-2' : 'mt-2.5 flex items-center gap-2'}>
                         <button
                           type='button'
+                          disabled={fileLocked}
                           onClick={() => openPreview(fileItem)}
                           className={
                             fileView === 'list'
@@ -776,6 +838,11 @@ export default function WorkspaceCloudPage() {
                           href={fileItem.downloadUrl}
                           target='_blank'
                           rel='noreferrer'
+                          onClick={(event) => {
+                            if (!fileLocked) return;
+                            event.preventDefault();
+                            showLockedFileToast();
+                          }}
                           className={
                             fileView === 'list'
                               ? 'inline-flex h-8 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 text-slate-100'
@@ -790,7 +857,7 @@ export default function WorkspaceCloudPage() {
                           variant='secondary'
                           size='sm'
                           className='h-8 rounded-xl px-2.5'
-                          disabled={deleting || (!activeFolder?.isOwner && activeFolder?.memberRole !== 'editor')}
+                          disabled={fileLocked || deleting || (!activeFolder?.isOwner && activeFolder?.memberRole !== 'editor')}
                           onClick={() => void requestDeleteFile(fileItem)}
                         >
                           {deleting ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <Trash2 className='h-3.5 w-3.5' />}

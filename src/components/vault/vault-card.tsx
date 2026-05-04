@@ -13,6 +13,7 @@ type VaultCardProps = {
   category?: string;
   sharedToTeamCount?: number;
   pending?: boolean;
+  locked?: boolean;
   onOpen: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
@@ -34,6 +35,7 @@ export function VaultCard({
   category = 'General',
   sharedToTeamCount = 0,
   pending = false,
+  locked = false,
   onOpen,
   onEdit,
   onDelete,
@@ -63,6 +65,7 @@ export function VaultCard({
   }
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (locked) return;
     if (event.button !== 0) return;
     pointerIdRef.current = event.pointerId;
     dragStartXRef.current = event.clientX;
@@ -93,6 +96,10 @@ export function VaultCard({
   }
 
   function onCardClick() {
+    if (locked) {
+      onOpen(id);
+      return;
+    }
     if (movedRef.current) return;
     if (opened) {
       closeSwipe();
@@ -106,11 +113,12 @@ export function VaultCard({
       <div className='absolute inset-y-0 right-0 flex w-[124px] items-center justify-end gap-1.5 rounded-[28px] bg-[linear-gradient(180deg,#1a2f72,#16285f)] p-1.5'>
         <button
           type='button'
+          disabled={locked}
           onClick={() => {
             closeSwipe();
             onEdit(id);
           }}
-          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-indigo-600 to-blue-700 text-white shadow-[0_8px_16px_rgba(37,99,235,0.36)] transition hover:brightness-110'
+          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-indigo-600 to-blue-700 text-white shadow-[0_8px_16px_rgba(37,99,235,0.36)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45'
         >
           <Pencil className='h-4 w-4' />
           <span className='mt-1 text-app-micro font-semibold'>{t('vaultDetail.edit')}</span>
@@ -118,11 +126,12 @@ export function VaultCard({
 
         <button
           type='button'
+          disabled={locked}
           onClick={() => {
             closeSwipe();
             onDelete(id);
           }}
-          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-rose-600 to-fuchsia-700 text-white shadow-[0_8px_16px_rgba(225,29,72,0.36)] transition hover:brightness-110'
+          className='inline-flex h-full w-[54px] flex-col items-center justify-center rounded-[14px] bg-gradient-to-b from-rose-600 to-fuchsia-700 text-white shadow-[0_8px_16px_rgba(225,29,72,0.36)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45'
         >
           <Trash2 className='h-4 w-4' />
           <span className='mt-1 text-app-micro font-semibold'>{t('vaultDetail.delete')}</span>
@@ -138,7 +147,7 @@ export function VaultCard({
         onPointerCancel={onPointerUp}
       >
         <Card
-          className='cv-auto space-y-2.5 rounded-[28px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,#162a66,#102353)] p-3.5 shadow-[var(--glow-soft)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(47,123,255,0.18)]'
+          className={'cv-auto space-y-2.5 rounded-[28px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,#162a66,#102353)] p-3.5 shadow-[var(--glow-soft)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(47,123,255,0.18)] ' + (locked ? 'opacity-60' : '')}
           onClick={onCardClick}
         >
           <div className='flex items-start gap-3'>
@@ -195,12 +204,13 @@ export function VaultCard({
               {onShare ? (
                 <button
                   type='button'
+                  disabled={locked}
                   onClick={(event) => {
                     event.stopPropagation();
                     closeSwipe();
                     onShare(id);
                   }}
-                  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/55 bg-cyan-700 text-cyan-100 transition hover:brightness-110'
+                  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/55 bg-cyan-700 text-cyan-100 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45'
                   title={locale === 'th' ? 'แชร์ไปทีม' : 'Share to team'}
                   aria-label={locale === 'th' ? 'แชร์ไปทีม' : 'Share to team'}
                 >
@@ -211,12 +221,13 @@ export function VaultCard({
               {isSharedToTeam && onUnshare ? (
                 <button
                   type='button'
+                  disabled={locked}
                   onClick={(event) => {
                     event.stopPropagation();
                     closeSwipe();
                     onUnshare(id);
                   }}
-                  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-300/55 bg-rose-700 text-rose-100 transition hover:brightness-110'
+                  className='inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-300/55 bg-rose-700 text-rose-100 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45'
                   title={locale === 'th' ? 'ยกเลิกแชร์ไปทีม' : 'Cancel team share'}
                   aria-label={locale === 'th' ? 'ยกเลิกแชร์ไปทีม' : 'Cancel team share'}
                 >

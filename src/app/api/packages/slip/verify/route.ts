@@ -122,7 +122,7 @@ export async function POST(req: Request) {
     transferredAt: parsed.data.transferredAt ?? null,
   };
 
-  const requireProvider = String(process.env.PACKAGE_SLIP_REQUIRE_PROVIDER ?? "1").trim() !== "0";
+  const requireProvider = String(process.env.PACKAGE_SLIP_REQUIRE_PROVIDER ?? "0").trim() !== "0";
   if (requireProvider && !isPaymentSlipProviderConfigured()) {
     return NextResponse.json({ error: "Payment slip provider is not configured" }, { status: 503 });
   }

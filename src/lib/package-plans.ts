@@ -189,7 +189,7 @@ export function normalizePromptPayTarget(raw: string) {
 export function buildPromptPayQrUrl(rawTarget: string, amount: number) {
   const target = normalizePromptPayTarget(rawTarget);
   if (!target) return "";
-  return `https://promptpay.io/${target}/${amount.toFixed(2)}`;
+  return `https://promptpay.io/${target}/${amount.toFixed(2)}.png`;
 }
 
 export function calcSavingsPercent(monthlyPrice: number, yearlyPrice: number) {

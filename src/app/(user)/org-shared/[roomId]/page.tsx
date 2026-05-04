@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/provider';
 import { fetchWithSessionRetry } from '@/lib/api-client';
+import { usePackageRestrictions } from '@/lib/use-package-restrictions';
 
 type RoomInfo = { id: string; name: string; description: string };
 type TeamItem = { id: string; title: string; username: string; updatedAt: string; category: string; url?: string };
@@ -30,6 +31,13 @@ export default function TeamRoomPage() {
  const router = useRouter();
  const { showToast } = useToast();
  const { locale } = useI18n();
+ const { restrictions, entitlements } = usePackageRestrictions();
+ const vaultLimit = useMemo(() => {
+ const parsed = Number(entitlements?.vaultItemsLimit ?? 0);
+ if (!Number.isFinite(parsed) || parsed <= 0) return Number.MAX_SAFE_INTEGER;
+ return Math.floor(parsed);
+ }, [entitlements?.vaultItemsLimit]);
+ const hasOverQuotaTeamRows = Number(restrictions.overLimit.vaultItems ?? 0) > 0;
 
  const roomId = useMemo(() => {
  if (Array.isArray(params.roomId)) return decodeURIComponent(params.roomId[0] ?? '');
@@ -252,6 +260,26 @@ setChatInput('');
  if (!keyword) return items;
  return items.filter((item) => item.title.toLowerCase().includes(keyword) || item.username.toLowerCase().includes(keyword));
  }, [items, search]);
+ const lockedTeamItemIdSet = useMemo(() => {
+ const set = new Set<string>();
+ for (let index = 0; index < items.length; index += 1) {
+ if (index >= vaultLimit) {
+ const row = items[index];
+ if (row?.id) set.add(row.id);
+ }
+ }
+ return set;
+ }, [items, vaultLimit]);
+ const canCreateTeamItem = useMemo(() => items.length < vaultLimit, [items.length, vaultLimit]);
+
+ const showLockedTeamItemToast = useCallback(() => {
+ showToast(
+ locale === 'th'
+ ? 'รายการทีมนี้เกินโควตาแพ็กเกจปัจจุบัน จึงยังดูได้แต่กดใช้งานไม่ได้'
+ : 'This team row is over the current package quota. It is visible, but actions are locked.',
+ 'error',
+ );
+ }, [locale, showToast]);
 
  return (
  <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+10px)]'>
@@ -299,10 +327,20 @@ setChatInput('');
  />
  </div>
 
+ {hasOverQuotaTeamRows ? (
+ <p className='rounded-2xl border border-amber-300/55 bg-amber-400/10 px-3 py-2 text-app-caption text-amber-100'>
+ {locale === 'th'
+ ? 'มีบางรายการทีมเกินโควตา: ยังแสดงได้ แต่แถวที่เกินจะถูกล็อกการกดใช้งาน'
+ : 'Some team rows are over quota. Rows stay visible, but over-quota actions are locked.'}
+ </p>
+ ) : null}
+
  {loading && items.length === 0 ? <p className='text-center text-sm text-slate-500'>{locale === 'th' ? 'กำลังโหลด...' : 'Loading...'}</p> : null}
 
  <div className='grid gap-2.5'>
- {filteredItems.map((item) => (
+ {filteredItems.map((item) => {
+ const itemLocked = lockedTeamItemIdSet.has(item.id);
+ return (
  <VaultCard
  key={item.id}
  id={item.id}
@@ -310,13 +348,28 @@ setChatInput('');
  username={item.username}
  updatedAt={item.updatedAt}
  category={item.category}
- onOpen={(id) => router.push('/org-shared/items/' + encodeURIComponent(id))}
+ locked={itemLocked}
+ onOpen={(id) => {
+ if (itemLocked) {
+ showLockedTeamItemToast();
+ return;
+ }
+ router.push('/org-shared/items/' + encodeURIComponent(id));
+ }}
  onEdit={(id) => {
+ if (itemLocked) {
+ showLockedTeamItemToast();
+ return;
+ }
  if (mutating) return;
  const found = items.find((it) => it.id === id);
  if (found) setEditingItem(found);
  }}
  onDelete={(id) => {
+ if (itemLocked) {
+ showLockedTeamItemToast();
+ return;
+ }
  if (mutating) return;
  const cached = getCachedAssertion('delete_secret');
  if (cached) {
@@ -326,7 +379,8 @@ setChatInput('');
  setPendingDeleteId(id);
  }}
  />
- ))}
+ );
+ })}
  </div>
 
  {!loading && filteredItems.length === 0 ? (
@@ -404,6 +458,7 @@ setChatInput('');
 
  <AddVaultItemSheet
  endpoint={'/api/team-rooms/' + encodeURIComponent(roomId) + '/items'}
+ disabled={!canCreateTeamItem}
  onCreated={() => {
  void loadAll();
  }}

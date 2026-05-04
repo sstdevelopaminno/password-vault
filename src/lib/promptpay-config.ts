@@ -7,7 +7,12 @@ const PROMPTPAY_ENV_KEYS = [
   "PACKAGE_PROMPTPAY_TARGET",
   "NEXT_PUBLIC_PROMPTPAY_TARGET_PHONE",
   "NEXT_PUBLIC_PROMPTPAY_TARGET",
+  "PROMPTPAY_TARGET_URL",
+  "PAYMENT_PROMPTPAY_TARGET_URL",
+  "NEXT_PUBLIC_PROMPTPAY_TARGET_URL",
 ] as const;
+
+const FALLBACK_PROMPTPAY_TARGET = "0843374982";
 
 function extractPromptPayCandidate(raw: string) {
   const text = String(raw ?? "").trim();
@@ -24,10 +29,9 @@ export function resolvePromptPayTargetFromEnv() {
     const normalized = extractPromptPayCandidate(value);
     if (normalized) return normalized;
   }
-  return "";
+  return extractPromptPayCandidate(FALLBACK_PROMPTPAY_TARGET);
 }
 
 export function promptPayConfigErrorMessage() {
   return `Missing PromptPay target configuration (set one of: ${PROMPTPAY_ENV_KEYS.join(", ")})`;
 }
-

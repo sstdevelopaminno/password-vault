@@ -232,6 +232,10 @@ export default function OurPackagesPage() {
   async function choosePlan(planId: string) {
     const target = plans.find((plan) => plan.id === planId);
     if (!target) return;
+    if (target.id === 'free_pro_trial') {
+      await submitCheckout(planId, 'promptpay');
+      return;
+    }
     if (target.isFree) return;
     const amount = cycle === 'monthly' ? target.monthlyPriceThb : target.yearlyPriceThb;
 
@@ -391,7 +395,7 @@ export default function OurPackagesPage() {
       ) : null}
 
       {paymentPlan ? (
-        <div className='fixed inset-0 z-[80] flex items-end justify-center bg-[rgba(4,10,34,0.78)] p-3 sm:items-center' onClick={() => setPaymentPlanId(null)}>
+        <div className='fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(4,10,34,0.78)] p-3' onClick={() => setPaymentPlanId(null)}>
           <section
             className='w-full max-w-md space-y-3 rounded-[22px] border border-cyan-300/50 bg-[linear-gradient(150deg,rgba(18,43,116,0.98),rgba(9,21,70,1))] p-4 shadow-[0_22px_48px_rgba(5,13,46,0.65)]'
             onClick={(event) => event.stopPropagation()}
@@ -453,8 +457,10 @@ export default function OurPackagesPage() {
           const Icon = iconsByPlan[plan.id] ?? Rocket;
           const price = cycle === 'monthly' ? plan.monthlyPriceThb : plan.yearlyPriceThb;
           const isFree = price === 0;
+          const isTrialPlan = plan.id === 'free_pro_trial';
           const isCurrentPlan = currentPackage?.plan.id === plan.id;
           const isCurrentPaidPlan = isCurrentPlan && !isFree;
+          const isCurrentTrialPlan = isCurrentPlan && isTrialPlan;
 
           return (
             <article
@@ -516,6 +522,19 @@ export default function OurPackagesPage() {
                     className='mt-3 h-10 w-full rounded-xl text-app-caption'
                   >
                     {isCurrentPaidPlan ? (isThai ? 'ยกเลิกแพ็กเกจ' : 'Cancel package') : t('packages.choosePlan')}
+                  </Button>
+                ) : isTrialPlan ? (
+                  <Button
+                    type='button'
+                    disabled={processingPlanId === plan.id || isCurrentTrialPlan}
+                    onClick={() => {
+                      void choosePlan(plan.id);
+                    }}
+                    className='mt-3 h-10 w-full rounded-xl text-app-caption'
+                  >
+                    {isCurrentTrialPlan
+                      ? (isThai ? 'กำลังทดลองใช้ฟรี' : 'Trial is active')
+                      : (isThai ? 'เริ่มทดลองใช้ฟรี 14 วัน' : 'Start 14-day free trial')}
                   </Button>
                 ) : (
                   <div className='mt-3 h-10 w-full rounded-xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.5)] px-3 py-2 text-center text-app-caption font-semibold text-slate-200'>
