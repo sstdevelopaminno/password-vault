@@ -222,3 +222,56 @@ export async function createPromptPayOrder(input: {
   };
 }
 
+export async function createWalletPaidOrder(input: {
+  admin: SupabaseClient;
+  userId: string;
+  planId: PackagePlanId;
+  cycle: PackageCycle;
+  walletTransactionId: string;
+}) {
+  const plan = getPlanConfig(input.planId);
+  if (!plan) {
+    throw new Error("Package not found");
+  }
+
+  const baseAmount = getCycleAmount(plan, input.cycle);
+  if (baseAmount <= 0) {
+    throw new Error("Selected package does not require payment");
+  }
+
+  const nowIso = new Date().toISOString();
+  const amount = Number(baseAmount.toFixed(2));
+  const insert = await input.admin
+    .from("package_orders")
+    .insert({
+      user_id: input.userId,
+      plan_id: plan.id,
+      cycle: input.cycle,
+      status: "paid",
+      base_amount_thb: amount,
+      unique_amount_thb: amount,
+      currency: "THB",
+      promptpay_target: "wallet",
+      promptpay_qr_url: "wallet",
+      expires_at: nowIso,
+      paid_at: nowIso,
+      metadata_json: {
+        paymentChannel: "wallet",
+        walletTransactionId: input.walletTransactionId,
+      },
+      updated_at: nowIso,
+    })
+    .select("id,user_id,plan_id,cycle,status,base_amount_thb,unique_amount_thb,currency,promptpay_target,promptpay_qr_url,expires_at,paid_at,created_at")
+    .single();
+
+  if (insert.error || !insert.data) {
+    throw new Error(insert.error?.message ?? "Failed to create paid wallet order");
+  }
+
+  return {
+    ...(insert.data as OrderRow),
+    base_amount_thb: asNumber(insert.data.base_amount_thb),
+    unique_amount_thb: asNumber(insert.data.unique_amount_thb),
+  };
+}
+

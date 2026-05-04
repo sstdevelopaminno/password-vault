@@ -14,6 +14,7 @@ import {
   resolveWorkspaceActor,
   sanitizeStoragePath,
 } from '@/lib/workspace-cloud';
+import { assertWorkspaceUploadQuota, collectPackageUsageSnapshot } from '@/lib/package-entitlements';
 
 type WorkspaceFileResponse = {
   id: string;
@@ -165,12 +166,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'File is empty' }, { status: 400 });
   }
   if (filePart.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json({ error: 'File is too large (max 25 MB)' }, { status: 400 });
+    return NextResponse.json({ error: 'File is too large for this system' }, { status: 400 });
   }
 
   const safeName = normalizeFileName(filePart.name || 'workspace-file');
   if (!safeName) {
     return NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+  try {
+    await assertWorkspaceUploadQuota({
+      admin,
+      userId: secured.access.ownerUserId,
+      uploadBytes: filePart.size,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error instanceof Error ? error.message : error) }, { status: 409 });
   }
 
   try {
@@ -181,7 +193,6 @@ export async function POST(req: Request) {
 
   const path = buildFolderStoragePath(folderId, safeName);
   const bytes = new Uint8Array(await filePart.arrayBuffer());
-  const admin = createAdminClient();
 
   const uploaded = await admin.storage.from(WORKSPACE_FILES_BUCKET).upload(path, bytes, {
     cacheControl: '3600',
@@ -199,6 +210,16 @@ export async function POST(req: Request) {
       { error: signedPreview.error?.message ?? signedDownload.error?.message ?? 'Unable to generate download link' },
       { status: 400 },
     );
+  }
+
+  try {
+    await collectPackageUsageSnapshot({
+      admin,
+      userId: secured.access.ownerUserId,
+      includeWorkspaceBytes: true,
+    });
+  } catch (usageError) {
+    console.error('Workspace usage sync failed after upload:', usageError);
   }
 
   return NextResponse.json({
@@ -264,6 +285,16 @@ export async function DELETE(req: Request) {
   const removed = await admin.storage.from(WORKSPACE_FILES_BUCKET).remove([sanitized]);
   if (removed.error) {
     return NextResponse.json({ error: removed.error.message }, { status: 400 });
+  }
+
+  try {
+    await collectPackageUsageSnapshot({
+      admin,
+      userId: secured.access.ownerUserId,
+      includeWorkspaceBytes: true,
+    });
+  } catch (usageError) {
+    console.error('Workspace usage sync failed after delete:', usageError);
   }
 
   return NextResponse.json({ ok: true });

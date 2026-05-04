@@ -4,7 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { getTeamMemberContext, touchTeamRoomUpdatedAt } from '@/lib/team-room-access';
 import { teamRoomShareMemberSchema } from '@/lib/validators';
-import { resolveAccessibleUserIds } from '@/lib/user-identity';
+import { pickPrimaryUserId, resolveAccessibleUserIds } from '@/lib/user-identity';
+import { assertMemberQuota } from '@/lib/package-entitlements';
 
 type MemberRow = {
  user_id: string;
@@ -172,6 +173,32 @@ export async function POST(req: Request, { params }: { params: Promise<{ roomId:
  }
  if (existingMember?.user_id) {
  return NextResponse.json({ error: 'This user is already in the room' }, { status: 400 });
+ }
+
+ const memberCountQuery = await admin
+ .from('team_room_members')
+ .select('user_id', { count: 'exact', head: true })
+ .eq('room_id', roomId);
+ if (memberCountQuery.error) {
+ return NextResponse.json({ error: memberCountQuery.error.message }, { status: 400 });
+ }
+
+ const ownerUserId = pickPrimaryUserId({
+ authUserId: auth.user.id,
+ accessibleUserIds: memberUserIds,
+ });
+ if (!ownerUserId) {
+ return NextResponse.json({ error: 'Unable to resolve user' }, { status: 400 });
+ }
+
+ try {
+ await assertMemberQuota({
+ admin,
+ userId: ownerUserId,
+ currentMemberCount: Number(memberCountQuery.count ?? 0),
+ });
+ } catch (error) {
+ return NextResponse.json({ error: String(error instanceof Error ? error.message : error) }, { status: 409 });
  }
 
  const { error: insertError } = await admin.from('team_room_members').insert({

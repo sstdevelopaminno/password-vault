@@ -1,7 +1,8 @@
 ﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Crown, Rocket, Shield } from 'lucide-react';
+import Image from 'next/image';
+import { Check, CircleDollarSign, Crown, QrCode, Rocket, Shield } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,12 @@ type CheckoutOrder = {
   createdAt: string;
 };
 
+type PaymentMethod = 'wallet' | 'promptpay';
+
+type WalletSummary = {
+  balanceThb: number;
+};
+
 const iconsByPlan: Record<string, typeof Rocket> = {
   free_starter: Rocket,
   free_pro_trial: Rocket,
@@ -60,8 +67,19 @@ export default function OurPackagesPage() {
   const [slipPayerName, setSlipPayerName] = useState('');
   const [slipTransferredAt, setSlipTransferredAt] = useState('');
   const [slipImageUrl, setSlipImageUrl] = useState('');
+  const [slipImageName, setSlipImageName] = useState('');
+  const [uploadingSlipImage, setUploadingSlipImage] = useState(false);
+  const [paymentPlanId, setPaymentPlanId] = useState<string | null>(null);
+  const [walletSummary, setWalletSummary] = useState<WalletSummary>({ balanceThb: 0 });
+  const [loadingWalletSummary, setLoadingWalletSummary] = useState(false);
 
   const cycleLabel = useMemo(() => (cycle === 'monthly' ? t('packages.monthly') : t('packages.yearly')), [cycle, t]);
+  const paymentPlan = useMemo(() => plans.find((plan) => plan.id === paymentPlanId) ?? null, [plans, paymentPlanId]);
+  const paymentAmount = useMemo(() => {
+    if (!paymentPlan) return 0;
+    return cycle === 'monthly' ? paymentPlan.monthlyPriceThb : paymentPlan.yearlyPriceThb;
+  }, [paymentPlan, cycle]);
+  const walletEnough = walletSummary.balanceThb >= paymentAmount;
 
   useEffect(() => {
     let mounted = true;
@@ -91,7 +109,23 @@ export default function OurPackagesPage() {
     };
   }, [locale, t]);
 
-  async function choosePlan(planId: string) {
+  async function reloadWalletSummary() {
+    setLoadingWalletSummary(true);
+    try {
+      const response = await fetch('/api/packages/wallet', { cache: 'no-store' });
+      const payload = (await response.json().catch(() => ({}))) as Partial<WalletSummary> & { error?: string };
+      if (!response.ok) {
+        throw new Error(String(payload.error ?? 'Failed to load wallet summary'));
+      }
+      setWalletSummary({
+        balanceThb: Number(payload.balanceThb ?? 0),
+      });
+    } finally {
+      setLoadingWalletSummary(false);
+    }
+  }
+
+  async function submitCheckout(planId: string, paymentMethod: PaymentMethod) {
     setProcessingPlanId(planId);
     setErrorMessage('');
     setStatusMessage('');
@@ -103,6 +137,7 @@ export default function OurPackagesPage() {
         body: JSON.stringify({
           planId,
           cycle,
+          paymentMethod,
           locale,
         }),
       });
@@ -115,18 +150,38 @@ export default function OurPackagesPage() {
       if (payload.mode === 'payment_required' && payload.order) {
         const order = payload.order as CheckoutOrder;
         setCheckoutOrder(order);
+        setPaymentPlanId(null);
         setSlipAmount(String(order.uniqueAmountThb));
         setStatusMessage(t('packages.createdOrder'));
         return;
       }
 
       setCheckoutOrder(null);
+      setPaymentPlanId(null);
       setStatusMessage(t('packages.activated'));
+      await reloadWalletSummary().catch(() => undefined);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t('packages.checkoutFailed'));
     } finally {
       setProcessingPlanId(null);
     }
+  }
+
+  async function choosePlan(planId: string) {
+    const target = plans.find((plan) => plan.id === planId);
+    if (!target) return;
+    const amount = cycle === 'monthly' ? target.monthlyPriceThb : target.yearlyPriceThb;
+
+    if (amount <= 0) {
+      await submitCheckout(planId, 'promptpay');
+      return;
+    }
+
+    setPaymentPlanId(planId);
+    setCheckoutOrder(null);
+    setErrorMessage('');
+    setStatusMessage('');
+    await reloadWalletSummary().catch(() => undefined);
   }
 
   async function submitSlipVerification() {
@@ -167,6 +222,7 @@ export default function OurPackagesPage() {
         setSlipPayerName('');
         setSlipTransferredAt('');
         setSlipImageUrl('');
+        setSlipImageName('');
       } else {
         setErrorMessage(t('packages.slipFailed'));
       }
@@ -174,6 +230,31 @@ export default function OurPackagesPage() {
       setErrorMessage(error instanceof Error ? error.message : t('packages.verifyFailed'));
     } finally {
       setVerifyingSlip(false);
+    }
+  }
+
+  async function handleSlipImageUpload(file: File | null) {
+    if (!file) return;
+    setUploadingSlipImage(true);
+    setErrorMessage('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/packages/slip/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; slipImageUrl?: string };
+      if (!response.ok || !payload.slipImageUrl) {
+        throw new Error(String(payload.error ?? 'Slip image upload failed'));
+      }
+      setSlipImageUrl(payload.slipImageUrl);
+      setSlipImageName(file.name || 'slip-image');
+      setStatusMessage(isThai ? 'อัปโหลดรูปสลิปแล้ว กรุณายืนยันการชำระเงิน' : 'Slip image uploaded. Please verify payment.');
+    } catch (error) {
+      setErrorMessage(String(error instanceof Error ? error.message : 'Slip image upload failed'));
+    } finally {
+      setUploadingSlipImage(false);
     }
   }
 
@@ -211,6 +292,59 @@ export default function OurPackagesPage() {
       ) : null}
       {errorMessage ? (
         <p className='rounded-2xl border border-rose-300/50 bg-rose-400/10 px-3 py-2 text-app-caption text-rose-100'>{errorMessage}</p>
+      ) : null}
+
+      {paymentPlan ? (
+        <section className='space-y-3 rounded-[22px] border border-cyan-300/50 bg-[linear-gradient(150deg,rgba(18,43,116,0.95),rgba(9,21,70,0.98))] p-4'>
+          <div>
+            <h2 className='text-app-h4 font-semibold text-slate-100'>{isThai ? 'เลือกวิธีชำระเงิน' : 'Choose payment method'}</h2>
+            <p className='mt-1 text-app-caption text-slate-200'>
+              {paymentPlan.name} • {t('packages.baht')} {paymentAmount.toLocaleString(isThai ? 'th-TH' : 'en-US')}
+            </p>
+          </div>
+
+          <div className='rounded-xl border border-[rgba(155,188,255,0.26)] bg-[rgba(11,22,56,0.65)] p-3'>
+            <p className='text-app-micro text-slate-300'>{isThai ? 'ยอดคงเหลือกระเป๋าเงิน' : 'Wallet balance'}</p>
+            <p className='mt-1 text-app-body font-semibold text-slate-100'>
+              {loadingWalletSummary ? t('common.loading') : `${t('packages.baht')} ${walletSummary.balanceThb.toLocaleString(isThai ? 'th-TH' : 'en-US')}`}
+            </p>
+            {!walletEnough ? (
+              <p className='mt-1 text-app-micro text-amber-200'>{isThai ? 'ยอดเงินไม่พอ กรุณาเติมเงินหรือเลือกวิธี QR' : 'Insufficient wallet balance. Please top up or use QR.'}</p>
+            ) : null}
+          </div>
+
+          <div className='grid grid-cols-1 gap-2'>
+            <Button
+              type='button'
+              disabled={processingPlanId === paymentPlan.id || !walletEnough}
+              onClick={() => void submitCheckout(paymentPlan.id, 'wallet')}
+              className='h-10 w-full rounded-xl text-app-caption'
+            >
+              <CircleDollarSign className='mr-1 h-4 w-4' />
+              {isThai ? 'ชำระทันทีด้วยกระเป๋าเงิน' : 'Pay now with wallet'}
+            </Button>
+
+            <Button
+              type='button'
+              variant='secondary'
+              disabled={processingPlanId === paymentPlan.id}
+              onClick={() => void submitCheckout(paymentPlan.id, 'promptpay')}
+              className='h-10 w-full rounded-xl text-app-caption'
+            >
+              <QrCode className='mr-1 h-4 w-4' />
+              {isThai ? 'ชำระทันทีด้วย QR พร้อมเพย์' : 'Pay now by PromptPay QR'}
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              disabled={processingPlanId === paymentPlan.id}
+              onClick={() => setPaymentPlanId(null)}
+              className='h-10 w-full rounded-xl text-app-caption'
+            >
+              {isThai ? 'ยกเลิก' : 'Cancel'}
+            </Button>
+          </div>
+        </section>
       ) : null}
 
       <div className='space-y-2'>
@@ -303,7 +437,14 @@ export default function OurPackagesPage() {
             </div>
           </div>
 
-          <img src={checkoutOrder.promptpayQrUrl} alt='PromptPay QR' className='mx-auto h-48 w-48 rounded-xl bg-white p-2' />
+          <Image
+            src={checkoutOrder.promptpayQrUrl}
+            alt='PromptPay QR'
+            width={192}
+            height={192}
+            unoptimized
+            className='mx-auto h-48 w-48 rounded-xl bg-white p-2'
+          />
 
           <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto1')}</p>
           <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto2')}</p>
@@ -318,8 +459,19 @@ export default function OurPackagesPage() {
             <Input value={slipPayer} onChange={(event) => setSlipPayer(event.target.value)} placeholder={t('packages.slipPayer')} />
             <Input value={slipPayerName} onChange={(event) => setSlipPayerName(event.target.value)} placeholder={t('packages.slipPayerName')} />
             <Input value={slipTransferredAt} onChange={(event) => setSlipTransferredAt(event.target.value)} placeholder={t('packages.slipTransferredAt')} type='datetime-local' />
+            <Input
+              type='file'
+              accept='image/*'
+              disabled={uploadingSlipImage || verifyingSlip}
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                void handleSlipImageUpload(file);
+                event.currentTarget.value = '';
+              }}
+            />
+            {slipImageName ? <p className='text-app-micro text-slate-300'>{isThai ? `ไฟล์สลิป: ${slipImageName}` : `Slip file: ${slipImageName}`}</p> : null}
             <Input value={slipImageUrl} onChange={(event) => setSlipImageUrl(event.target.value)} placeholder={t('packages.slipImageUrl')} />
-            <Button type='button' className='h-10 w-full rounded-xl text-app-caption' disabled={verifyingSlip} onClick={submitSlipVerification}>
+            <Button type='button' className='h-10 w-full rounded-xl text-app-caption' disabled={verifyingSlip || uploadingSlipImage} onClick={submitSlipVerification}>
               {verifyingSlip ? t('packages.slipSubmitting') : t('packages.slipSubmit')}
             </Button>
           </div>

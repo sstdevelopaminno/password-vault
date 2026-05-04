@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { signupOtpVerifySchema } from "@/lib/validators";
+import { ensureStarterPlan } from "@/lib/package-subscriptions";
 
 export async function POST(req: Request) {
   const payload = await req.json();
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
   if (updateProfileError) {
     return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
   }
+  await ensureStarterPlan(admin, user.id);
   return NextResponse.json({
     ok: true,
     pendingApproval: false,

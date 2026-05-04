@@ -5,7 +5,8 @@ import { vaultSchema } from "@/lib/validators";
 import { logAudit } from "@/lib/audit";
 import { recordApiMetric } from "@/lib/api-metrics";
 import { createAdminClient, resolveProfileForAuthUser } from "@/lib/supabase/admin";
-import { resolveAccessibleUserIds } from "@/lib/user-identity";
+import { pickPrimaryUserId, resolveAccessibleUserIds } from "@/lib/user-identity";
+import { assertVaultItemQuota, collectPackageUsageSnapshot } from "@/lib/package-entitlements";
 
 const ROUTE_PATH = "/api/vault";
 
@@ -167,7 +168,27 @@ export async function POST(req: Request) {
 
   const body = parsed.data;
   const admin = createAdminClient();
-  let ownerId = data.user.id;
+  const ownerIds = await resolveAccessibleUserIds({
+    admin,
+    authUserId: data.user.id,
+    authEmail: data.user.email,
+  });
+  let ownerId = pickPrimaryUserId({
+    authUserId: data.user.id,
+    accessibleUserIds: ownerIds,
+  });
+  if (!ownerId) {
+    return NextResponse.json({ error: "Unable to resolve user" }, { status: 400 });
+  }
+
+  try {
+    await assertVaultItemQuota({
+      admin,
+      userId: ownerId,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error instanceof Error ? error.message : error) }, { status: 409 });
+  }
 
   async function createItem(targetOwnerId: string) {
     return admin
@@ -194,6 +215,17 @@ export async function POST(req: Request) {
       fullName: String(data.user.user_metadata?.full_name ?? ""),
     });
     ownerId = resolved.profile.id;
+    try {
+      await assertVaultItemQuota({
+        admin,
+        userId: ownerId,
+      });
+    } catch (quotaError) {
+      return NextResponse.json(
+        { error: String(quotaError instanceof Error ? quotaError.message : quotaError) },
+        { status: 409 },
+      );
+    }
     const retried = await createItem(ownerId);
     inserted = retried.data;
     error = retried.error;
@@ -204,6 +236,15 @@ export async function POST(req: Request) {
   }
 
   await logAudit("vault_item_created", { owner_user_id: ownerId, title: body.title });
+  try {
+    await collectPackageUsageSnapshot({
+      admin,
+      userId: ownerId,
+      includeWorkspaceBytes: false,
+    });
+  } catch (usageError) {
+    console.error("Package usage sync failed after vault create:", usageError);
+  }
 
   return NextResponse.json({
     ok: true,

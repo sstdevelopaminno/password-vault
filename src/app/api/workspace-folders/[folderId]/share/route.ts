@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveFolderAccess, resolveWorkspaceActor } from '@/lib/workspace-cloud';
+import { assertMemberQuota } from '@/lib/package-entitlements';
 
 function normalizeEmail(raw: unknown) {
   return String(raw ?? '')
@@ -58,6 +59,24 @@ export async function POST(req: Request, context: { params: Promise<{ folderId: 
   }
   if (actor.accessibleUserIds.includes(targetUserId)) {
     return NextResponse.json({ error: 'You already have access to this folder' }, { status: 400 });
+  }
+
+  const membersCountQuery = await admin
+    .from('workspace_folder_members')
+    .select('user_id', { count: 'exact', head: true })
+    .eq('folder_id', folderId);
+  if (membersCountQuery.error) {
+    return NextResponse.json({ error: membersCountQuery.error.message }, { status: 400 });
+  }
+
+  try {
+    await assertMemberQuota({
+      admin,
+      userId: access.ownerUserId,
+      currentMemberCount: Number(membersCountQuery.count ?? 0) + 1,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error instanceof Error ? error.message : error) }, { status: 409 });
   }
 
   const upsertQuery = await admin

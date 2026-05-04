@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { pickPrimaryUserId, resolveAccessibleUserIds } from '@/lib/user-identity';
 
 export const WORKSPACE_FILES_BUCKET = 'workspace-files';
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 250 * 1024 * 1024;
 export const SIGNED_URL_TTL_SECONDS = 60 * 30;
 
 export type WorkspaceActor = {

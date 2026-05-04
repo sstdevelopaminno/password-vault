@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit';
 import { noteCreateSchema } from '@/lib/validators';
 import { syncNoteReminderJob } from '@/lib/note-reminders';
 import { pickPrimaryUserId, resolveAccessibleUserIds } from '@/lib/user-identity';
+import { assertNotesQuota, collectPackageUsageSnapshot } from '@/lib/package-entitlements';
 
 type NoteRow = {
  id: string;
@@ -187,6 +188,17 @@ export async function POST(req: Request) {
  authUserId: auth.user.id,
  accessibleUserIds: ownerIds,
  });
+ if (!ownerUserId) {
+ return NextResponse.json({ error: 'Unable to resolve user' }, { status: 400 });
+ }
+ try {
+ await assertNotesQuota({
+ admin,
+ userId: ownerUserId,
+ });
+ } catch (error) {
+ return NextResponse.json({ error: String(error instanceof Error ? error.message : error) }, { status: 409 });
+ }
  const nowIso = new Date().toISOString();
  const { data, error } = await admin
  .from('notes')
@@ -216,6 +228,15 @@ export async function POST(req: Request) {
  note_id: data.id,
  title: data.title,
  });
+ try {
+ await collectPackageUsageSnapshot({
+ admin,
+ userId: ownerUserId,
+ includeWorkspaceBytes: false,
+ });
+ } catch (usageError) {
+ console.error('Package usage sync failed after note create:', usageError);
+ }
 
  return NextResponse.json({ note: toClient(data as NoteRow) });
 }

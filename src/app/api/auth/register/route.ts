@@ -9,6 +9,7 @@ import {
   parseRetryAfterSeconds,
   sendSignupOtpViaFallback,
 } from "@/lib/otp-delivery";
+import { ensureStarterPlan } from "@/lib/package-subscriptions";
 
 function isAlreadyRegisteredError(message: string) {
   const lower = message.toLowerCase();
@@ -176,6 +177,7 @@ export async function POST(req: Request) {
     if (updateProfileError) {
       return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
     }
+    await ensureStarterPlan(admin, user.id);
     return NextResponse.json({
       ok: true,
       approved: true,

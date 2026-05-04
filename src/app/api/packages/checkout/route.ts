@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pickPrimaryUserId, resolveAccessibleUserIds } from "@/lib/user-identity";
 import { packageCheckoutSchema } from "@/lib/validators";
-import { createPromptPayOrder, hasUsedTrialPlan, activatePackagePlan } from "@/lib/package-subscriptions";
-import { getPlanConfig, resolvePlanForLocale } from "@/lib/package-plans";
+import { createPromptPayOrder, hasUsedTrialPlan, activatePackagePlan, createWalletPaidOrder } from "@/lib/package-subscriptions";
+import { getCycleAmount, getPlanConfig, resolvePlanForLocale } from "@/lib/package-plans";
+import { applyWalletTransaction } from "@/lib/wallet";
 import type { Locale } from "@/i18n/messages";
 
 function parseLocale(value: string | null): Locale {
@@ -93,6 +94,93 @@ export async function POST(req: Request) {
       },
       plan: resolvePlanForLocale(locale, plan),
     });
+  }
+
+  if (parsed.data.paymentMethod === "wallet") {
+    const amount = getCycleAmount(plan, parsed.data.cycle);
+    if (amount <= 0) {
+      return NextResponse.json({ error: "Selected package does not require payment" }, { status: 400 });
+    }
+
+    let walletTx: { transactionId: string; balanceBeforeThb: number; balanceAfterThb: number } | null = null;
+    let orderIdForRefund: string | null = null;
+    try {
+      walletTx = await applyWalletTransaction({
+        admin,
+        userId,
+        direction: "debit",
+        amountThb: amount,
+        txType: "package_purchase",
+        note: `package:${plan.id}:${parsed.data.cycle}`,
+      });
+    } catch (error) {
+      const message = String(error instanceof Error ? error.message : error).toLowerCase();
+      if (message.includes("insufficient")) {
+        return NextResponse.json({ error: "Wallet balance is not enough for this package" }, { status: 409 });
+      }
+      return NextResponse.json({ error: "Wallet payment failed" }, { status: 400 });
+    }
+
+    try {
+      const order = await createWalletPaidOrder({
+        admin,
+        userId,
+        planId: plan.id,
+        cycle: parsed.data.cycle,
+        walletTransactionId: walletTx.transactionId,
+      });
+      orderIdForRefund = order.id;
+
+      await admin
+        .from("wallet_transactions")
+        .update({ ref_order_id: order.id })
+        .eq("id", walletTx.transactionId);
+
+      const subscription = await activatePackagePlan({
+        admin,
+        userId,
+        plan,
+        cycle: parsed.data.cycle,
+        status: "active",
+        sourceOrderId: order.id,
+      });
+
+      return NextResponse.json({
+        mode: "activated",
+        payment: {
+          channel: "wallet",
+          amountThb: amount,
+          walletBalanceBeforeThb: walletTx.balanceBeforeThb,
+          walletBalanceAfterThb: walletTx.balanceAfterThb,
+        },
+        subscription: {
+          id: subscription.id,
+          status: subscription.status,
+          cycle: subscription.cycle,
+          startsAt: subscription.starts_at,
+          endsAt: subscription.ends_at,
+        },
+        plan: resolvePlanForLocale(locale, plan),
+      });
+    } catch (activateError) {
+      try {
+        await applyWalletTransaction({
+          admin,
+          userId,
+          direction: "credit",
+          amountThb: amount,
+          txType: "refund",
+          refOrderId: orderIdForRefund,
+          note: "auto_refund_on_activation_failure",
+        });
+      } catch (refundError) {
+        console.error("Wallet refund failed after package activation failure:", refundError);
+      }
+      return NextResponse.json(
+        { error: String(activateError instanceof Error ? activateError.message : activateError) },
+        { status: 500 },
+      );
+    }
   }
 
   const promptPayTarget = String(process.env.PROMPTPAY_TARGET_PHONE ?? "").trim();

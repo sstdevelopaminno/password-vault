@@ -136,6 +136,7 @@ export const billingEmailQueueCreateSchema = z.object({
 export const packageCheckoutSchema = z.object({
  planId: z.enum(['free_starter', 'free_pro_trial', 'lite', 'pro', 'business']),
  cycle: z.enum(['monthly', 'yearly']).default('monthly'),
+ paymentMethod: z.enum(['wallet', 'promptpay']).optional().default('promptpay'),
  locale: z.enum(['th', 'en']).optional(),
 });
 
