@@ -53,7 +53,18 @@ android/app/build/
 dist/
 tmp_k6_server.out.log
 tmp_k6_server.err.log
+tmp_e2e_*.log
+tmp_e2e_*.json
+tmp_e2e_*.png
+tmp_pw_debug.png
 
 # local JDK/tooling for Android build
 /tools/
 /android/keystore/
+
+# local publish helper repos/artifacts
+/_deploy_repo/
+/_deploy_repo_gitdata/
+/.tmp_publish_repo/
+/.tmp_publish_repo_live/
+({type
