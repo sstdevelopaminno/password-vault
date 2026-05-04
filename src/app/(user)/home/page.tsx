@@ -423,7 +423,6 @@ export default function HomePage() {
           {t('home.statusLabel')}: {userStatus}
         </span>
       </div>
-
       <div>
         <div className='grid grid-cols-3 gap-2.5'>
           {actionTiles.slice(0, 3).map((tile) => {

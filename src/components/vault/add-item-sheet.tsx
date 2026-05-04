@@ -24,6 +24,7 @@ type AddVaultItemSheetProps = {
  endpoint?: string;
  fabOffsetPx?: number;
  sheetOffsetPx?: number;
+ disabled?: boolean;
 };
 
 const SAVE_TIMEOUT_MS = 12000;
@@ -33,6 +34,7 @@ export function AddVaultItemSheet({
  endpoint = '/api/vault',
  fabOffsetPx = 96,
  sheetOffsetPx = 78,
+ disabled = false,
 }: AddVaultItemSheetProps) {
  const router = useRouter();
  const { showToast } = useToast();
@@ -142,11 +144,15 @@ export function AddVaultItemSheet({
  <button
  type='button'
  aria-label={t('vault.addItemAria')}
+ disabled={disabled}
  onClick={() => {
  if (!open) setOpen(true);
  }}
  style={{ bottom: fabBottom, right: fabRight }}
- className='fixed z-30 inline-flex h-[60px] w-[60px] touch-manipulation items-center justify-center rounded-full border border-[rgba(159,177,255,0.4)] bg-[var(--grad-main)] text-white shadow-[0_12px_30px_rgba(47,123,255,0.38),0_0_26px_rgba(255,62,209,0.34)] transition active:scale-[0.98] hover:brightness-110'
+ className={
+ 'fixed z-30 inline-flex h-[60px] w-[60px] touch-manipulation items-center justify-center rounded-full border border-[rgba(159,177,255,0.4)] bg-[var(--grad-main)] text-white shadow-[0_12px_30px_rgba(47,123,255,0.38),0_0_26px_rgba(255,62,209,0.34)] transition hover:brightness-110 ' +
+ (disabled ? 'cursor-not-allowed opacity-45' : 'active:scale-[0.98]')
+ }
  >
  <Plus className='h-6 w-6' />
  </button>

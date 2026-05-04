@@ -14,6 +14,7 @@ type PlanResponse = {
   name: string;
   summary: string;
   suitability: string;
+  isFree: boolean;
   monthlyPriceThb: number;
   yearlyPriceThb: number;
   recommended?: boolean;
@@ -39,6 +40,20 @@ type PaymentMethod = 'wallet' | 'promptpay';
 
 type WalletSummary = {
   balanceThb: number;
+};
+
+type CurrentPackagePayload = {
+  subscription: {
+    id: string;
+    status: 'active' | 'trialing' | 'expired' | 'canceled';
+    cycle: BillingCycle | null;
+    startsAt: string;
+    endsAt: string | null;
+  };
+  plan: {
+    id: string;
+    name: string;
+  };
 };
 
 const iconsByPlan: Record<string, typeof Rocket> = {
@@ -72,6 +87,7 @@ export default function OurPackagesPage() {
   const [paymentPlanId, setPaymentPlanId] = useState<string | null>(null);
   const [walletSummary, setWalletSummary] = useState<WalletSummary>({ balanceThb: 0 });
   const [loadingWalletSummary, setLoadingWalletSummary] = useState(false);
+  const [currentPackage, setCurrentPackage] = useState<CurrentPackagePayload | null>(null);
 
   const cycleLabel = useMemo(() => (cycle === 'monthly' ? t('packages.monthly') : t('packages.yearly')), [cycle, t]);
   const paymentPlan = useMemo(() => plans.find((plan) => plan.id === paymentPlanId) ?? null, [plans, paymentPlanId]);
@@ -80,6 +96,8 @@ export default function OurPackagesPage() {
     return cycle === 'monthly' ? paymentPlan.monthlyPriceThb : paymentPlan.yearlyPriceThb;
   }, [paymentPlan, cycle]);
   const walletEnough = walletSummary.balanceThb >= paymentAmount;
+  const formatPriceLabel = (amount: number) =>
+    isThai ? `${amount.toLocaleString('th-TH')} ${t('packages.baht')}` : `${t('packages.baht')} ${amount.toLocaleString('en-US')}`;
 
   useEffect(() => {
     let mounted = true;
@@ -108,6 +126,25 @@ export default function OurPackagesPage() {
       mounted = false;
     };
   }, [locale, t]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadCurrentPackage() {
+      try {
+        const response = await fetch(`/api/packages/current?locale=${locale}`, { cache: 'no-store' });
+        const payload = (await response.json().catch(() => ({}))) as CurrentPackagePayload & { error?: string };
+        if (!mounted) return;
+        if (!response.ok || !payload?.plan?.id) return;
+        setCurrentPackage(payload);
+      } catch {
+        // ignore summary error on package page
+      }
+    }
+    void loadCurrentPackage();
+    return () => {
+      mounted = false;
+    };
+  }, [locale]);
 
   useEffect(() => {
     if (!paymentPlan) return;
@@ -168,6 +205,22 @@ export default function OurPackagesPage() {
       setCheckoutOrder(null);
       setPaymentPlanId(null);
       setStatusMessage(t('packages.activated'));
+      setCurrentPackage((prev) =>
+        prev
+          ? {
+              ...prev,
+              plan: {
+                id: planId,
+                name: plans.find((plan) => plan.id === planId)?.name ?? prev.plan.name,
+              },
+              subscription: {
+                ...prev.subscription,
+                status: 'active',
+                cycle,
+              },
+            }
+          : prev,
+      );
       await reloadWalletSummary().catch(() => undefined);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t('packages.checkoutFailed'));
@@ -179,6 +232,7 @@ export default function OurPackagesPage() {
   async function choosePlan(planId: string) {
     const target = plans.find((plan) => plan.id === planId);
     if (!target) return;
+    if (target.isFree) return;
     const amount = cycle === 'monthly' ? target.monthlyPriceThb : target.yearlyPriceThb;
 
     if (amount <= 0) {
@@ -191,6 +245,39 @@ export default function OurPackagesPage() {
     setErrorMessage('');
     setStatusMessage('');
     await reloadWalletSummary().catch(() => undefined);
+  }
+
+  async function cancelCurrentPaidPackage() {
+    setErrorMessage('');
+    setStatusMessage('');
+    try {
+      const response = await fetch('/api/packages/cancel', { method: 'POST' });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(String(payload.error ?? 'Unable to cancel package'));
+      }
+      setCurrentPackage((prev) =>
+        prev
+          ? {
+              ...prev,
+              plan: {
+                id: 'free_starter',
+                name: isThai ? 'ฟรี' : 'Free',
+              },
+              subscription: {
+                ...prev.subscription,
+                status: 'active',
+                cycle: null,
+              },
+            }
+          : prev,
+      );
+      setPaymentPlanId(null);
+      setCheckoutOrder(null);
+      setStatusMessage(isThai ? 'ยกเลิกแพ็กเกจสำเร็จ ระบบกลับไป Free Starter แล้ว' : 'Package canceled. Account is now on Free Starter.');
+    } catch (error) {
+      setErrorMessage(String(error instanceof Error ? error.message : 'Unable to cancel package'));
+    }
   }
 
   async function submitSlipVerification() {
@@ -312,14 +399,14 @@ export default function OurPackagesPage() {
             <div>
               <h2 className='text-app-h4 font-semibold text-slate-100'>{isThai ? 'เลือกวิธีชำระเงิน' : 'Choose payment method'}</h2>
               <p className='mt-1 text-app-caption text-slate-200'>
-                {paymentPlan.name} • {t('packages.baht')} {paymentAmount.toLocaleString(isThai ? 'th-TH' : 'en-US')}
+                {paymentPlan.name} • {formatPriceLabel(paymentAmount)}
               </p>
             </div>
 
             <div className='rounded-xl border border-[rgba(155,188,255,0.26)] bg-[rgba(11,22,56,0.65)] p-3'>
               <p className='text-app-micro text-slate-300'>{isThai ? 'ยอดคงเหลือกระเป๋าเงิน' : 'Wallet balance'}</p>
               <p className='mt-1 text-app-body font-semibold text-slate-100'>
-                {loadingWalletSummary ? t('common.loading') : `${t('packages.baht')} ${walletSummary.balanceThb.toLocaleString(isThai ? 'th-TH' : 'en-US')}`}
+                {loadingWalletSummary ? t('common.loading') : formatPriceLabel(walletSummary.balanceThb)}
               </p>
               {!walletEnough ? (
                 <p className='mt-1 text-app-micro text-amber-200'>{isThai ? 'ยอดเงินไม่พอ กรุณาเติมเงินหรือเลือกวิธี QR' : 'Insufficient wallet balance. Please top up or use QR.'}</p>
@@ -366,6 +453,8 @@ export default function OurPackagesPage() {
           const Icon = iconsByPlan[plan.id] ?? Rocket;
           const price = cycle === 'monthly' ? plan.monthlyPriceThb : plan.yearlyPriceThb;
           const isFree = price === 0;
+          const isCurrentPlan = currentPackage?.plan.id === plan.id;
+          const isCurrentPaidPlan = isCurrentPlan && !isFree;
 
           return (
             <article
@@ -386,7 +475,7 @@ export default function OurPackagesPage() {
                       {plan.name}
                     </p>
                     <h2 className='mt-1 text-[24px] font-semibold leading-none text-slate-50'>
-                      {isFree ? t('packages.freeLabel') : `${t('packages.baht')} ${price.toLocaleString(isThai ? 'th-TH' : 'en-US')}`}
+                      {isFree ? t('packages.freeLabel') : formatPriceLabel(price)}
                     </h2>
                     <p className='mt-1 text-app-micro text-slate-300'>{isFree ? cycleLabel : cycle === 'monthly' ? t('packages.perMonth') : t('packages.perYear')}</p>
                   </div>
@@ -413,14 +502,26 @@ export default function OurPackagesPage() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  type='button'
-                  disabled={processingPlanId === plan.id}
-                  onClick={() => choosePlan(plan.id)}
-                  className='mt-3 h-10 w-full rounded-xl text-app-caption'
-                >
-                  {t('packages.choosePlan')}
-                </Button>
+                {!isFree ? (
+                  <Button
+                    type='button'
+                    disabled={processingPlanId === plan.id}
+                    onClick={() => {
+                      if (isCurrentPaidPlan) {
+                        void cancelCurrentPaidPackage();
+                        return;
+                      }
+                      void choosePlan(plan.id);
+                    }}
+                    className='mt-3 h-10 w-full rounded-xl text-app-caption'
+                  >
+                    {isCurrentPaidPlan ? (isThai ? 'ยกเลิกแพ็กเกจ' : 'Cancel package') : t('packages.choosePlan')}
+                  </Button>
+                ) : (
+                  <div className='mt-3 h-10 w-full rounded-xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.5)] px-3 py-2 text-center text-app-caption font-semibold text-slate-200'>
+                    {isThai ? 'แพ็กเกจฟรีใช้งานอัตโนมัติเมื่อเริ่มต้น' : 'Free package is applied automatically for first signup'}
+                  </div>
+                )}
               </div>
             </article>
           );
@@ -443,7 +544,7 @@ export default function OurPackagesPage() {
           <div className='grid grid-cols-2 gap-2 text-app-caption text-slate-100'>
             <div className='rounded-xl bg-[rgba(12,23,60,0.65)] p-2'>
               <p className='text-app-micro text-slate-300'>{t('packages.paymentAmount')}</p>
-              <p className='font-semibold'>{t('packages.baht')} {checkoutOrder.uniqueAmountThb.toLocaleString(isThai ? 'th-TH' : 'en-US')}</p>
+              <p className='font-semibold'>{formatPriceLabel(checkoutOrder.uniqueAmountThb)}</p>
             </div>
             <div className='rounded-xl bg-[rgba(12,23,60,0.65)] p-2'>
               <p className='text-app-micro text-slate-300'>{t('packages.paymentExpires')}</p>

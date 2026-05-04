@@ -18,6 +18,7 @@ import { BRAND_LOGO_URL } from '@/lib/brand-logo';
 import { getOfflineCache, setOfflineCache } from '@/lib/offline-store';
 import { flushOfflineQueue, queueOfflineRequest } from '@/lib/offline-sync';
 import { useOutageState } from '@/lib/outage-detector';
+import { usePackageRestrictions } from '@/lib/use-package-restrictions';
 
 type VaultItem = {
  id: string;
@@ -110,6 +111,8 @@ export default function VaultPage() {
  const { t, locale } = useI18n();
  const { showToast } = useToast();
  const { isOfflineMode } = useOutageState();
+ const { restrictions } = usePackageRestrictions();
+ const interactionLocked = restrictions.interactiveLocked;
 
  const [items, setItems] = useState<VaultItem[]>([]);
  const [search, setSearch] = useState('');
@@ -500,6 +503,11 @@ export default function VaultPage() {
  className='h-[50px] rounded-[18px] border-transparent bg-transparent pl-11 text-[15px] text-[#eef5ff] placeholder:text-[#8699c3] focus:border-transparent focus:ring-0'
  />
  </div>
+ {interactionLocked ? (
+ <p className='rounded-2xl border border-amber-300/50 bg-amber-400/10 px-3 py-2 text-app-caption text-amber-100'>
+ {locale === 'th' ? 'รายการเกินสิทธิ์แพ็กเกจปัจจุบัน แสดงข้อมูลได้แต่ปิดการกดแก้ไข/เพิ่มชั่วคราว' : 'Usage exceeds current package limits. You can view items, but create/edit actions are temporarily locked.'}
+ </p>
+ ) : null}
 
  <div className='grid gap-3'>
  {items.map((item) => (
@@ -512,13 +520,18 @@ export default function VaultPage() {
  category={item.category}
  sharedToTeamCount={item.sharedToTeamCount}
  pending={item.pending}
- onOpen={(id) => router.push('/vault/' + encodeURIComponent(id))}
+ onOpen={(id) => {
+ if (interactionLocked) return;
+ router.push('/vault/' + encodeURIComponent(id));
+ }}
  onEdit={(id) => {
+ if (interactionLocked) return;
  if (mutating) return;
  const found = items.find((it) => it.id === id);
  if (found) setEditingItem(found);
  }}
  onDelete={(id) => {
+ if (interactionLocked) return;
  if (mutating) return;
  const cached = getCachedAssertion('delete_secret');
  if (cached) {
@@ -528,6 +541,7 @@ export default function VaultPage() {
  setPendingDeleteId(id);
  }}
  onShare={(id) => {
+ if (interactionLocked) return;
  const found = items.find((it) => it.id === id);
  if (found) setSharingItem(found);
  }}
@@ -602,6 +616,7 @@ export default function VaultPage() {
  ) : null}
 
  <AddVaultItemSheet
+ disabled={interactionLocked}
  onCreated={(created) => {
  if (isOfflineMode) {
  const pending: VaultItem = {

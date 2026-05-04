@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { pickPrimaryUserId, resolveAccessibleUserIds } from "@/lib/user-identity";
 import { resolvePlanForLocale } from "@/lib/package-plans";
 import { collectPackageUsageSnapshot, resolveUserPackageAccess } from "@/lib/package-entitlements";
+import { buildPackageRestrictionState } from "@/lib/package-restrictions";
 import type { Locale } from "@/i18n/messages";
 
 function parseLocale(value: string | null): Locale {
@@ -51,6 +52,10 @@ export async function GET(req: Request) {
   });
 
   const localizedPlan = resolvePlanForLocale(locale, currentAccess.plan);
+  const restrictions = buildPackageRestrictionState({
+    entitlements: currentAccess.entitlements,
+    usage,
+  });
 
   return NextResponse.json({
     subscription: {
@@ -61,12 +66,21 @@ export async function GET(req: Request) {
       endsAt: currentAccess.subscription.ends_at,
     },
     plan: localizedPlan,
+    entitlements: {
+      maxMembers: currentAccess.entitlements.maxMembers,
+      vaultItemsLimit: currentAccess.entitlements.vaultItemsLimit,
+      notesLimit: currentAccess.entitlements.notesLimit,
+      storageLimitBytes: currentAccess.entitlements.storageLimitBytes,
+      perUploadLimitBytes: currentAccess.entitlements.perUploadLimitBytes,
+    },
     usage: {
       vaultItems: usage.vaultItems,
       notes: usage.notes,
       filesGb: toGbText(usage.fileBytes),
+      fileBytes: usage.fileBytes,
       lastUpdatedAt: usage.updatedAt,
     },
+    restrictions,
   });
 }
 

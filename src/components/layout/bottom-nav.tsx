@@ -64,7 +64,7 @@ export function BottomNav({ admin = false }: { admin?: boolean }) {
                 <Link
                   href={item.href}
                   className={
-                    'group flex w-full select-none touch-manipulation flex-col items-center justify-center px-1.5 py-1.5 text-[12.5px] font-semibold transition-[transform,box-shadow,background,color] duration-200 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
+                    'group flex w-full select-none touch-manipulation flex-col items-center justify-center px-1.5 py-1.5 text-[12.5px] font-semibold transition-[transform,box-shadow,background,color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ' +
                     (homeActive
                       ? 'min-h-[72px] gap-1.5 rounded-[20px] bg-[linear-gradient(140deg,rgba(88,155,255,0.48),rgba(170,83,255,0.42))] text-[#eef6ff] shadow-[0_0_16px_rgba(80,145,255,0.3),0_0_24px_rgba(198,81,255,0.18)]'
                       : active

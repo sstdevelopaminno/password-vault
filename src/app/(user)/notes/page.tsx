@@ -15,6 +15,7 @@ import { disposeOcrWorker } from '@/lib/ocr-worker';
 import { canUseNativePrinter, loadSelectedNativePrinter, printEscPosText80mm } from '@/lib/native-thermal-printer';
 import { useOutageState } from '@/lib/outage-detector';
 import { detectRuntimeCapabilities } from '@/lib/pwa-runtime';
+import { usePackageRestrictions } from '@/lib/use-package-restrictions';
 
 type NoteItem = {
  id: string;
@@ -220,6 +221,8 @@ export default function NotesPage() {
  const { showToast } = useToast();
  const isTh = locale === 'th';
  const { isOfflineMode } = useOutageState();
+ const { restrictions } = usePackageRestrictions();
+ const interactionLocked = restrictions.interactiveLocked;
  const wasOfflineRef = useRef(isOfflineMode);
  const runtimeCapabilities = useMemo(() => detectRuntimeCapabilities(), []);
  const isNativeApp = runtimeCapabilities.isCapacitorNative;
@@ -301,6 +304,15 @@ useEffect(() => {
  setOcrPreviewOpen(false);
  setDateTimePickerState(null);
  }, [editorOpen]);
+
+ useEffect(() => {
+ if (!interactionLocked) return;
+ setEditorOpen(false);
+ setDeleteTarget(null);
+ setPendingCalendarDatePin(null);
+ setCalendarDatePopup(null);
+ resetPendingPinTargets();
+ }, [interactionLocked]);
 
  const loadNotes = useCallback(
  async (page = pagination.page, q = searchDebounced) => {
@@ -720,6 +732,7 @@ useEffect(() => {
  }, [calendarNotes]);
 
  function openCreate() {
+ if (interactionLocked) return;
  setEditingId(null);
  setDraftTitle('');
  setDraftContent('');
@@ -735,6 +748,7 @@ useEffect(() => {
  }
 
  function openEdit(note: NoteItem) {
+ if (interactionLocked) return;
  setEditingId(note.id);
  setDraftTitle(note.title);
  setDraftContent(note.content);
@@ -758,6 +772,7 @@ setDraftReminder('');
  }
 
 function openDateTimePicker(target: DateFieldTarget) {
+if (interactionLocked) return;
 const source = target === 'reminder' ? draftReminder : draftMeeting;
 const seeded = source ? new Date(source) : new Date();
 const base = Number.isNaN(seeded.getTime()) ? new Date() : seeded;
@@ -858,37 +873,74 @@ selectedTime: timeValueFromDate(now),
  setPendingPdfPinTarget(null);
  }
 
+ function showPackageLockedToast() {
+ showToast(
+ isTh
+ ? 'เกินสิทธิ์แพ็กเกจปัจจุบัน จึงปิดการกดใช้งานชั่วคราว'
+ : 'Usage exceeds current package limits, so interactions are temporarily locked.',
+ 'error',
+ );
+ }
+
  function requestEditWithPin(note: NoteItem) {
+ if (interactionLocked) {
+ showPackageLockedToast();
+ return;
+ }
  resetPendingPinTargets();
  setPendingEditPinTarget(note);
  }
 
  function requestDeleteWithPin(note: NoteItem) {
+ if (interactionLocked) {
+ showPackageLockedToast();
+ return;
+ }
  resetPendingPinTargets();
  setPendingDeletePinTarget(note);
  }
 
  function requestViewWithPin(note: NoteItem) {
+ if (interactionLocked) {
+ showPackageLockedToast();
+ return;
+ }
  resetPendingPinTargets();
  setPendingViewPinTarget(note);
  }
 
  function requestShareWithPin(note: NoteItem) {
+ if (interactionLocked) {
+ showPackageLockedToast();
+ return;
+ }
  resetPendingPinTargets();
  setPendingSharePinTarget(note);
  }
 
  function requestCopyWithPin(note: NoteItem) {
+ if (interactionLocked) {
+ showPackageLockedToast();
+ return;
+ }
  resetPendingPinTargets();
  setPendingCopyPinTarget(note);
  }
 
  function requestPdfWithPin(note: NoteItem) {
+ if (interactionLocked) {
+ showPackageLockedToast();
+ return;
+ }
  resetPendingPinTargets();
  setPendingPdfPinTarget(note);
  }
 
  function handleCalendarDateClick(dateKey: string) {
+ if (interactionLocked) {
+ showPackageLockedToast();
+ return;
+ }
  setSelectedDateKey(dateKey);
  const notesOnDate = calendarNotesByDate.get(dateKey) ?? [];
  if (notesOnDate.length === 0) {
@@ -904,6 +956,10 @@ selectedTime: timeValueFromDate(now),
  }
 
  function goToNotesMenu(target: 'paper' | 'calendar' | 'create') {
+ if (interactionLocked) {
+ showPackageLockedToast();
+ return;
+ }
  if (target === 'create') {
  openCreate();
  return;
@@ -933,6 +989,7 @@ selectedTime: timeValueFromDate(now),
  }
 
 async function saveNote() {
+ if (interactionLocked) return;
  const title = draftTitle.trim();
  const content = draftContent.trim();
  if (saving) return;
@@ -1026,6 +1083,7 @@ const method = editingId ? 'PATCH' : 'POST';
  }
 
 async function confirmDeleteNote() {
+if (interactionLocked) return;
 if (!deleteTarget || deleting) return;
 setDeleting(true);
  const endpoint = '/api/notes/' + encodeURIComponent(deleteTarget.id);
@@ -1195,13 +1253,21 @@ async function downloadPdf(note: NoteItem) {
  </p>
  </header>
 
+ {interactionLocked ? (
+ <p className='rounded-2xl border border-amber-300/60 bg-amber-400/10 px-3 py-2 text-app-caption text-amber-100'>
+ {isTh ? 'เกินสิทธิ์แพ็กเกจปัจจุบัน: ข้อมูลยังแสดงได้ แต่ปุ่มสร้าง/แก้ไข/ลบ/แชร์/คัดลอกถูกล็อกชั่วคราว' : 'Usage exceeds current package limits: data remains visible, but create/edit/delete/share/copy actions are temporarily locked.'}
+ </p>
+ ) : null}
+
  <div className='grid grid-cols-3 gap-2'>
  <button
  type='button'
+ disabled={interactionLocked}
  onClick={() => goToNotesMenu('paper')}
  aria-pressed={viewMode === 'paper'}
  className={
  'group flex h-[88px] flex-col items-center justify-center rounded-[18px] border transition active:scale-[0.98] ' +
+ (interactionLocked ? 'cursor-not-allowed opacity-50 ' : '') +
  (viewMode === 'paper'
  ? 'border-cyan-300/70 bg-[linear-gradient(180deg,rgba(14,68,147,0.56),rgba(37,23,95,0.58))] text-[#dff6ff] shadow-[0_12px_26px_rgba(56,216,255,0.16)]'
  : 'border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-600 hover:border-cyan-300/50 hover:text-slate-900')
@@ -1214,10 +1280,12 @@ async function downloadPdf(note: NoteItem) {
  </button>
  <button
  type='button'
+ disabled={interactionLocked}
  onClick={() => goToNotesMenu('calendar')}
  aria-pressed={viewMode === 'calendar'}
  className={
  'group flex h-[88px] flex-col items-center justify-center rounded-[18px] border transition active:scale-[0.98] ' +
+ (interactionLocked ? 'cursor-not-allowed opacity-50 ' : '') +
  (viewMode === 'calendar'
  ? 'border-fuchsia-300/65 bg-[linear-gradient(180deg,rgba(68,41,141,0.62),rgba(20,34,103,0.6))] text-[#f4deff] shadow-[0_12px_26px_rgba(197,68,255,0.18)]'
  : 'border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-600 hover:border-fuchsia-300/50 hover:text-slate-900')
@@ -1230,8 +1298,9 @@ async function downloadPdf(note: NoteItem) {
  </button>
  <button
  type='button'
+ disabled={interactionLocked}
  onClick={() => goToNotesMenu('create')}
- className='group flex h-[88px] flex-col items-center justify-center rounded-[18px] border border-fuchsia-300/60 bg-[var(--grad-main)] text-white shadow-[0_12px_30px_rgba(47,123,255,0.34),0_0_28px_rgba(255,62,209,0.28)] transition active:scale-[0.98]'
+ className={'group flex h-[88px] flex-col items-center justify-center rounded-[18px] border border-fuchsia-300/60 bg-[var(--grad-main)] text-white shadow-[0_12px_30px_rgba(47,123,255,0.34),0_0_28px_rgba(255,62,209,0.28)] transition active:scale-[0.98] ' + (interactionLocked ? 'cursor-not-allowed opacity-50' : '')}
  >
  <span className='inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-[0_6px_16px_rgba(15,23,42,0.2)] backdrop-blur-[1px]'>
  <Plus className='h-4 w-4' />
@@ -1292,9 +1361,10 @@ async function downloadPdf(note: NoteItem) {
  </div>
  <button
  type='button'
+ disabled={interactionLocked}
  onClick={() => requestViewWithPin(note)}
  aria-label={isTh ? 'เปิดเนื้อหาแบบกระดาษ' : 'Open paper-style content'}
- className='inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-500 transition hover:border-cyan-300/50 hover:text-sky-400 sm:h-11 sm:w-11'
+ className={'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-[var(--border-soft)] bg-[var(--surface-1)] text-slate-500 transition hover:border-cyan-300/50 hover:text-sky-400 sm:h-11 sm:w-11 ' + (interactionLocked ? 'cursor-not-allowed opacity-45' : '')}
  >
  <ChevronRight className='h-4 w-4' />
  </button>
@@ -1310,11 +1380,11 @@ async function downloadPdf(note: NoteItem) {
  </span>
  </div>
  <div className='flex flex-wrap gap-1.5 sm:gap-2'>
- <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-sky-400 hover:border-cyan-300/50 hover:text-sky-300 sm:h-9 sm:w-9' onClick={() => requestEditWithPin(note)}><Edit3 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[rgba(255,105,157,0.36)] bg-[rgba(64,14,44,0.58)] p-0 text-[#ff88b0] hover:border-rose-300/60 hover:text-[#ff92ba] sm:h-9 sm:w-9' onClick={() => requestDeleteWithPin(note)}><Trash2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-fuchsia-300 hover:border-fuchsia-300/50 hover:text-fuchsia-200 sm:h-9 sm:w-9' onClick={() => requestShareWithPin(note)}><Share2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-sky-300 hover:border-cyan-300/50 hover:text-sky-200 sm:h-9 sm:w-9' onClick={() => requestCopyWithPin(note)}><Copy className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
- <Button type='button' size='sm' variant='secondary' className='h-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] px-2.5 text-app-micro font-semibold text-slate-700 hover:border-cyan-300/45 hover:text-slate-900 sm:h-9 sm:px-3' onClick={() => requestPdfWithPin(note)}>
+ <Button type='button' size='sm' variant='secondary' disabled={interactionLocked} className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-sky-400 hover:border-cyan-300/50 hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9' onClick={() => requestEditWithPin(note)}><Edit3 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' disabled={interactionLocked} className='h-8 w-8 rounded-full border border-[rgba(255,105,157,0.36)] bg-[rgba(64,14,44,0.58)] p-0 text-[#ff88b0] hover:border-rose-300/60 hover:text-[#ff92ba] disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9' onClick={() => requestDeleteWithPin(note)}><Trash2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' disabled={interactionLocked} className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-fuchsia-300 hover:border-fuchsia-300/50 hover:text-fuchsia-200 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9' onClick={() => requestShareWithPin(note)}><Share2 className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' disabled={interactionLocked} className='h-8 w-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] p-0 text-sky-300 hover:border-cyan-300/50 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:w-9' onClick={() => requestCopyWithPin(note)}><Copy className='h-3.5 w-3.5 sm:h-4 sm:w-4' /></Button>
+ <Button type='button' size='sm' variant='secondary' disabled={interactionLocked} className='h-8 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] px-2.5 text-app-micro font-semibold text-slate-700 hover:border-cyan-300/45 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45 sm:h-9 sm:px-3' onClick={() => requestPdfWithPin(note)}>
  <span className='inline-flex items-center gap-1'>
  <Printer className='h-3.5 w-3.5' />
  {canUseNativePrinter() ? (isTh ? 'พิมพ์ Bluetooth' : 'Print Bluetooth') : (isTh ? 'ไฟล์ PDF' : 'PDF file')}
@@ -1349,8 +1419,9 @@ async function downloadPdf(note: NoteItem) {
  <button
  key={key}
  type='button'
+ disabled={interactionLocked}
  onClick={() => handleCalendarDateClick(key)}
- className={'relative h-12 rounded-xl border text-app-caption transition ' + (active ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200')}
+ className={'relative h-12 rounded-xl border text-app-caption transition ' + (active ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200') + (interactionLocked ? ' cursor-not-allowed opacity-45' : '')}
  >
  {date.getDate()}
  {count > 0 ? <span className='absolute right-1 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-app-micro font-semibold text-white'>{count}</span> : null}
@@ -1434,6 +1505,7 @@ async function downloadPdf(note: NoteItem) {
  type='button'
  variant='secondary'
  size='sm'
+ disabled={interactionLocked}
  className='h-8 rounded-lg px-3 text-app-micro'
  onClick={() => {
  setCalendarDatePopup(null);
@@ -1509,6 +1581,7 @@ async function downloadPdf(note: NoteItem) {
  </Button>
  <Button
  type='button'
+ disabled={interactionLocked}
  className='w-full'
  onClick={() => {
  if (activeDueNote) {
@@ -1732,7 +1805,7 @@ className='min-w-0 flex-1 rounded-xl border border-[#b7a4ef] bg-[linear-gradient
 </div>
 <div className='mt-3 grid grid-cols-2 gap-2'>
 <Button type='button' variant='secondary' className='h-12 w-full rounded-2xl border border-slate-400 bg-slate-100 text-[15px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] hover:bg-slate-200' onClick={() => setEditorOpen(false)} disabled={saving}>{isTh ? 'ยกเลิก' : 'Cancel'}</Button>
-<Button type='button' className='h-12 w-full rounded-2xl bg-[linear-gradient(180deg,#2b6dff,#1842bf)] text-[15px] font-semibold text-white shadow-[0_10px_22px_rgba(24,66,191,0.34)] hover:brightness-110' onClick={() => void saveNote()} disabled={saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
+<Button type='button' className='h-12 w-full rounded-2xl bg-[linear-gradient(180deg,#2b6dff,#1842bf)] text-[15px] font-semibold text-white shadow-[0_10px_22px_rgba(24,66,191,0.34)] hover:brightness-110' onClick={() => void saveNote()} disabled={interactionLocked || saving || ocrRunning}>{saving ? (isTh ? 'กำลังบันทึก...' : 'Saving...') : isTh ? 'บันทึก' : 'Save'}</Button>
 </div>
 </>
  </div>

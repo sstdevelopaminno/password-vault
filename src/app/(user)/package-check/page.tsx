@@ -25,7 +25,23 @@ type CurrentPackagePayload = {
     vaultItems: number;
     notes: number;
     filesGb: number;
+    fileBytes: number;
     lastUpdatedAt: string | null;
+  };
+  entitlements: {
+    maxMembers: number;
+    vaultItemsLimit: number;
+    notesLimit: number;
+    storageLimitBytes: number;
+    perUploadLimitBytes: number;
+  };
+  restrictions: {
+    interactiveLocked: boolean;
+    overLimit: {
+      vaultItems: number;
+      notes: number;
+      filesBytes: number;
+    };
   };
 };
 
@@ -73,6 +89,11 @@ export default function PackageCheckPage() {
       {error ? (
         <p className='rounded-2xl border border-rose-300/50 bg-rose-400/10 px-3 py-2 text-app-caption text-rose-100'>{error}</p>
       ) : null}
+      {payload?.restrictions?.interactiveLocked ? (
+        <p className='rounded-2xl border border-amber-300/50 bg-amber-400/10 px-3 py-2 text-app-caption text-amber-100'>
+          {locale === 'th' ? 'แพ็กเกจปัจจุบันมีรายการเกินสิทธิ์ ระบบจะแสดงข้อมูลได้ แต่ล็อคการแก้ไข/สร้างบางเมนูชั่วคราว' : 'Current package is over limit. Data remains visible, but create/edit actions are temporarily locked.'}
+        </p>
+      ) : null}
 
       <article className='relative overflow-hidden rounded-[22px] border border-[rgba(139,186,255,0.38)] bg-[linear-gradient(150deg,rgba(21,42,111,0.93),rgba(11,24,70,0.97))] p-4 shadow-[0_16px_34px_rgba(14,46,120,0.35)]'>
         <span className='absolute -right-10 -top-12 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(72,196,255,0.35),transparent_72%)]' />
@@ -102,7 +123,9 @@ export default function PackageCheckPage() {
             </div>
             <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
               <p className='text-[10px] text-slate-300'>{t('packages.statVaultItems')}</p>
-              <p className='mt-1 text-app-body font-semibold text-slate-100'>{payload?.usage.vaultItems ?? 0}</p>
+              <p className='mt-1 text-app-body font-semibold text-slate-100'>
+                {(payload?.usage.vaultItems ?? 0).toLocaleString(locale === 'th' ? 'th-TH' : 'en-US')} / {(payload?.entitlements.vaultItemsLimit ?? 0).toLocaleString(locale === 'th' ? 'th-TH' : 'en-US')}
+              </p>
             </div>
             <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
               <p className='text-[10px] text-slate-300'>{t('packages.statFiles')}</p>
@@ -113,7 +136,9 @@ export default function PackageCheckPage() {
           <div className='grid grid-cols-3 gap-2'>
             <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
               <p className='text-[10px] text-slate-300'>{t('packages.statNotes')}</p>
-              <p className='mt-1 text-app-body font-semibold text-slate-100'>{payload?.usage.notes ?? 0}</p>
+              <p className='mt-1 text-app-body font-semibold text-slate-100'>
+                {(payload?.usage.notes ?? 0).toLocaleString(locale === 'th' ? 'th-TH' : 'en-US')} / {(payload?.entitlements.notesLimit ?? 0).toLocaleString(locale === 'th' ? 'th-TH' : 'en-US')}
+              </p>
             </div>
             <div className='rounded-2xl border border-[rgba(154,195,255,0.32)] bg-[rgba(14,30,80,0.66)] p-2.5'>
               <p className='text-[10px] text-slate-300'>{t('packages.statSupport')}</p>

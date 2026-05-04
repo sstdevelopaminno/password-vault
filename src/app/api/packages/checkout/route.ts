@@ -6,6 +6,7 @@ import { packageCheckoutSchema } from "@/lib/validators";
 import { createPromptPayOrder, hasUsedTrialPlan, activatePackagePlan, createWalletPaidOrder } from "@/lib/package-subscriptions";
 import { getCycleAmount, getPlanConfig, resolvePlanForLocale } from "@/lib/package-plans";
 import { applyWalletTransaction } from "@/lib/wallet";
+import { promptPayConfigErrorMessage, resolvePromptPayTargetFromEnv } from "@/lib/promptpay-config";
 import type { Locale } from "@/i18n/messages";
 
 function parseLocale(value: string | null): Locale {
@@ -183,9 +184,9 @@ export async function POST(req: Request) {
     }
   }
 
-  const promptPayTarget = String(process.env.PROMPTPAY_TARGET_PHONE ?? "").trim();
+  const promptPayTarget = resolvePromptPayTargetFromEnv();
   if (!promptPayTarget) {
-    return NextResponse.json({ error: "Missing PromptPay target configuration" }, { status: 500 });
+    return NextResponse.json({ error: promptPayConfigErrorMessage() }, { status: 500 });
   }
 
   const order = await createPromptPayOrder({

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pickPrimaryUserId, resolveAccessibleUserIds } from "@/lib/user-identity";
 import { createWalletTopupOrder } from "@/lib/wallet-topup";
+import { promptPayConfigErrorMessage, resolvePromptPayTargetFromEnv } from "@/lib/promptpay-config";
 
 const topupSchema = z.object({
   amountThb: z.coerce.number().min(1).max(1_000_000),
@@ -36,9 +37,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unable to resolve user" }, { status: 400 });
   }
 
-  const promptPayTarget = String(process.env.PROMPTPAY_TARGET_PHONE ?? "").trim();
+  const promptPayTarget = resolvePromptPayTargetFromEnv();
   if (!promptPayTarget) {
-    return NextResponse.json({ error: "Missing PromptPay target configuration" }, { status: 500 });
+    return NextResponse.json({ error: promptPayConfigErrorMessage() }, { status: 500 });
   }
 
   const order = await createWalletTopupOrder({

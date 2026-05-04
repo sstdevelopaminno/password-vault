@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomInt } from "node:crypto";
 import { buildPromptPayQrUrl, getCycleAmount, getPlanConfig, type PackageCycle, type PackagePlanConfig, type PackagePlanId } from "@/lib/package-plans";
+import { applyWalletTransaction } from "@/lib/wallet";
 
 type SubscriptionStatus = "active" | "trialing" | "expired" | "canceled";
 
@@ -152,6 +153,10 @@ export async function activatePackagePlan(input: {
 export async function ensureStarterPlan(admin: SupabaseClient, userId: string) {
   const current = await getCurrentPackageSubscription(admin, userId);
   if (current?.id) return current;
+  await tryAutoRenewLatestPaidPlan(admin, userId);
+
+  const renewed = await getCurrentPackageSubscription(admin, userId);
+  if (renewed?.id) return renewed;
 
   const starter = getPlanConfig("free_starter");
   if (!starter) throw new Error("Starter package configuration is missing");
@@ -162,6 +167,83 @@ export async function ensureStarterPlan(admin: SupabaseClient, userId: string) {
     plan: starter,
     cycle: null,
     status: "active",
+  });
+}
+
+async function tryAutoRenewLatestPaidPlan(admin: SupabaseClient, userId: string) {
+  const nowIso = new Date().toISOString();
+  const candidateQuery = await admin
+    .from("package_subscriptions")
+    .select("id,user_id,plan_id,cycle,status,starts_at,ends_at,created_at")
+    .eq("user_id", userId)
+    .not("cycle", "is", null)
+    .not("ends_at", "is", null)
+    .lte("ends_at", nowIso)
+    .in("status", ["active", "trialing", "expired"])
+    .order("ends_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (candidateQuery.error) {
+    throw new Error(candidateQuery.error.message);
+  }
+
+  const candidate = candidateQuery.data as SubscriptionRow | null;
+  if (!candidate?.id || !candidate.cycle) return;
+
+  const plan = getPlanConfig(candidate.plan_id);
+  if (!plan || plan.isFree) return;
+
+  const amountThb = getCycleAmount(plan, candidate.cycle);
+  if (!Number.isFinite(amountThb) || amountThb <= 0) return;
+
+  const expireUpdate = await admin
+    .from("package_subscriptions")
+    .update({
+      status: "expired",
+      ends_at: nowIso,
+      updated_at: nowIso,
+    })
+    .eq("id", candidate.id)
+    .in("status", ["active", "trialing"]);
+  if (expireUpdate.error) {
+    throw new Error(expireUpdate.error.message);
+  }
+
+  let walletTx: { transactionId: string } | null = null;
+  try {
+    walletTx = await applyWalletTransaction({
+      admin,
+      userId,
+      direction: "debit",
+      amountThb,
+      txType: "package_purchase",
+      note: `auto_renew:${plan.id}:${candidate.cycle}`,
+    });
+  } catch {
+    return;
+  }
+
+  const order = await createWalletPaidOrder({
+    admin,
+    userId,
+    planId: plan.id,
+    cycle: candidate.cycle,
+    walletTransactionId: walletTx.transactionId,
+  });
+
+  await admin
+    .from("wallet_transactions")
+    .update({ ref_order_id: order.id })
+    .eq("id", walletTx.transactionId);
+
+  await activatePackagePlan({
+    admin,
+    userId,
+    plan,
+    cycle: candidate.cycle,
+    status: "active",
+    sourceOrderId: order.id,
   });
 }
 
