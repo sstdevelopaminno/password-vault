@@ -109,6 +109,15 @@ export default function OurPackagesPage() {
     };
   }, [locale, t]);
 
+  useEffect(() => {
+    if (!paymentPlan) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [paymentPlan]);
+
   async function reloadWalletSummary() {
     setLoadingWalletSummary(true);
     try {
@@ -295,56 +304,61 @@ export default function OurPackagesPage() {
       ) : null}
 
       {paymentPlan ? (
-        <section className='space-y-3 rounded-[22px] border border-cyan-300/50 bg-[linear-gradient(150deg,rgba(18,43,116,0.95),rgba(9,21,70,0.98))] p-4'>
-          <div>
-            <h2 className='text-app-h4 font-semibold text-slate-100'>{isThai ? 'เลือกวิธีชำระเงิน' : 'Choose payment method'}</h2>
-            <p className='mt-1 text-app-caption text-slate-200'>
-              {paymentPlan.name} • {t('packages.baht')} {paymentAmount.toLocaleString(isThai ? 'th-TH' : 'en-US')}
-            </p>
-          </div>
+        <div className='fixed inset-0 z-[80] flex items-end justify-center bg-[rgba(4,10,34,0.78)] p-3 sm:items-center' onClick={() => setPaymentPlanId(null)}>
+          <section
+            className='w-full max-w-md space-y-3 rounded-[22px] border border-cyan-300/50 bg-[linear-gradient(150deg,rgba(18,43,116,0.98),rgba(9,21,70,1))] p-4 shadow-[0_22px_48px_rgba(5,13,46,0.65)]'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div>
+              <h2 className='text-app-h4 font-semibold text-slate-100'>{isThai ? 'เลือกวิธีชำระเงิน' : 'Choose payment method'}</h2>
+              <p className='mt-1 text-app-caption text-slate-200'>
+                {paymentPlan.name} • {t('packages.baht')} {paymentAmount.toLocaleString(isThai ? 'th-TH' : 'en-US')}
+              </p>
+            </div>
 
-          <div className='rounded-xl border border-[rgba(155,188,255,0.26)] bg-[rgba(11,22,56,0.65)] p-3'>
-            <p className='text-app-micro text-slate-300'>{isThai ? 'ยอดคงเหลือกระเป๋าเงิน' : 'Wallet balance'}</p>
-            <p className='mt-1 text-app-body font-semibold text-slate-100'>
-              {loadingWalletSummary ? t('common.loading') : `${t('packages.baht')} ${walletSummary.balanceThb.toLocaleString(isThai ? 'th-TH' : 'en-US')}`}
-            </p>
-            {!walletEnough ? (
-              <p className='mt-1 text-app-micro text-amber-200'>{isThai ? 'ยอดเงินไม่พอ กรุณาเติมเงินหรือเลือกวิธี QR' : 'Insufficient wallet balance. Please top up or use QR.'}</p>
-            ) : null}
-          </div>
+            <div className='rounded-xl border border-[rgba(155,188,255,0.26)] bg-[rgba(11,22,56,0.65)] p-3'>
+              <p className='text-app-micro text-slate-300'>{isThai ? 'ยอดคงเหลือกระเป๋าเงิน' : 'Wallet balance'}</p>
+              <p className='mt-1 text-app-body font-semibold text-slate-100'>
+                {loadingWalletSummary ? t('common.loading') : `${t('packages.baht')} ${walletSummary.balanceThb.toLocaleString(isThai ? 'th-TH' : 'en-US')}`}
+              </p>
+              {!walletEnough ? (
+                <p className='mt-1 text-app-micro text-amber-200'>{isThai ? 'ยอดเงินไม่พอ กรุณาเติมเงินหรือเลือกวิธี QR' : 'Insufficient wallet balance. Please top up or use QR.'}</p>
+              ) : null}
+            </div>
 
-          <div className='grid grid-cols-1 gap-2'>
-            <Button
-              type='button'
-              disabled={processingPlanId === paymentPlan.id || !walletEnough}
-              onClick={() => void submitCheckout(paymentPlan.id, 'wallet')}
-              className='h-10 w-full rounded-xl text-app-caption'
-            >
-              <CircleDollarSign className='mr-1 h-4 w-4' />
-              {isThai ? 'ชำระทันทีด้วยกระเป๋าเงิน' : 'Pay now with wallet'}
-            </Button>
+            <div className='grid grid-cols-1 gap-2'>
+              <Button
+                type='button'
+                disabled={processingPlanId === paymentPlan.id || !walletEnough}
+                onClick={() => void submitCheckout(paymentPlan.id, 'wallet')}
+                className='h-10 w-full rounded-xl text-app-caption'
+              >
+                <CircleDollarSign className='mr-1 h-4 w-4' />
+                {isThai ? 'ชำระทันทีด้วยกระเป๋าเงิน' : 'Pay now with wallet'}
+              </Button>
 
-            <Button
-              type='button'
-              variant='secondary'
-              disabled={processingPlanId === paymentPlan.id}
-              onClick={() => void submitCheckout(paymentPlan.id, 'promptpay')}
-              className='h-10 w-full rounded-xl text-app-caption'
-            >
-              <QrCode className='mr-1 h-4 w-4' />
-              {isThai ? 'ชำระทันทีด้วย QR พร้อมเพย์' : 'Pay now by PromptPay QR'}
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              disabled={processingPlanId === paymentPlan.id}
-              onClick={() => setPaymentPlanId(null)}
-              className='h-10 w-full rounded-xl text-app-caption'
-            >
-              {isThai ? 'ยกเลิก' : 'Cancel'}
-            </Button>
-          </div>
-        </section>
+              <Button
+                type='button'
+                variant='secondary'
+                disabled={processingPlanId === paymentPlan.id}
+                onClick={() => void submitCheckout(paymentPlan.id, 'promptpay')}
+                className='h-10 w-full rounded-xl text-app-caption'
+              >
+                <QrCode className='mr-1 h-4 w-4' />
+                {isThai ? 'ชำระทันทีด้วย QR พร้อมเพย์' : 'Pay now by PromptPay QR'}
+              </Button>
+              <Button
+                type='button'
+                variant='secondary'
+                disabled={processingPlanId === paymentPlan.id}
+                onClick={() => setPaymentPlanId(null)}
+                className='h-10 w-full rounded-xl text-app-caption'
+              >
+                {isThai ? 'ยกเลิก' : 'Cancel'}
+              </Button>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       <div className='space-y-2'>
