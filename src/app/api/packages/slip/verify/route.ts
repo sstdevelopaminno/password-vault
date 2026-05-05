@@ -143,7 +143,10 @@ export async function POST(req: Request) {
   const amount = providerResult.amountThb ?? submission.amountThb ?? null;
   const receiverAccount = normalizeAccount(providerResult.receiverAccount ?? submission.receiverAccount ?? "");
   const expectedReceiver = normalizeAccount(order.promptpay_target);
+  const payerAccount = normalizeAccount(providerResult.payerAccount ?? submission.payerAccount ?? "");
+  const payerName = String(providerResult.payerName ?? submission.payerName ?? "").slice(0, 120) || null;
   const transferredAt = providerResult.transferredAt ?? submission.transferredAt ?? null;
+  const transferredAtIso = transferredAt ? new Date(transferredAt).toISOString() : null;
   const reference = String(providerResult.reference ?? submission.reference ?? "").trim();
   const provider = String(providerResult.providerName ?? "manual").trim().slice(0, 40) || "manual";
 
@@ -174,6 +177,17 @@ export async function POST(req: Request) {
     providerFraudMatched;
 
   const verificationStatus = matched ? "matched" : "mismatch";
+  const extracted = {
+    reference: reference || null,
+    amountThb: amount !== null ? Number(amount) : null,
+    receiverAccount: receiverAccount || null,
+    payerAccount: payerAccount || null,
+    payerName,
+    transferredAt: transferredAtIso,
+    slipImageUrl: submission.slipImageUrl ?? null,
+    provider,
+    confidenceScore: providerResult.confidenceScore,
+  };
   const noteParts: string[] = [];
   if (!amountMatched) noteParts.push("amount_mismatch");
   if (!receiverMatched) noteParts.push("receiver_mismatch");
@@ -193,10 +207,10 @@ export async function POST(req: Request) {
       provider_name: provider,
       provider_reference: reference || null,
       amount_thb: amount !== null ? Number(amount) : null,
-      payer_name: String(providerResult.payerName ?? submission.payerName ?? "").slice(0, 120) || null,
-      payer_account: normalizeAccount(providerResult.payerAccount ?? submission.payerAccount ?? "") || null,
+      payer_name: payerName,
+      payer_account: payerAccount || null,
       receiver_account: receiverAccount || null,
-      transferred_at: transferredAt ? new Date(transferredAt).toISOString() : null,
+      transferred_at: transferredAtIso,
       verification_note: noteParts.join(",") || null,
       raw_payload_json: {
         submission,
@@ -213,6 +227,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       verified: false,
       reason: noteParts,
+      extracted,
     });
   }
 
@@ -250,6 +265,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     verified: true,
+    extracted,
     subscription: {
       id: subscription.id,
       status: subscription.status,

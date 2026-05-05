@@ -83,9 +83,16 @@ export async function GET(req: Request) {
     })
     .sort((a, b) => a.order - b.order);
 
-  return NextResponse.json({
-    locale,
-    plans,
-  });
+  return NextResponse.json(
+    {
+      locale,
+      plans,
+    },
+    {
+      headers: {
+        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+      },
+    },
+  );
 }
 

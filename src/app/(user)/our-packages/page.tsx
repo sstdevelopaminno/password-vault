@@ -1,11 +1,19 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { Check, CircleDollarSign, Crown, QrCode, Rocket, Shield } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  extractSlipFieldsFromImageClient,
+  hasMeaningfulSlipFields,
+  optimizeSlipImageForUpload,
+  toDatetimeLocalValue,
+  toIsoFromDatetimeLocal,
+  type SlipExtractedFields,
+} from '@/lib/slip-autofill';
 
 type BillingCycle = 'monthly' | 'yearly';
 
@@ -56,6 +64,20 @@ type CurrentPackagePayload = {
   };
 };
 
+type SlipVerifyResponse = {
+  error?: string;
+  verified?: boolean;
+  reason?: string[];
+  extracted?: SlipExtractedFields;
+  subscription?: {
+    id: string;
+    status: 'active' | 'trialing' | 'expired' | 'canceled';
+    cycle: BillingCycle | null;
+    startsAt: string;
+    endsAt: string | null;
+  };
+};
+
 const iconsByPlan: Record<string, typeof Rocket> = {
   free_starter: Rocket,
   free_pro_trial: Rocket,
@@ -84,6 +106,9 @@ export default function OurPackagesPage() {
   const [slipImageUrl, setSlipImageUrl] = useState('');
   const [slipImageName, setSlipImageName] = useState('');
   const [uploadingSlipImage, setUploadingSlipImage] = useState(false);
+  const [slipFieldsLocked, setSlipFieldsLocked] = useState(false);
+  const [scanningSlipOcr, setScanningSlipOcr] = useState(false);
+  const [slipOcrProgress, setSlipOcrProgress] = useState(0);
   const [paymentPlanId, setPaymentPlanId] = useState<string | null>(null);
   const [walletSummary, setWalletSummary] = useState<WalletSummary>({ balanceThb: 0 });
   const [loadingWalletSummary, setLoadingWalletSummary] = useState(false);
@@ -99,6 +124,19 @@ export default function OurPackagesPage() {
   const formatPriceLabel = (amount: number) =>
     isThai ? `${amount.toLocaleString('th-TH')} ${t('packages.baht')}` : `${t('packages.baht')} ${amount.toLocaleString('en-US')}`;
 
+  const applyExtractedSlipFields = useCallback((extracted?: SlipExtractedFields | null) => {
+    if (!extracted) return;
+
+    if (typeof extracted.reference === 'string') setSlipReference(extracted.reference);
+    if (typeof extracted.amountThb === 'number' && Number.isFinite(extracted.amountThb)) setSlipAmount(String(extracted.amountThb));
+    if (typeof extracted.receiverAccount === 'string') setSlipReceiver(extracted.receiverAccount);
+    if (typeof extracted.payerAccount === 'string') setSlipPayer(extracted.payerAccount);
+    if (typeof extracted.payerName === 'string') setSlipPayerName(extracted.payerName);
+    if (typeof extracted.transferredAt === 'string') setSlipTransferredAt(toDatetimeLocalValue(extracted.transferredAt));
+    if (typeof extracted.slipImageUrl === 'string' && extracted.slipImageUrl) setSlipImageUrl(extracted.slipImageUrl);
+    setSlipFieldsLocked(true);
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -106,7 +144,7 @@ export default function OurPackagesPage() {
       setLoading(true);
       setErrorMessage('');
       try {
-        const response = await fetch(`/api/packages/plans?locale=${locale}`, { cache: 'no-store' });
+        const response = await fetch(`/api/packages/plans?locale=${locale}`, { cache: 'force-cache' });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(String(payload.error ?? t('packages.loadFailed')));
@@ -147,13 +185,13 @@ export default function OurPackagesPage() {
   }, [locale]);
 
   useEffect(() => {
-    if (!paymentPlan) return;
+    if (!paymentPlan && !checkoutOrder) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = originalOverflow;
     };
-  }, [paymentPlan]);
+  }, [paymentPlan, checkoutOrder]);
 
   async function reloadWalletSummary() {
     setLoadingWalletSummary(true);
@@ -197,7 +235,15 @@ export default function OurPackagesPage() {
         const order = payload.order as CheckoutOrder;
         setCheckoutOrder(order);
         setPaymentPlanId(null);
+        setSlipReference('');
         setSlipAmount(String(order.uniqueAmountThb));
+        setSlipReceiver('');
+        setSlipPayer('');
+        setSlipPayerName('');
+        setSlipTransferredAt('');
+        setSlipImageUrl('');
+        setSlipImageName('');
+        setSlipFieldsLocked(false);
         setStatusMessage(t('packages.createdOrder'));
         return;
       }
@@ -284,12 +330,15 @@ export default function OurPackagesPage() {
     }
   }
 
-  async function submitSlipVerification() {
+  async function submitSlipVerification(options?: { overrideSlipImageUrl?: string; autoRun?: boolean }) {
     if (!checkoutOrder) return;
 
     setVerifyingSlip(true);
     setErrorMessage('');
-    setStatusMessage('');
+    setStatusMessage(options?.autoRun ? (isThai ? 'กำลังสแกนและตรวจสอบสลิปอัตโนมัติ...' : 'Scanning and verifying slip automatically...') : '');
+
+    const slipImageForVerify = options?.overrideSlipImageUrl ?? slipImageUrl;
+    const transferredAtIso = toIsoFromDatetimeLocal(slipTransferredAt);
 
     try {
       const response = await fetch('/api/packages/slip/verify', {
@@ -303,26 +352,46 @@ export default function OurPackagesPage() {
           receiverAccount: slipReceiver || null,
           payerAccount: slipPayer || null,
           payerName: slipPayerName || null,
-          transferredAt: slipTransferredAt ? new Date(slipTransferredAt).toISOString() : null,
-          slipImageUrl: slipImageUrl || null,
+          transferredAt: transferredAtIso,
+          slipImageUrl: slipImageForVerify || null,
         }),
       });
 
-      const payload = await response.json().catch(() => ({}));
+      const payload = (await response.json().catch(() => ({}))) as SlipVerifyResponse;
       if (!response.ok) {
         throw new Error(typeof payload.error === 'string' ? payload.error : t('packages.verifyFailed'));
       }
 
+      applyExtractedSlipFields(payload.extracted ?? null);
+
       if (payload.verified) {
+        const activatedPlanName = plans.find((plan) => plan.id === checkoutOrder.planId)?.name ?? currentPackage?.plan.name ?? '';
         setStatusMessage(t('packages.slipSuccess'));
         setCheckoutOrder(null);
         setSlipReference('');
+        setSlipAmount('');
         setSlipReceiver('');
         setSlipPayer('');
         setSlipPayerName('');
         setSlipTransferredAt('');
         setSlipImageUrl('');
         setSlipImageName('');
+        setSlipFieldsLocked(false);
+        if (payload.subscription) {
+          setCurrentPackage({
+            plan: {
+              id: checkoutOrder.planId,
+              name: activatedPlanName,
+            },
+            subscription: {
+              id: payload.subscription.id,
+              status: payload.subscription.status,
+              cycle: payload.subscription.cycle,
+              startsAt: payload.subscription.startsAt,
+              endsAt: payload.subscription.endsAt,
+            },
+          });
+        }
       } else {
         setErrorMessage(t('packages.slipFailed'));
       }
@@ -336,10 +405,33 @@ export default function OurPackagesPage() {
   async function handleSlipImageUpload(file: File | null) {
     if (!file) return;
     setUploadingSlipImage(true);
+    setScanningSlipOcr(true);
+    setSlipOcrProgress(0);
     setErrorMessage('');
+    setStatusMessage(isThai ? 'กำลังสแกนข้อมูลจากรูปสลิป...' : 'Scanning slip details from image...');
     try {
+      let lockedByClientOcr = false;
+      try {
+        const ocr = await extractSlipFieldsFromImageClient({
+          file,
+          expectedAmountThb: checkoutOrder?.uniqueAmountThb ?? null,
+          onProgress: (value) => setSlipOcrProgress(value),
+        });
+        if (hasMeaningfulSlipFields(ocr.extracted)) {
+          applyExtractedSlipFields(ocr.extracted);
+          lockedByClientOcr = true;
+        }
+      } catch {
+        // Keep flow running even when local OCR cannot extract fields.
+      } finally {
+        setSlipOcrProgress(1);
+        setScanningSlipOcr(false);
+      }
+
+      setStatusMessage(isThai ? 'กำลังเตรียมและอัปโหลดสลิป...' : 'Preparing and uploading slip image...');
+      const optimizedFile = await optimizeSlipImageForUpload(file);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', optimizedFile, optimizedFile.name);
       const response = await fetch('/api/packages/slip/upload', {
         method: 'POST',
         body: formData,
@@ -349,14 +441,28 @@ export default function OurPackagesPage() {
         throw new Error(String(payload.error ?? 'Slip image upload failed'));
       }
       setSlipImageUrl(payload.slipImageUrl);
-      setSlipImageName(file.name || 'slip-image');
-      setStatusMessage(isThai ? 'อัปโหลดรูปสลิปแล้ว กรุณายืนยันการชำระเงิน' : 'Slip image uploaded. Please verify payment.');
+      setSlipImageName(optimizedFile.name || file.name || 'slip-image');
+      setSlipFieldsLocked(lockedByClientOcr);
+      await submitSlipVerification({
+        overrideSlipImageUrl: payload.slipImageUrl,
+        autoRun: true,
+      });
     } catch (error) {
       setErrorMessage(String(error instanceof Error ? error.message : 'Slip image upload failed'));
     } finally {
+      setScanningSlipOcr(false);
       setUploadingSlipImage(false);
     }
   }
+
+  const slipInputsDisabled = verifyingSlip || uploadingSlipImage || slipFieldsLocked;
+  const slipProgressPercent = scanningSlipOcr
+    ? Math.max(1, Math.min(95, Math.round(slipOcrProgress * 100)))
+    : uploadingSlipImage
+      ? 96
+      : verifyingSlip
+        ? 99
+        : 0;
 
   return (
     <section className='space-y-4 pb-24 pt-[calc(env(safe-area-inset-top)+0.4rem)] animate-screen-in'>
@@ -548,68 +654,90 @@ export default function OurPackagesPage() {
 
         {loading ? (
           <article className='rounded-[22px] border border-[rgba(155,188,255,0.34)] bg-[rgba(15,31,83,0.7)] p-4 text-app-caption text-slate-200'>
-            {t('common.loading')}
+            {isThai ? 'กำลังโหลดแพ็กเกจและราคาล่าสุด...' : 'Loading available packages and latest pricing...'}
           </article>
         ) : null}
       </div>
 
       {checkoutOrder ? (
-        <section className='space-y-3 rounded-[22px] border border-cyan-300/50 bg-[linear-gradient(150deg,rgba(18,43,116,0.95),rgba(9,21,70,0.98))] p-4'>
-          <div>
-            <h2 className='text-app-h4 font-semibold text-slate-100'>{t('packages.paymentTitle')}</h2>
-            <p className='mt-1 text-app-caption text-slate-200'>{t('packages.paymentSubtitle')}</p>
-          </div>
-
-          <div className='grid grid-cols-2 gap-2 text-app-caption text-slate-100'>
-            <div className='rounded-xl bg-[rgba(12,23,60,0.65)] p-2'>
-              <p className='text-app-micro text-slate-300'>{t('packages.paymentAmount')}</p>
-              <p className='font-semibold'>{formatPriceLabel(checkoutOrder.uniqueAmountThb)}</p>
+        <div className='fixed inset-0 z-[130] flex items-center justify-center bg-[rgba(4,10,34,0.82)] p-3' onClick={() => (verifyingSlip || uploadingSlipImage ? null : setCheckoutOrder(null))}>
+          <section
+            className='max-h-[92vh] w-full max-w-lg space-y-3 overflow-auto rounded-[22px] border border-cyan-300/50 bg-[linear-gradient(150deg,rgba(18,43,116,0.98),rgba(9,21,70,1))] p-4 shadow-[0_22px_48px_rgba(5,13,46,0.65)]'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div>
+              <h2 className='text-app-h4 font-semibold text-slate-100'>{t('packages.paymentTitle')}</h2>
+              <p className='mt-1 text-app-caption text-slate-200'>{t('packages.paymentSubtitle')}</p>
             </div>
-            <div className='rounded-xl bg-[rgba(12,23,60,0.65)] p-2'>
-              <p className='text-app-micro text-slate-300'>{t('packages.paymentExpires')}</p>
-              <p className='font-semibold'>{new Date(checkoutOrder.expiresAt).toLocaleString(isThai ? 'th-TH' : 'en-US')}</p>
+
+            <div className='grid grid-cols-2 gap-2 text-app-caption text-slate-100'>
+              <div className='rounded-xl bg-[rgba(12,23,60,0.65)] p-2'>
+                <p className='text-app-micro text-slate-300'>{t('packages.paymentAmount')}</p>
+                <p className='font-semibold'>{formatPriceLabel(checkoutOrder.uniqueAmountThb)}</p>
+              </div>
+              <div className='rounded-xl bg-[rgba(12,23,60,0.65)] p-2'>
+                <p className='text-app-micro text-slate-300'>{t('packages.paymentExpires')}</p>
+                <p className='font-semibold'>{new Date(checkoutOrder.expiresAt).toLocaleString(isThai ? 'th-TH' : 'en-US')}</p>
+              </div>
             </div>
-          </div>
 
-          <Image
-            src={checkoutOrder.promptpayQrUrl}
-            alt='PromptPay QR'
-            width={192}
-            height={192}
-            unoptimized
-            className='mx-auto h-48 w-48 rounded-xl bg-white p-2'
-          />
-
-          <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto1')}</p>
-          <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto2')}</p>
-          <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto3')}</p>
-          <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto4')}</p>
-
-          <div className='space-y-2 rounded-xl border border-[rgba(155,188,255,0.26)] bg-[rgba(11,22,56,0.65)] p-3'>
-            <h3 className='text-app-caption font-semibold text-slate-100'>{t('packages.slipTitle')}</h3>
-            <Input value={slipReference} onChange={(event) => setSlipReference(event.target.value)} placeholder={t('packages.slipReference')} />
-            <Input value={slipAmount} onChange={(event) => setSlipAmount(event.target.value)} placeholder={t('packages.slipAmount')} inputMode='decimal' />
-            <Input value={slipReceiver} onChange={(event) => setSlipReceiver(event.target.value)} placeholder={t('packages.slipReceiver')} />
-            <Input value={slipPayer} onChange={(event) => setSlipPayer(event.target.value)} placeholder={t('packages.slipPayer')} />
-            <Input value={slipPayerName} onChange={(event) => setSlipPayerName(event.target.value)} placeholder={t('packages.slipPayerName')} />
-            <Input value={slipTransferredAt} onChange={(event) => setSlipTransferredAt(event.target.value)} placeholder={t('packages.slipTransferredAt')} type='datetime-local' />
-            <Input
-              type='file'
-              accept='image/*'
-              disabled={uploadingSlipImage || verifyingSlip}
-              onChange={(event) => {
-                const file = event.target.files?.[0] ?? null;
-                void handleSlipImageUpload(file);
-                event.currentTarget.value = '';
-              }}
+            <Image
+              src={checkoutOrder.promptpayQrUrl}
+              alt='PromptPay QR'
+              width={192}
+              height={192}
+              unoptimized
+              className='mx-auto h-48 w-48 rounded-xl bg-white p-2'
             />
-            {slipImageName ? <p className='text-app-micro text-slate-300'>{isThai ? `ไฟล์สลิป: ${slipImageName}` : `Slip file: ${slipImageName}`}</p> : null}
-            <Input value={slipImageUrl} onChange={(event) => setSlipImageUrl(event.target.value)} placeholder={t('packages.slipImageUrl')} />
-            <Button type='button' className='h-10 w-full rounded-xl text-app-caption' disabled={verifyingSlip || uploadingSlipImage} onClick={submitSlipVerification}>
-              {verifyingSlip ? t('packages.slipSubmitting') : t('packages.slipSubmit')}
-            </Button>
-          </div>
-        </section>
+
+            <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto1')}</p>
+            <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto2')}</p>
+            <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto3')}</p>
+            <p className='text-app-micro text-slate-200'>{t('packages.paymentHowto4')}</p>
+
+            <div className='space-y-2 rounded-xl border border-[rgba(155,188,255,0.26)] bg-[rgba(11,22,56,0.65)] p-3'>
+              <h3 className='text-app-caption font-semibold text-slate-100'>{t('packages.slipTitle')}</h3>
+              <p className='text-app-micro text-slate-300'>
+                {isThai ? 'อัปโหลดสลิปแล้วระบบจะสแกน กรอกข้อมูล และตรวจสอบให้อัตโนมัติ' : 'Upload slip and the system will scan, auto-fill, and verify automatically.'}
+              </p>
+              {(scanningSlipOcr || uploadingSlipImage || verifyingSlip) ? (
+                <div className='rounded-xl border border-cyan-300/30 bg-[rgba(9,22,62,0.72)] px-3 py-2'>
+                  <div className='mb-1 flex items-center justify-between text-app-micro text-slate-200'>
+                    <span>{isThai ? 'ความคืบหน้า' : 'Progress'}</span>
+                    <span>{slipProgressPercent}%</span>
+                  </div>
+                  <div className='h-2 overflow-hidden rounded-full bg-[rgba(154,195,255,0.2)]'>
+                    <div className='h-full rounded-full bg-[linear-gradient(90deg,#21d4fd,#5b8cff)] transition-all duration-300' style={{ width: `${slipProgressPercent}%` }} />
+                  </div>
+                </div>
+              ) : null}
+              <Input value={slipReference} onChange={(event) => setSlipReference(event.target.value)} placeholder={t('packages.slipReference')} disabled={slipInputsDisabled} />
+              <Input value={slipAmount} onChange={(event) => setSlipAmount(event.target.value)} placeholder={t('packages.slipAmount')} inputMode='decimal' disabled={slipInputsDisabled} />
+              <Input value={slipReceiver} onChange={(event) => setSlipReceiver(event.target.value)} placeholder={t('packages.slipReceiver')} disabled={slipInputsDisabled} />
+              <Input value={slipPayer} onChange={(event) => setSlipPayer(event.target.value)} placeholder={t('packages.slipPayer')} disabled={slipInputsDisabled} />
+              <Input value={slipPayerName} onChange={(event) => setSlipPayerName(event.target.value)} placeholder={t('packages.slipPayerName')} disabled={slipInputsDisabled} />
+              <Input value={slipTransferredAt} onChange={(event) => setSlipTransferredAt(event.target.value)} placeholder={t('packages.slipTransferredAt')} type='datetime-local' disabled={slipInputsDisabled} />
+              <Input
+                type='file'
+                accept='image/*'
+                disabled={uploadingSlipImage || verifyingSlip}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  void handleSlipImageUpload(file);
+                  event.currentTarget.value = '';
+                }}
+              />
+              {slipImageName ? <p className='text-app-micro text-slate-300'>{isThai ? `ไฟล์สลิป: ${slipImageName}` : `Slip file: ${slipImageName}`}</p> : null}
+              <Input value={slipImageUrl} readOnly disabled placeholder={t('packages.slipImageUrl')} />
+              <Button type='button' className='h-10 w-full rounded-xl text-app-caption' disabled={verifyingSlip || uploadingSlipImage} onClick={() => void submitSlipVerification()}>
+                {verifyingSlip ? t('packages.slipSubmitting') : (isThai ? 'ตรวจสอบสลิปอีกครั้ง' : 'Verify again')}
+              </Button>
+              <Button type='button' variant='secondary' className='h-10 w-full rounded-xl text-app-caption' disabled={verifyingSlip || uploadingSlipImage} onClick={() => setCheckoutOrder(null)}>
+                {isThai ? 'ปิดหน้าต่างนี้' : 'Close'}
+              </Button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </section>
   );
